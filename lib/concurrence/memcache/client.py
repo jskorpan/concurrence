@@ -3,7 +3,7 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence import Tasklet, Channel, TaskletError
+from concurrence import Tasklet, Channel, Message, TaskletError
 from concurrence.timer import Timeout
 from concurrence.io.socket import Socket
 from concurrence.io.buffered import BufferedStream
@@ -39,12 +39,11 @@ MemcacheResult.EXISTS = MemcacheResult()
 MemcacheResult.NOT_FOUND = MemcacheResult()
 MemcacheResult.DELETED = MemcacheResult()
 MemcacheResult.ERROR = MemcacheResult()
-MemcacheResult.ALL = {"STORED": MemcacheResult.STORED,
-                      "NOT_STORED": MemcacheResult.NOT_STORED,
-                      "EXISTS": MemcacheResult.EXISTS,
-                      "NOT_FOUND": MemcacheResult.NOT_FOUND,
-                      "DELETED": MemcacheResult.DELETED,
-                      "ERROR": MemcacheResult.ERROR}
+MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
+                           "NOT_STORED": MemcacheResult.NOT_STORED,
+                           "EXISTS": MemcacheResult.EXISTS,
+                           "NOT_FOUND": MemcacheResult.NOT_FOUND,
+                           "DELETED": MemcacheResult.DELETED}
 
 class MemcacheCommand(object):
     def __init__(self):
@@ -82,7 +81,7 @@ class MemcacheCommandGet(MemcacheCommand):
 class MemcacheCommandWithResult(MemcacheCommand):
     def read(self, reader):
         response_line = reader.read_line()
-        result = MemcacheResult.ALL.get(response_line, None)
+        result = MemcacheResult.RESPONSES.get(response_line, None)
         assert result is not None, "protocol error"
         return result
     
@@ -126,12 +125,13 @@ class MemcacheConnection(object):
     STATE_CONNECTED = 1
     STATE_FAILED = 2
 
+    class _MSG_COMMAND(Message): pass
+    class _MSG_RESPONSE(Message): pass
+
     def __init__(self, addr):
         self._addr = addr
         self._stream = None
         self._state = self.STATE_CLOSED
-        self._command_queue = Deque()
-        self._response_queue = Deque()
         self._command_writer_task = Tasklet.new(self._command_writer)()
         self._response_reader_task = Tasklet.new(self._response_reader)()
 
@@ -166,32 +166,26 @@ class MemcacheConnection(object):
 #            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
 #        for cmd in self._response_queue:
 #            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-#        self._command_queue = None
-#        self._response_queue = None
 #        self._stream.close()
 #        self._stream = None
 
     def _response_reader(self):
-        cmd = None
-        while True:
+        for msg, (cmd,), _ in Tasklet.receive():
             try:
-                cmd = self._response_queue.popleft(True)
                 cmd.channel.send(cmd.read(self.reader))
             except Exception, e:
                 self.log.exception('error while reading response')
                 self._fail()
             
     def _command_writer(self):
-        cmd = None
-        while True:
+        for msg, (cmd,), _ in Tasklet.receive():
             try:
-                cmd = self._command_queue.popleft(True)
                 self._reconnect()
                 self.writer.clear()
                 cmd.write(self.writer)
                 self.writer.write_bytes('\r\n')
                 self.writer.flush()
-                self._response_queue.append(cmd)
+                self._MSG_RESPONSE.send(self._response_reader_task)(cmd)
             except Exception:
                 self.log.exception('error while writing command')
                 self._fail()
@@ -200,7 +194,8 @@ class MemcacheConnection(object):
         if self._state == self.STATE_FAILED:
             return MemcacheResult.ERROR
             
-        self._command_queue.append(cmd)
+        self._MSG_COMMAND.send(self._command_writer_task)(cmd)
+
         try:
             return cmd.channel.receive()
         except Exception:
