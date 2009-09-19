@@ -1,13 +1,12 @@
 import os
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache.client import MemcacheConnection, MemcacheError, MemcacheResult
+from concurrence.memcache.client import MemcacheConnection, MemcacheResult
 
 class MemcacheTest(unittest.TestCase):
     def testNodeBasic(self):
         
-        node = MemcacheConnection()
-        node.connect(('127.0.0.1', 11211))
+        node = MemcacheConnection(('127.0.0.1', 11211))
 
         self.assertEquals(MemcacheResult.STORED, node.set('test1', '12345'))
         self.assertEquals(MemcacheResult.STORED, node.set('test2', '67890'))

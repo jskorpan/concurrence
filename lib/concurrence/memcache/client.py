@@ -30,9 +30,6 @@ import cPickle as pickle
 #UPD support
 #binary support
 
-class MemcacheError(Exception):
-    pass
-
 class MemcacheResult(object):
     pass
         
@@ -41,12 +38,13 @@ MemcacheResult.NOT_STORED = MemcacheResult()
 MemcacheResult.EXISTS = MemcacheResult()
 MemcacheResult.NOT_FOUND = MemcacheResult()
 MemcacheResult.DELETED = MemcacheResult()
-
+MemcacheResult.ERROR = MemcacheResult()
 MemcacheResult.ALL = {"STORED": MemcacheResult.STORED,
                       "NOT_STORED": MemcacheResult.NOT_STORED,
                       "EXISTS": MemcacheResult.EXISTS,
                       "NOT_FOUND": MemcacheResult.NOT_FOUND,
-                      "DELETED": MemcacheResult.DELETED}
+                      "DELETED": MemcacheResult.DELETED,
+                      "ERROR": MemcacheResult.ERROR}
 
 class MemcacheCommand(object):
     def __init__(self):
@@ -84,7 +82,6 @@ class MemcacheCommandGet(MemcacheCommand):
 class MemcacheCommandWithResult(MemcacheCommand):
     def read(self, reader):
         response_line = reader.read_line()
-        #print response_line
         result = MemcacheResult.ALL.get(response_line, None)
         assert result is not None, "protocol error"
         return result
@@ -125,79 +122,89 @@ class MemcacheConnection(object):
     """
     log = logging.getLogger('MemcacheConnection')
 
-    def __init__(self):
-        self._stream = None
+    STATE_CLOSED = 0
+    STATE_CONNECTED = 1
+    STATE_FAILED = 2
 
-    def connect(self, addr):
-        assert self._stream is None, "already connected"
-        self._stream = BufferedStream(Socket.connect(addr, Timeout.current()))
+    def __init__(self, addr):
+        self._addr = addr
+        self._stream = None
+        self._state = self.STATE_CLOSED
         self._command_queue = Deque()
         self._response_queue = Deque()
         self._command_writer_task = Tasklet.new(self._command_writer)()
         self._response_reader_task = Tasklet.new(self._response_reader)()
 
+    def _reconnect(self):
+        if self._state == self.STATE_CONNECTED:
+            return
+        else:
+            assert self._stream is None
+            #TODO exception/timeout
+            self._stream = BufferedStream(Socket.connect(self._addr, -1))
+            self._state = self.STATE_CONNECTED
+
     def close(self):
-        self._response_reader_task.kill()
+        self._fail()
         self._command_writer_task.kill()
-        self._response_reader_task = None
+        self._response_reader_task.kill()
         self._command_writer_task = None
-        #raise exception on all waiting tasks still in the queues
-        for cmd in self._command_queue:
-            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-        for cmd in self._response_queue:
-            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-        self._command_queue = None
-        self._response_queue = None
-        self._stream.close()
-        self._stream = None
+        self._response_reader_task = None
 
-    def _read_response(self, reader):
-        cmd = self._response_queue.popleft(True)
-        try:
-            result = cmd.read(reader)
-            cmd.channel.send(result)
-        except Exception, e:
-            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-            raise 
+    @property
+    def reader(self):
+        return self._stream.reader
 
-    def _write_command(self, writer):
-        try:
-            cmd = self._command_queue.popleft(True)
-            writer.clear()
-            cmd.write(writer)
-            writer.write_bytes('\r\n')
-            writer.flush()
-            self._response_queue.append(cmd)
-        except Exception, e:
-            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-            raise
+    @property
+    def writer(self):
+        return self._stream.writer
+
+    def _fail(self):
+        pass
+#        #raise exception on all waiting tasks still in the queues
+#        for cmd in self._command_queue:
+#            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
+#        for cmd in self._response_queue:
+#            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
+#        self._command_queue = None
+#        self._response_queue = None
+#        self._stream.close()
+#        self._stream = None
 
     def _response_reader(self):
-        reader = self._stream.reader
+        cmd = None
         while True:
             try:
-                self._read_response(reader)
+                cmd = self._response_queue.popleft(True)
+                cmd.channel.send(cmd.read(self.reader))
             except Exception, e:
-                self.close()
                 self.log.exception('error while reading response')
-                return #this ends reader
+                self._fail()
             
     def _command_writer(self):
-        writer = self._stream.writer       
+        cmd = None
         while True:
             try:
-                self._write_command(writer)
-            except Exception, e:
-                self.close()
+                cmd = self._command_queue.popleft(True)
+                self._reconnect()
+                self.writer.clear()
+                cmd.write(self.writer)
+                self.writer.write_bytes('\r\n')
+                self.writer.flush()
+                self._response_queue.append(cmd)
+            except Exception:
                 self.log.exception('error while writing command')
-                return #this ends writer
+                self._fail()
 
     def _do_command(self, cmd):
+        if self._state == self.STATE_FAILED:
+            return MemcacheResult.ERROR
+            
         self._command_queue.append(cmd)
         try:
             return cmd.channel.receive()
-        except TaskletError, e:
-            raise MemcacheError(str(e.cause))
+        except Exception:
+            return MemcacheResult.ERROR
 
     def set(self, key, data, flags = 0):
         return self._do_command(MemcacheCommandSet(key, data, flags))
