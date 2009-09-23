@@ -1,5 +1,5 @@
 
-N = 1000000
+N = 100000
 
 def test_cmemcached():
     import cmemcached    

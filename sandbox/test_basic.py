@@ -18,8 +18,8 @@ STATE_WAIT_SET_RESPONSE = 2
 
 state = STATE_WRITE_SET_REQUEST 
 
-N = 1000000
-#N = 10
+N = 100000
+#N = 1000
 n = 0
 
 buff = Buffer(1024)
@@ -47,21 +47,22 @@ def callback(flags):
         elif state == STATE_READ_SET_RESPONSE:
             read, remaining = buff.recv(fd)
             if read == -1 and get_errno() == EAGAIN:
+                print 'x'
                 read_event.add(1.0)
                 state = STATE_READ_SET_RESPONSE
                 #print "ret from set resp"
                 return
             elif buff.position == 8:
                 buff.flip() 
-                result = buff.read_line()
-                if result == 'STORED':
-                    if n < N:
-                        n += 1
-                        state = STATE_WRITE_SET_REQUEST
-                    else:
-                        raise Exception("DONE")
+                #result = buff.read_line()
+                #if result == 'STORED':
+                if n < N:
+                    n += 1
+                    state = STATE_WRITE_SET_REQUEST
                 else:
-                    raise Exception("TODO")
+                    raise Exception("DONE")
+                #else:
+                #    raise Exception("TODO")
             else:
                 raise Exception("TODO")
         else:
@@ -71,10 +72,20 @@ def callback(flags):
 read_event = event.event(fd, event.EV_READ, callback)
 write_event = event.event(fd, event.EV_WRITE, callback)
 
-callback(0) #kick off!
+import time
 
-while True:
-    triggered = event.loop(event.EVLOOP_ONCE)
-    while triggered:
-        e, flags, fd = triggered.popleft()
-        e.data(flags)
+start = time.time()    
+
+try:
+
+    callback(0) #kick off!
+
+    while True:
+        triggered = event.loop(event.EVLOOP_ONCE)
+        while triggered:
+            e, flags, fd = triggered.popleft()
+            e.data(flags)
+except:
+    end = time.time()
+    print '#set/sec', N / (end - start)
+

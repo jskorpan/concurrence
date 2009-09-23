@@ -5,9 +5,9 @@
 
 import types
 
-cdef extern from "sys/socket.h":
-    int recv(int, void *, int, int)
-    int send(int, void *, int, int)
+cdef extern from "unistd.h":
+   int write(int, void *, int)
+   int read(int, void *, int) 
 
 cdef extern from "string.h":
     cdef void *memmove(void *, void *, int)
@@ -203,7 +203,7 @@ cdef class Buffer:
         The :attr:`position` of the buffer will be updated according to the number of bytes read.
         """
         cdef int b
-        b = recv(fd, self._buff + self._position, self._limit - self._position, 0)
+        b = read(fd, self._buff + self._position, self._limit - self._position)
         if b > 0: self._position = self._position + b
         return b, self._limit - self._position
 
@@ -212,7 +212,7 @@ cdef class Buffer:
         Returns a tuple (bytes_written, bytes_remaining). If *bytes_written* is negative, an IO Error was encountered.
         """
         cdef int b
-        b = send(fd, self._buff + self._position, self._limit - self._position, 0)
+        b = write(fd, self._buff + self._position, self._limit - self._position)
         if b > 0: self._position = self._position + b   
         return b, self._limit - self._position
         

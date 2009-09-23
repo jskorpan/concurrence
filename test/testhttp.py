@@ -7,7 +7,7 @@ from concurrence.http import HTTPError, WSGIServer, HTTPConnection
 from concurrence.wsgi import WSGISimpleRouter, WSGISimpleMessage
 from concurrence.io import Buffer, Socket
 
-SERVER_PORT = 8080
+SERVER_PORT = 9090
 
 class TestHTTP(unittest.TestCase):
     def setUp(self):
