@@ -55,13 +55,14 @@ cdef extern from "event.h":
 
     void evtimer_set(event_t *ev, event_handler handler, void *arg)
 
-    int EVLOOP_ONCE
-    int EVLOOP_NONBLOCK
-    int EV_TIMEOUT
-    int EV_READ
-    int EV_WRITE
-    int EV_SIGNAL
-    int EV_PERSIST
+EVLOOP_ONCE     = 0x01
+EVLOOP_NONBLOCK = 0x02
+
+EV_TIMEOUT      = 0x01
+EV_READ         = 0x02
+EV_WRITE        = 0x04
+EV_SIGNAL       = 0x08
+EV_PERSIST      = 0x10 
 
 triggered = collections.deque()
 
@@ -73,12 +74,13 @@ class EventError(Exception):
         Exception.__init__(self, msg + ": " + strerror(errno))
 
 cdef class event:
+    cdef public object data
+
     cdef event_t ev
-    cdef object data
 
     def __init__(self, object data):
         self.data = data
-        
+                
     def set(self, int fd, short event): 
         event_set(&self.ev, fd, event, __event_handler, <void *>self)
 
@@ -103,7 +105,7 @@ cdef class event:
             raise EventError("could not delete event")
     
     def __repr__(self):
-        return '<ev flags=0x%x, data=%s' % (self.ev.ev_flags, self.data)
+        return '<ev flags=0x%x, data=%s>' % (self.ev.ev_flags, self.data)
 
 def version():
     return event_get_version()
@@ -111,11 +113,12 @@ def version():
 def method():
     return event_get_method()
 
+#TODO make loop release the GIL
 def loop(int flags):
     if event_loop(flags) ==  -1:
         raise EventError("error in event_loop")
     return triggered
 
-# XXX - make sure event queue is always initialized.
+#init libevent
 event_init()
 
