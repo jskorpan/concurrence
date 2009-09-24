@@ -18,7 +18,8 @@ STATE_WAIT_SET_RESPONSE = 2
 
 state = STATE_WRITE_SET_REQUEST 
 
-N = 100
+N = 1000000
+#N = 10
 n = 0
 
 buff = Buffer(1024)
@@ -34,9 +35,7 @@ def callback(flags):
             buff.clear()
             key = 'piet%d' % n
             value = 'klaas%d' % n
-            buff.write_bytes("%s %s %d 0 %d\r\n" % ('set', key, 0, len(value)))
-            buff.write_bytes(value)
-            buff.write_bytes('\r\n')
+            buff.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % ('set', key, 0, len(value), value))
             buff.flip()
             written, remaining = buff.send(fd)
             if written < 0:
