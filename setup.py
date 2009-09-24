@@ -30,7 +30,6 @@ setup(
   packages = find_packages('lib'),
   ext_modules=[
     Extension("concurrence._event", ["lib/concurrence/concurrence._event.pyx"], include_dirs = libevent_include_dirs, library_dirs = libevent_library_dirs, libraries = ["event"]),
-    Extension("concurrence._event2", ["lib/concurrence/concurrence._event2.pyx"], include_dirs = libevent_include_dirs, library_dirs = libevent_library_dirs, libraries = ["event"]),
     Extension("concurrence.io._io", ["lib/concurrence/io/concurrence.io._io.pyx", "lib/concurrence/io/io_base.c"]),
     Extension("concurrence.database.mysql._mysql", ["lib/concurrence/database/mysql/concurrence.database.mysql._mysql.pyx"], 
               include_dirs=['lib/concurrence/io']

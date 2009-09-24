@@ -28,7 +28,7 @@ if '-Xleak' in sys.argv:
     DEBUG_LEAK = True
 
 from signal import SIGINT
-from concurrence import _event2 as _event
+from concurrence import _event
 
 def get_version_info():
     return {'libevent_version': _event.version(),
