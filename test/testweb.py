@@ -6,6 +6,8 @@ from concurrence.web import Application, Controller, Filter, web
 from concurrence.web.filter import TimeoutFilter, JSONFilter
 from concurrence.http.client import HTTPConnection
 
+HTTP_PORT = 9090
+
 class CallManyFilter(Filter):
     def __init__(self, n):
         self.n = n
@@ -45,7 +47,7 @@ class TestWeb(unittest.TestCase):
         application = Application()
         application.add_controller(TestController())
         application.configure()
-        self.server = application.serve(('localhost', 8080))
+        self.server = application.serve(('localhost', 9090))
 
     def tearDown(self):
 
@@ -56,7 +58,7 @@ class TestWeb(unittest.TestCase):
         cnn = None
         try:           
             cnn = HTTPConnection()
-            cnn.connect(('localhost', 8080))
+            cnn.connect(('localhost', 9090))
             response = cnn.perform(cnn.get('/hello'))
             status = response.status
             self.assertEquals('HTTP/1.1 200 OK', status)    
@@ -71,7 +73,7 @@ class TestWeb(unittest.TestCase):
         cnn = None
         try:           
             cnn = HTTPConnection()
-            cnn.connect(('localhost', 8080))
+            cnn.connect(('localhost', 9090))
 
             request = cnn.get('/timeout')
             request.add_header('Timeout', 1.0)
@@ -88,7 +90,7 @@ class TestWeb(unittest.TestCase):
         cnn = None
         try:           
             cnn = HTTPConnection()
-            cnn.connect(('localhost', 8080))
+            cnn.connect(('localhost', 9090))
             response = cnn.perform(cnn.get('/json'))
             status = response.status
             self.assertEquals('HTTP/1.1 200 OK', status)    
@@ -102,7 +104,7 @@ class TestWeb(unittest.TestCase):
         cnn = None
         try:           
             cnn = HTTPConnection()
-            cnn.connect(('localhost', 8080))
+            cnn.connect(('localhost', 9090))
             response = cnn.perform(cnn.get('/many'))
             self.assertEquals('blaat' * 10, response.body)
         finally:

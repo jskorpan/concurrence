@@ -18,7 +18,7 @@ import _io
 from concurrence import Tasklet, FileDescriptorEvent
 from concurrence.io import IOStream
 
-DEFAULT_BACKLOG = 255    
+DEFAULT_BACKLOG = 512    
 
 class Socket(IOStream):
     log = logging.getLogger('Socket')

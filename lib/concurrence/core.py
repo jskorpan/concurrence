@@ -28,7 +28,7 @@ if '-Xleak' in sys.argv:
     DEBUG_LEAK = True
 
 from signal import SIGINT
-from concurrence import _event
+from concurrence import _event2 as _event
 
 def get_version_info():
     return {'libevent_version': _event.version(),
@@ -62,18 +62,18 @@ class Event(object):
 class FileDescriptorEvent(Event):
     def __init__(self, fd, rw):
         if rw == 'r':
-            ev = _event.EV_READ
+            event_type = _event.EV_READ
         elif rw == 'w':
-            ev = _event.EV_WRITE
+            event_type = _event.EV_WRITE
         else:
             assert False, "rw must be one of ['r', 'w']"
-        self._event = _event.event(self._on_event, ev, fd)
+        self._event = _event.event(fd, event_type, self._on_event)
         self._current_channel = None #this is where read/write ability is notified
 
-    def _on_event(self, ev_type):
+    def _on_event(self, event_type):
         if self._current_channel is None:
             return #already closed
-        if ev_type & _event.EV_TIMEOUT:
+        if event_type & _event.EV_TIMEOUT:
             self._current_channel.send_exception(TimeoutError, "timeout on fd event")
         else:
             self._current_channel.send(self)
@@ -87,11 +87,8 @@ class FileDescriptorEvent(Event):
         self.notify(channel, timeout)
         return self._current_channel.receive()        
 
-    def delete(self):
-        self._event.delete()
-
     def close(self):
-        self.delete()
+        self._event.delete()
         self._event = None
         self._current_channel = None
 
@@ -99,11 +96,10 @@ class SignalEvent(Event):
     def __init__(self, signo, callback, persist = True):
         self._persist = persist
         self._callback = callback
-        self._event = _event.event(self._on_event, _event.EV_SIGNAL, signo)
+        self._event = _event.event(signo, _event.EV_SIGNAL, self._on_event)
         self._event.add()
 
-    def _on_event(self, ev_type):
-        #print 'signal event'
+    def _on_event(self, event_type):
         if self._persist: 
             self._event.add()
         if callable(self._callback):
@@ -119,11 +115,10 @@ class TimeoutEvent(Event):
         self._persist = persist
         self._timeout = timeout
         self._callback = callback
-        self._event = _event.event(self._on_event, 0)
+        self._event = _event.event(-1, _event.EV_TIMEOUT, self._on_event)
         self._event.add(timeout)
 
-    def _on_event(self, ev_type):
-        #print 'timeout event'
+    def _on_event(self, event_type):
         if self._persist: 
             self._event.add(self._timeout)
         if callable(self._callback):
@@ -683,6 +678,8 @@ def _dispatch(f = None):
     #if it still must be _running...
     event_heartbeat = TimeoutEvent(1.0, None, True)
     
+    #as a convenience, user can provide a callable *f* to start a new task
+    #lets start it here
     if callable(f):
         Tasklet.new(f)()
         
@@ -695,6 +692,7 @@ def _dispatch(f = None):
         #that will trigger tasks to become runnable
         #ad infinitum...
         while _running:
+            #first let any tasklets run until they have all become blocked on IO            
             try:
                 while stackless.getruncount() > 1:
                     stackless.schedule()
@@ -702,20 +700,30 @@ def _dispatch(f = None):
                 pass
             except:
                 logging.exception("unhandled exception in dispatch schedule")
-            #note that we changed the way pyevent notifies us of pending events
-            #instead of calling the callbacks from within the pyevent extension
-            #it returns the list of callbacks that have to be called.
-            #calling from pyevent would give us a C stack which is not
-            #optimal (stackless would hardswitch instead of softswitch)
-            triggered = _event.loop()
-            while triggered:
-                callback, evtype = triggered.popleft()
+            
+            #now block on IO, till any IO is ready.
+            #care has been taken to not callback directly into python
+            #from libevent. that would add c-data on the stack which would
+            #make stackless need to use hard-switching, which is slow.
+            #so we call loop that blocks until something available
+            #and then we iterate over the avaiable triggered events and 
+            #call the callbacks to resume the tasklets that were waiting on those IO's.
+            try:
+                _event.loop()
+            except TaskletExit:
+                raise
+            except:
+                logging.exception("unhandled exception in event loop")
+
+            while _event.has_next():
                 try:
-                    callback(evtype)
+                    e, event_type, fd = _event.next()
+                    e.data(event_type)
                 except TaskletExit:
                     raise
                 except:
-                    logging.exception("unhandled exception in dispatch event callback")
+                    logging.exception("unhandled exception in event callback")
+
     finally:
         event_interrupt.close()
         event_heartbeat.close()
