@@ -70,6 +70,10 @@ class EventError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg + ": " + strerror(errno))
 
+#keep a singly-linked list of events that are triggered during 1 call to 'loop'
+#we will append at the end, and our client will read from the front 
+#therefore we keep 2 pointers to the head and tail of the list to easily
+#provide these FIFO operations
 cdef struct __list:
     void *event
     short flags
@@ -77,7 +81,9 @@ cdef struct __list:
     __list *next
 
 cdef __list* head
+cdef __list* tail
 head = NULL
+tail = NULL
 
 cdef void __event_handler(int fd, short flags, void* arg) nogil:
     cdef __list *tmp
@@ -86,14 +92,16 @@ cdef void __event_handler(int fd, short flags, void* arg) nogil:
     trig.flags = flags
     trig.fd = fd
     global head
+    global tail
     if head == NULL:
+        trig.next = NULL
         head = trig
-        head.next = NULL
+        tail = trig
     else:
-        tmp = head
-        head = trig
-        head.next = tmp
-
+        trig.next = NULL
+        tail.next = trig
+        tail = trig
+        
 cdef class __event:
     cdef public object data
 
