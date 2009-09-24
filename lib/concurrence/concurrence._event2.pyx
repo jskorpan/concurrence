@@ -141,8 +141,13 @@ def version():
 def method():
     return event_get_method()
 
+_next = None
+
 def next():
-    cdef __list* current
+    return _next
+
+def loop():
+    cdef __list* tmp
     cdef int result
 
     global head
@@ -152,12 +157,14 @@ def next():
         if result == -1:
             raise EventError("error in event_loop")
 
-    current = head
-    if current == NULL:
-        return None
+    global _next
+    if head == NULL:
+        _next = None
+        return False
     else:
-        head = current.next
-        return (<__event>current.event, current.flags, current.fd)
+        _next = (<__event>head.event, head.flags, head.fd)
+        head = head.next
+        return True
     
 #init libevent
 event_init()

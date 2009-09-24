@@ -56,6 +56,7 @@ def callback(flags):
                 #if result == 'STORED':
                 if n < N:
                     n += 1
+                    #print n
                     state = STATE_WRITE_SET_REQUEST
                 else:
                     raise Exception("DONE")
@@ -78,16 +79,14 @@ try:
 
     callback(0) #kick off!
 
-    while True:
-        next = event.next()
-        if next is None: 
-            continue
-        else:
-            e, flags, fd = next
-            e.data(flags)
+    while event.loop():
+        e, flags, fd = event.next()
+        e.data(flags)
+
 except:
     end = time.time()
     print '#set/sec', N / (end - start)
+    raise
 
 #with gil, using deque
 #===============================================================================
