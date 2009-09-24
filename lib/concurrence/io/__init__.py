@@ -4,7 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
     
-from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError
+from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError, get_errno
 
 class IOStream(object):
     """abstract class to indicate that something is a stream and capable

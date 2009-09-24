@@ -18,6 +18,9 @@ cdef extern from "stdlib.h":
     cdef void *calloc(int, int)
     cdef void free(void *)    
 
+cdef extern from "errno.h":
+    int errno
+
 cdef extern from "Python.h":
     object PyString_FromStringAndSize(char *, int)
     object PyString_FromString(char *)
@@ -33,6 +36,9 @@ cdef extern from "io_base.h":
 def error_from_errno(object exc):
     return PyErr_SetFromErrno(exc)
 
+def get_errno():
+    return errno
+    
 class BufferError(Exception):
     pass
 
@@ -207,7 +213,7 @@ cdef class Buffer:
         """
         cdef int b
         b = send(fd, self._buff + self._position, self._limit - self._position, 0)
-        if b > 0: self._position = self._position + b
+        if b > 0: self._position = self._position + b   
         return b, self._limit - self._position
         
     def compact(self):

@@ -64,16 +64,16 @@ EV_WRITE        = 0x04
 EV_SIGNAL       = 0x08
 EV_PERSIST      = 0x10 
 
+class EventError(Exception):
+    def __init__(self, msg):
+        Exception.__init__(self, msg + ": " + strerror(errno))
+
 triggered = collections.deque()
 
 cdef void __event_handler(int fd, short event, void *arg):
     triggered.append(((<object>arg), event, fd))
 
-class EventError(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self, msg + ": " + strerror(errno))
-
-cdef class event:
+cdef class __event:
     cdef public object data
 
     cdef event_t ev
@@ -95,7 +95,6 @@ cdef class event:
         else:
             if event_add(&self.ev, NULL) == -1:
                 raise EventError("could not add event")
-
     def pending(self, int event):
         """Return 1 if the event is scheduled to run, or else 0."""
         return event_pending(&self.ev, event, NULL)
@@ -105,7 +104,15 @@ cdef class event:
             raise EventError("could not delete event")
     
     def __repr__(self):
-        return '<ev flags=0x%x, data=%s>' % (self.ev.ev_flags, self.data)
+        return '<_event id=0x%x, flags=0x%x, data=%s>' % (id(self), self.ev.ev_flags, self.data)
+
+    def __del__(self):
+        print 'del!'
+        
+def event(fd, event, data):
+    e = __event(data)
+    e.set(fd, event)
+    return e 
 
 def version():
     return event_get_version()
@@ -113,9 +120,11 @@ def version():
 def method():
     return event_get_method()
 
-#TODO make loop release the GIL
 def loop(int flags):
-    if event_loop(flags) ==  -1:
+    cdef int result
+    result = 0
+    result = event_loop(flags)
+    if result == -1:
         raise EventError("error in event_loop")
     return triggered
 
