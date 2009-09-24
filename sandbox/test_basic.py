@@ -44,13 +44,12 @@ def callback(flags):
                 raise Exception("TODO")
             state = STATE_READ_SET_RESPONSE
             buff.clear()
+            read_event.add(1.0)
+            return
         elif state == STATE_READ_SET_RESPONSE:
             read, remaining = buff.recv(fd)
-            if read == -1 and get_errno() == EAGAIN:
-                read_event.add(1.0)
-                state = STATE_READ_SET_RESPONSE
-                #print "ret from set resp"
-                return
+            if read < 0:
+                raise Exception("TODO")
             elif buff.position == 8:
                 buff.flip() 
                 #result = buff.read_line()
@@ -80,9 +79,11 @@ try:
     callback(0) #kick off!
 
     while True:
-        triggered = event.loop(event.EVLOOP_ONCE)
-        while triggered:
-            e, flags, fd = triggered.popleft()
+        next = event.next()
+        if next is None: 
+            continue
+        else:
+            e, flags, fd = next
             e.data(flags)
 except:
     end = time.time()

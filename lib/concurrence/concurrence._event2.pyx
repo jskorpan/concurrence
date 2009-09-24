@@ -25,7 +25,10 @@ __version__ = '0.3'
 
 import collections
 
-ctypedef void (*event_handler)(int fd, short event, void *arg)
+cdef class __event
+cdef struct __list
+
+ctypedef void (*event_handler)(int fd, short event, void* arg)
 
 cdef extern from "string.h":
     char *strerror(int errno)
@@ -43,20 +46,19 @@ cdef extern from "event.h":
         int   ev_flags
         void *ev_arg
 
-    void event_init()
-    char *event_get_version()
-    char *event_get_method()
-    void event_set(event_t *ev, int fd, short event,
-                   event_handler handler, void *arg)
-    int  event_add(event_t *ev, timeval *tv)
-    int  event_del(event_t *ev)
-    int  event_loop(int flags)
-    int  event_pending(event_t *ev, short, timeval *tv)
+    void event_init() nogil 
+    char *event_get_version() nogil
+    char *event_get_method() nogil
+    void event_set(event_t *ev, int fd, short event, event_handler handler, void *arg) nogil
+    int  event_add(event_t *ev, timeval *tv) nogil
+    int  event_del(event_t *ev) nogil
+    int  event_loop(int flags) nogil
+    int  event_pending(event_t *ev, short, timeval *tv) nogil
 
-    void evtimer_set(event_t *ev, event_handler handler, void *arg)
-
-EVLOOP_ONCE     = 0x01
-EVLOOP_NONBLOCK = 0x02
+    void evtimer_set(event_t *ev, event_handler handler, void *arg) nogil
+    
+    int EVLOOP_ONCE
+    int EVLOOP_NONBLOCK
 
 EV_TIMEOUT      = 0x01
 EV_READ         = 0x02
@@ -68,21 +70,42 @@ class EventError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg + ": " + strerror(errno))
 
-triggered = collections.deque()
+cdef struct __list:
+    void *event
+    short flags
+    int fd
+    __list *next
 
-cdef void __event_handler(int fd, short event, void *arg):
-    triggered.append(((<object>arg), event, fd))
+cdef __list* head
+head = NULL
+
+cdef void __event_handler(int fd, short flags, void* arg) nogil:
+    cdef __list *tmp
+    cdef __list *trig
+    trig = <__list*>arg
+    trig.flags = flags
+    trig.fd = fd
+    global head
+    if head == NULL:
+        head = trig
+        head.next = NULL
+    else:
+        tmp = head
+        head = trig
+        head.next = tmp
 
 cdef class __event:
     cdef public object data
 
     cdef event_t ev
-
+    cdef __list trig
+    
     def __init__(self, object data):
         self.data = data
+        self.trig.event = <void *>self
                 
     def set(self, int fd, short event): 
-        event_set(&self.ev, fd, event, __event_handler, <void *>self)
+        event_set(&self.ev, fd, event, __event_handler, <void *>&self.trig)
 
     def add(self, float timeout = -1):
         """Add event to be executed after an optional timeout."""
@@ -95,6 +118,7 @@ cdef class __event:
         else:
             if event_add(&self.ev, NULL) == -1:
                 raise EventError("could not add event")
+
     def pending(self, int event):
         """Return 1 if the event is scheduled to run, or else 0."""
         return event_pending(&self.ev, event, NULL)
@@ -106,9 +130,6 @@ cdef class __event:
     def __repr__(self):
         return '<_event id=0x%x, flags=0x%x, data=%s>' % (id(self), self.ev.ev_flags, self.data)
 
-    def __del__(self):
-        print 'del!'
-        
 def event(fd, event, data):
     e = __event(data)
     e.set(fd, event)
@@ -120,17 +141,24 @@ def version():
 def method():
     return event_get_method()
 
-def loop(int flags):
+def next():
+    cdef __list* current
     cdef int result
-    result = 0
-    result = event_loop(flags)
-    if result == -1:
-        raise EventError("error in event_loop")
-    return triggered
 
-def f(int a):
-    return a
+    global head
+    if head == NULL:
+        with nogil:
+            result = event_loop(EVLOOP_ONCE)
+        if result == -1:
+            raise EventError("error in event_loop")
 
+    current = head
+    if current == NULL:
+        return None
+    else:
+        head = current.next
+        return (<__event>current.event, current.flags, current.fd)
+    
 #init libevent
 event_init()
 
