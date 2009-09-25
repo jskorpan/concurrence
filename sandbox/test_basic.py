@@ -47,7 +47,6 @@ def callback(flags):
         elif state == STATE_READ_SET_RESPONSE:
             read, remaining = buff.recv(fd)
             if read == -1 and get_errno() == EAGAIN:
-                print 'x'
                 read_event.add(1.0)
                 state = STATE_READ_SET_RESPONSE
                 #print "ret from set resp"
@@ -89,3 +88,16 @@ except:
     end = time.time()
     print '#set/sec', N / (end - start)
 
+#with gil, using deque
+#===============================================================================
+# henk@henk-worktop:~/workspace/concurrence{speedup}$ stackless sandbox/test_basic.py 
+# #set/sec 27512.9132082
+# henk@henk-worktop:~/workspace/concurrence{speedup}$ stackless sandbox/test_basic.py 
+# #set/sec 32166.8986723
+# henk@henk-worktop:~/workspace/concurrence{speedup}$ stackless sandbox/test_basic.py 
+# #set/sec 32139.9231288
+# henk@henk-worktop:~/workspace/concurrence{speedup}$ stackless sandbox/test_basic.py 
+# #set/sec 32263.7280136
+# henk@henk-worktop:~/workspace/concurrence{speedup}$ stackless sandbox/test_basic.py 
+# #set/sec 25581.622577
+#===============================================================================

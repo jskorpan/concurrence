@@ -128,6 +128,9 @@ def loop(int flags):
         raise EventError("error in event_loop")
     return triggered
 
+def f(int a):
+    return a
+
 #init libevent
 event_init()
 
