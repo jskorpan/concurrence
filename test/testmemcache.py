@@ -56,7 +56,7 @@ class MemcacheTest(unittest.TestCase):
 
         node = MemcacheConnection(('127.0.0.1', 11211))
 
-        N = 10000
+        N = 20000
 
         start = time.time()    
         for i in range(N):
