@@ -60,6 +60,7 @@ class MemcacheCommandGet(MemcacheCommand):
         writer.write_bytes("get")
         for key in self.keys:
             writer.write_bytes(" " + key)
+        writer.write_bytes('\r\n')
 
     def read(self, reader):
         result = {}
@@ -91,19 +92,16 @@ class MemcacheCommandDelete(MemcacheCommandWithResult):
         self.key = key
 
     def write(self, writer):
-        writer.write_bytes("delete %s" % (self.key, ))
+        writer.write_bytes("delete %s\r\n" % (self.key, ))
 
 class MemcacheCommandStorage(MemcacheCommandWithResult):
     def __init__(self, key, value, flags):
         super(MemcacheCommandStorage, self).__init__()
-        self.key = key
-        self.value = value
-        self.flags = flags
+        encoded_value = pickle.dumps(value, -1)
+        self.cmd_bytes = "%s %s %d 0 %d\r\n%s\r\n" % (self.cmd, key, flags, len(encoded_value), encoded_value)
 
     def write(self, writer):
-        encoded_value = pickle.dumps(self.value, -1)
-        writer.write_bytes("%s %s %d 0 %d\r\n" % (self.cmd, self.key, self.flags, len(encoded_value)))
-        writer.write_bytes(encoded_value)
+        writer.write_bytes(self.cmd_bytes)
 
 class MemcacheCommandSet(MemcacheCommandStorage):
     cmd = "set"
@@ -124,9 +122,6 @@ class MemcacheConnection(object):
     STATE_CLOSED = 0
     STATE_CONNECTED = 1
     STATE_FAILED = 2
-
-    class _MSG_COMMAND(Message): pass
-    class _MSG_RESPONSE(Message): pass
 
     def __init__(self, addr):
         self._addr = addr
@@ -155,19 +150,8 @@ class MemcacheConnection(object):
     def reader(self):
         return self._stream.reader
 
-    @property
-    def writer(self):
-        return self._stream.writer
-
     def _fail(self):
         pass
-#        #raise exception on all waiting tasks still in the queues
-#        for cmd in self._command_queue:
-#            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-#        for cmd in self._response_queue:
-#            cmd.channel.send_exception(TaskletError, e, Tasklet.current())
-#        self._stream.close()
-#        self._stream = None
 
     def _response_reader(self):
         for msg, (cmd,), _ in Tasklet.receive():
@@ -180,12 +164,13 @@ class MemcacheConnection(object):
     def _command_writer(self):
         for msg, (cmd,), _ in Tasklet.receive():
             try:
-                self._reconnect()
-                self.writer.clear()
-                cmd.write(self.writer)
-                self.writer.write_bytes('\r\n')
-                self.writer.flush()
-                self._MSG_RESPONSE.send(self._response_reader_task)(cmd)
+                if self._state != self.STATE_CONNECTED:
+                    self._reconnect()
+                writer = self._stream.writer                
+                writer.clear()
+                cmd.write(writer)
+                writer.flush()
+                self._response_reader_task.send(None, cmd)
             except Exception:
                 self.log.exception('error while writing command')
                 self._fail()
@@ -194,7 +179,7 @@ class MemcacheConnection(object):
         if self._state == self.STATE_FAILED:
             return MemcacheResult.ERROR
             
-        self._MSG_COMMAND.send(self._command_writer_task)(cmd)
+        self._command_writer_task.send(None, cmd)
 
         try:
             return cmd.channel.receive()

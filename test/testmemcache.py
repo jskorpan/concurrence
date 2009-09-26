@@ -4,7 +4,7 @@ from concurrence import unittest, Tasklet
 from concurrence.memcache.client import MemcacheConnection, MemcacheResult
 
 class MemcacheTest(unittest.TestCase):
-    def testNodeBasic(self):
+    def xtestNodeBasic(self):
         
         node = MemcacheConnection(('127.0.0.1', 11211))
 
