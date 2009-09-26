@@ -1,11 +1,13 @@
 import socket
 
-from concurrence import _event2 as event
+from concurrence import _event as event
 from concurrence.io import Buffer, get_errno
 
 from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR, EISCONN, ENOENT, EAGAIN
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
 s.connect(('127.0.0.1', 11211))
 fd = s.fileno() 
 #we are connected, turn to non-blockig mode
@@ -71,22 +73,40 @@ def callback(flags):
 read_event = event.event(fd, event.EV_READ, callback)
 write_event = event.event(fd, event.EV_WRITE, callback)
 
-import time
+def main():
+    import time
 
-start = time.time()    
+    start = time.time()    
 
+    try:
+
+        callback(0) #kick off!
+
+        while True:
+            event.loop()
+
+            while event.has_next():
+                e, flags, fd = event.next()
+                e.data(flags)
+
+    except:
+        end = time.time()
+        print '#set/sec', N / (end - start)
+        raise
+
+
+from cProfile import Profile
+prof = Profile()
 try:
+    prof = prof.runctx("main()", globals(), locals())
+except Exception:
+    pass    
 
-    callback(0) #kick off!
-
-    while event.loop():
-        e, flags, fd = event.next()
-        e.data(flags)
-
-except:
-    end = time.time()
-    print '#set/sec', N / (end - start)
-    raise
+import pstats
+stats = pstats.Stats(prof)
+stats.strip_dirs()
+stats.sort_stats('time')
+stats.print_stats(20)
 
 #with gil, using deque
 #===============================================================================

@@ -738,13 +738,8 @@ def _dispatch(f = None):
     sys._exit(_exitcode)
 
 def _profile(f = None):
-    import resource 
-    def cpu():
-        return (resource.getrusage(resource.RUSAGE_SELF).ru_utime +
-                resource.getrusage(resource.RUSAGE_SELF).ru_stime)
-
     from cProfile import Profile
-    prof = Profile(cpu)
+    prof = Profile()
     try:
         prof = prof.runctx("_dispatch(f)", globals(), locals())
     except SystemExit:
@@ -757,8 +752,8 @@ def _profile(f = None):
     stats.print_stats(20)
         
 def dispatch(f = None):
-    if '-Xprofile' in sys.argv:
-        _profile(f)
-    else:
-        _dispatch(f)
+    #if '-Xprofile' in sys.argv:
+    _profile(f)
+    #else:
+    #    _dispatch(f)
 

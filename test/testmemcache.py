@@ -6,7 +6,8 @@ from concurrence.memcache.client import MemcacheConnection, MemcacheResult
 class MemcacheTest(unittest.TestCase):
     def xtestNodeBasic(self):
         
-        node = MemcacheConnection(('127.0.0.1', 11211))
+        node = MemcacheConnection()
+        node.connect(('127.0.0.1', 11211))
 
         self.assertEquals(MemcacheResult.STORED, node.set('test1', '12345'))
         self.assertEquals(MemcacheResult.STORED, node.set('test2', '67890'))
@@ -54,9 +55,10 @@ class MemcacheTest(unittest.TestCase):
     def testSpeed(self):
         import time
 
-        node = MemcacheConnection(('127.0.0.1', 11211))
+        node = MemcacheConnection()
+        node.connect(('127.0.0.1', 11211))
 
-        N = 20000
+        N = 100000
 
         start = time.time()    
         for i in range(N):
