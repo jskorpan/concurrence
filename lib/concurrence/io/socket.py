@@ -176,13 +176,22 @@ class Socket(IOStream):
         else:
             return bytes_written
 
-    def read(self, buffer, timeout = -1.0):
+    def read(self, buffer, timeout = -1.0, assume_readable = True):
         """Reads as many bytes as possible the socket into the given buffer. 
         The buffer position is updated according to the number of bytes read from the socket.
         This method could possible read 0 bytes. The method returns the total number of bytes read"""
         assert self.state == self.STATE_CONNECTED, "socket must be connected in order to read from it"
-        self.readable.wait(timeout = timeout)
-        bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+        #by default assume that we can read from the socket without blocking        
+        if assume_readable:
+            bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+            if bytes_read < 0 and _io.get_errno() == EAGAIN:   
+                #nope, need to wait before reading our data
+                assume_readable = False
+        #if we cannot assume readability we will wait until data can be read again   
+        if not assume_readable:
+            self.readable.wait(timeout = timeout)
+            bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+        
         if bytes_read < 0:
             raise _io.error_from_errno(IOError)
         else:
