@@ -1,0 +1,2 @@
+- pervasive timeouts are expensive!, reconsider (see profiling)
+- why are writes so slow? (see profiling)

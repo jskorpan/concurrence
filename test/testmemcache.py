@@ -58,8 +58,10 @@ class MemcacheTest(unittest.TestCase):
         node = MemcacheConnection()
         node.connect(('127.0.0.1', 11211))
 
-        N = 100000
+        Tasklet.sleep(1000)
 
+        N = 100000
+        
         start = time.time()    
         for i in range(N):
             node.set('test2', 'hello world!')
