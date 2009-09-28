@@ -58,7 +58,7 @@ class MemcacheTest(unittest.TestCase):
         node = MemcacheConnection()
         node.connect(('127.0.0.1', 11211))
 
-        Tasklet.sleep(1000)
+        #Tasklet.sleep(1000)
 
         N = 100000
         

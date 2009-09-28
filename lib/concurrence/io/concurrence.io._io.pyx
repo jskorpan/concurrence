@@ -319,25 +319,26 @@ cdef class Buffer:
         maxlen = self._limit - self._position
         start = <char *>(self._buff + self._position)
         zpos = <char *>(memchr(start, 10, maxlen))
+        if maxlen == 0:
+            raise BufferUnderflowError()
         if zpos == NULL:
             raise BufferUnderflowError()
-        else:
-            n = zpos - start
-            if self._buff[self._position + n - 1] == 13: #\r\n
-                if include_separator:
-                    s = PyString_FromStringAndSize(start, n + 1)
-                    self._position = self._position + n + 1
-                else:
-                    s = PyString_FromStringAndSize(start, n - 1)
-                    self._position = self._position + n + 1
-            else: #\n
-                if include_separator:
-                    s = PyString_FromStringAndSize(start, n + 1)
-                    self._position = self._position + n + 1
-                else:
-                    s = PyString_FromStringAndSize(start, n)
-                    self._position = self._position + n + 1                                    
-            return s
+        n = zpos - start
+        if self._buff[self._position + n - 1] == 13: #\r\n
+            if include_separator:
+                s = PyString_FromStringAndSize(start, n + 1)
+                self._position = self._position + n + 1
+            else:
+                s = PyString_FromStringAndSize(start, n - 1)
+                self._position = self._position + n + 1
+        else: #\n
+            if include_separator:
+                s = PyString_FromStringAndSize(start, n + 1)
+                self._position = self._position + n + 1
+            else:
+                s = PyString_FromStringAndSize(start, n)
+                self._position = self._position + n + 1                                    
+        return s
     
     def scan_until_xmltoken(self):
         # < == 60, > == 62, ? == 63, / == 47

@@ -1,2 +1,4 @@
 - pervasive timeouts are expensive!, reconsider (see profiling)
+    - make time out simple property of current task = easy to lookup
+    - make timeout really pervasive, and thus only call it when event is added (no more calls to Tasklet.current)
 - why are writes so slow? (see profiling)

@@ -5,7 +5,7 @@
 
 import time
 
-from concurrence import TaskLocal
+from concurrence import Tasklet, TaskLocal
 
 class _Timeout(object):
     def __init__(self):
@@ -90,7 +90,10 @@ class Timeout:
     def current(cls):
         """Gets the current timeout for the current task in seconds. That is the number of seconds before the current task
         will timeout by raising a :class:`~concurrence.core.TimeoutError`. A timeout of -1 indicates that there is no timeout for the
-        current task."""
+        current task."""    
+        time.time()
+        Tasklet.current()
+        return -1
         try:
             t = cls._local.t
         except AttributeError:

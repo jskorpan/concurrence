@@ -31,6 +31,8 @@ class BufferedReader(object):
         
     def read_lines(self):
         """note that it cant read line accross buffer"""
+        if self.buffer.remaining == 0:
+            self._read_more()
         while True:
             try:
                 yield self.buffer.read_line()
@@ -38,7 +40,14 @@ class BufferedReader(object):
                 self._read_more()
         
     def read_line(self):
-        return self.read_lines().next()
+        """note that it cant read line accross buffer"""
+        if self.buffer.remaining == 0:
+            self._read_more()
+        while True:
+            try:
+                return self.buffer.read_line()
+            except BufferUnderflowError:
+                self._read_more()
                 
     def read_bytes(self, n):
         """read exactly n bytes from stream"""
@@ -55,6 +64,8 @@ class BufferedReader(object):
         return ''.join(s)
 
     def read_short(self):
+        if self.buffer.remaining == 0:
+            self._read_more()
         while True:
             try:
                 return self.buffer.read_short()
