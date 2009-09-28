@@ -725,13 +725,11 @@ def _dispatch(f = None):
             except:
                 logging.exception("unhandled exception in dispatch schedule")
             
-            #now block on IO, till any IO is ready.
+            #now block on IO till any IO is ready.
             #care has been taken to not callback directly into python
             #from libevent. that would add c-data on the stack which would
             #make stackless need to use hard-switching, which is slow.
-            #so we call loop that blocks until something available
-            #and then we iterate over the avaiable triggered events and 
-            #call the callbacks to resume the tasklets that were waiting on those IO's.
+            #so we call 'loop' which blocks until something available.
             try:
                 _event.loop()
             except TaskletExit:
@@ -739,6 +737,10 @@ def _dispatch(f = None):
             except:
                 logging.exception("unhandled exception in event loop")
 
+            #we iterate over the available triggered events and 
+            #call the callback which is available as the 'data' object of the event
+            #some callbacks may trigger direct action (for instance timeouts, signals)
+            #others might resume a waiting task (socket io).
             while _event.has_next():
                 try:
                     e, event_type, fd = _event.next()
