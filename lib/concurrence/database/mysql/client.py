@@ -8,7 +8,6 @@
 from concurrence import TimeoutError
 from concurrence.io import Buffer 
 from concurrence.io.socket import Socket 
-from concurrence.timer import Timeout
 from concurrence.database.mysql import BufferedPacketReader, BufferedPacketWriter, PACKET_READ_RESULT, CAPS, COMMAND 
 
 import logging
@@ -229,7 +228,7 @@ class Connection(object):
             assert self.state == self.STATE_INIT, "make sure connection is not already connected or closed"
 
             self.state = self.STATE_CONNECTING
-            self.socket = Socket.connect(addr, timeout = Timeout.current())
+            self.socket = Socket.connect(addr, -2)
             self.reader = BufferedPacketReader(self.socket, self.buffer)
             self.writer = BufferedPacketWriter(self.socket, self.buffer)
             self._handshake(user, passwd, db)

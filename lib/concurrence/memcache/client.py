@@ -17,7 +17,7 @@ import cPickle as pickle
 #bundling of multiple requests in 1 flush (autoflush on/off)
 #statistics
 #not use pickle for string and unicode types (use flags to indicate this)
-#timeout on commands (for clients, support Timeout.current)
+#timeout on commands (test tasklet based timeout)
 #plugable serialization support (and/or provide choise, default (py-serialized, utf-8 encoded json, etc)?
 #todo detect timeouts on write/read, and mark host as dead
 #keep some time before retrying host

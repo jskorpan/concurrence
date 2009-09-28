@@ -3,7 +3,6 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence.timer import Timeout
 from concurrence.io import IOStream, Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError
 
 
@@ -25,7 +24,7 @@ class BufferedReader(object):
     def _read_more(self):
         #any partially read data will be put in front, otherwise normal clear:
         self.buffer.compact()
-        if not self.stream.read(self.buffer, Timeout.current()): 
+        if not self.stream.read(self.buffer, -2): 
             raise EOFError("while reading")
         self.buffer.flip() #prepare to read from buffer
         
@@ -116,7 +115,7 @@ class BufferedWriter(object):
     def flush(self):
         self.buffer.flip()
         while self.buffer.remaining:
-            if not self.stream.write(self.buffer, Timeout.current()):
+            if not self.stream.write(self.buffer, -2):
                 raise EOFError("while writing")
         self.buffer.clear()
         

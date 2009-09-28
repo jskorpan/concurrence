@@ -11,15 +11,6 @@ class _Timeout(object):
     def __init__(self):
         self._timeout_time = [-1]
 
-    def current(self):
-        """returns the current timeout time to use in low level 'blocking' operations"""
-        if self._timeout_time[-1] < 0:
-            return -1
-        else:
-            timeout = self._timeout_time[-1] - time.time()
-            if timeout < 0: timeout = 0.0 #expire immidiatly
-            return timeout
-        
     def push(self, timeout = -1):   
         current_timeout = self._timeout_time[-1]
         if timeout < 0 and current_timeout < 0:
@@ -32,10 +23,14 @@ class _Timeout(object):
                 self._timeout_time.append(_timeout_time)
             else:
                 self._timeout_time.append(min(_timeout_time, current_timeout))
-            
+        
+        Tasklet.current()._timeout_time = self._timeout_time[-1]
+ 
     def pop(self):
         assert len(self._timeout_time) > 1, "unmatched pop, did you forget to push?"
         self._timeout_time.pop()
+
+        Tasklet.current()._timeout_time = self._timeout_time[-1]
         
     def __enter__(self):
         return self
@@ -91,14 +86,5 @@ class Timeout:
         """Gets the current timeout for the current task in seconds. That is the number of seconds before the current task
         will timeout by raising a :class:`~concurrence.core.TimeoutError`. A timeout of -1 indicates that there is no timeout for the
         current task."""    
-        time.time()
-        Tasklet.current()
-        return -1
-        try:
-            t = cls._local.t
-        except AttributeError:
-            t = None
-        if t is None: #no timeout defined for current task, so return indefinte timeout
-            return -1
-        else:
-            return t.current()
+        return Tasklet.timeout()
+

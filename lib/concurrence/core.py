@@ -80,12 +80,17 @@ class FileDescriptorEvent(Event):
         else:
             self._current_channel.send(self)
 
-    def notify(self, channel = None, timeout = -1.0):
+    def notify(self, channel = None, timeout = -1):
         if channel is None: channel = Channel()
         self._current_channel = channel
-        self._event.add(timeout)
-        
-    def wait(self, channel = None, timeout = -1.0):
+        if timeout == -1:
+            self._event.add() #no timeout
+        elif timeout == -2: 
+            self._event.add(Tasklet.timeout()) #tasklet defined timeout
+        else:
+            self._event.add(timeout)
+
+    def wait(self, channel = None, timeout = -1):
         self.notify(channel, timeout)
         return self._current_channel.receive()        
 
@@ -230,6 +235,7 @@ class Tasklet(stackless.tasklet):
         self._children = None
         self._join_channel = None
         self._mailbox = None
+        self._timeout_time = -1
 
     def __exec__(self, f, *args, **kwargs):
         """Wraps the excecution of the task function f in such
@@ -370,7 +376,8 @@ class Tasklet(stackless.tasklet):
         results is returned. If a task finishes with an exception the result value for that task will be an instance of :class:`JoinError`.
         Optionally a *timeout* for the wait can be specified. If all *tasks* do not finish within *timeout* a :class:`TimeoutError` will be
         raised."""
-            
+        #TODO honor current tasklet timeout        
+    
         if timeout != -1:
             deadline = time.time() + timeout
         else:
@@ -556,6 +563,19 @@ class Tasklet(stackless.tasklet):
         #overridden for documentation purposes
         stackless.tasklet.kill(self)
 
+    @classmethod
+    def timeout(cls):
+        """returns the number of seconds this Tasklet is allowed to continue before timeing out
+        use the timer module to set/update tasklet timeouts in a structured way."""
+        t = cls.current()
+        if t._timeout_time < 0:
+            return -1
+        else:
+            timeout = t._timeout_time - time.time()
+            if timeout < 0: timeout = 0.0 #expire immidiatly
+            return timeout
+        
+
 class Channel(object):
     """A Channel is a method for transfering control and/or communicate between Tasklets. 
     Please note that the Channel class is basically a small wrapper around a 
@@ -599,6 +619,8 @@ class Channel(object):
             #most common without timeout
             return self._channel.receive()
         else:
+            if timeout == -2:
+                timeout = Tasklet.timeout()
             current_task = Tasklet.current()
             def on_timeout():
                 current_task.raise_exception(TimeoutError)
@@ -619,6 +641,8 @@ class Channel(object):
             self._channel.send(value)
         else:
             #setup timeout event
+            if timeout == -2:
+                timeout = Tasklet.timeout() 
             current_task = Tasklet.current()
             def on_timeout():
                 current_task.raise_exception(TimeoutError)
@@ -757,6 +781,6 @@ def dispatch(f = None):
     if '-Xprofile' in sys.argv:
         _profile(f)
     else:
-        _profile(f)
-        #_dispatch(f)
+        #_profile(f)
+        _dispatch(f)
 
