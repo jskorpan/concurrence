@@ -38,6 +38,7 @@ class TestHTTP(unittest.TestCase):
 
     def tearDown(self):
         self.socket_server.close()
+        self.socket_server = None
         self.server = None
 
     def testSimple(self):
@@ -198,7 +199,7 @@ class TestHTTP(unittest.TestCase):
                 self.assertEquals('testhost.nl', self.saver.environ['HTTP_HOST'])
         finally:
             cnn.close()        
-        
+
 if __name__ == '__main__':
     unittest.main(timeout = 100.0)
 

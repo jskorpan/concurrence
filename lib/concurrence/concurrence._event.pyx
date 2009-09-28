@@ -111,6 +111,9 @@ cdef class __event:
     def __init__(self, object data):
         self.data = data
         self.trig.event = <void *>self
+        self.trig.flags = 0
+        self.trig.fd = 0
+        self.trig.next = NULL
                 
     def _set(self, int fd, short event_type): 
         event_set(&self.ev, fd, event_type, __event_handler, <void *>&self.trig)
@@ -136,9 +139,8 @@ cdef class __event:
             raise EventError("could not delete event")
 
     def __dealloc__(self):
-        #TODO check if trig does not cause a cyclic dep, e.g. memleak
         self.delete()
-    
+
     def __repr__(self):
         return '<_event id=0x%x, flags=0x%x, data=%s>' % (id(self), self.ev.ev_flags, self.data)
 
@@ -155,10 +157,7 @@ def method():
 
 def has_next():
     global head
-    if head == NULL:
-        return False
-    else:
-        return True
+    return head != NULL
     
 def next():
     global head

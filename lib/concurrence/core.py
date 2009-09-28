@@ -659,7 +659,7 @@ def quit(exitcode = EXIT_CODE_OK):
     global _exitcode
     _exitcode = exitcode
     _running = False
-    
+
 #monkey patch sys exit to call our quit in order
 #to properly finish our dispatch loop
 sys._exit = sys.exit
@@ -709,13 +709,14 @@ def _dispatch(f = None):
         
     global _running
     _running = True
+    e = None
     try:
         #this is it, the main dispatch loop...
         #tasklets are scheduled to run by stackless, 
         #and if no more are runnable, we wait for IO events to happen
         #that will trigger tasks to become runnable
         #ad infinitum...
-        while _running:
+        while True:
             #first let any tasklets run until they have all become blocked on IO            
             try:
                 while stackless.getruncount() > 1:
@@ -750,10 +751,18 @@ def _dispatch(f = None):
                 except:
                     logging.exception("unhandled exception in event callback")
 
+            if _running is None:
+                break
+            if _running is False:
+                _running = None
+
     finally:
+        del e
         event_interrupt.close()
+        del event_interrupt
         event_heartbeat.close()
-        
+        del event_heartbeat        
+
     if DEBUG_LEAK: 
         logging.warn("alive objects:")
         gc.collect()
