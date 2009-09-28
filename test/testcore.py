@@ -3,7 +3,7 @@ import logging
 import time
 import sys
 
-from concurrence import unittest, Tasklet, Channel, TimeoutError, TaskletError, JoinError, Message
+from concurrence import unittest, Tasklet, Channel, TimeoutError, TaskletError, JoinError, Message, Lock
 
 class TestTasklet(unittest.TestCase):
     def testSleep(self):
@@ -404,6 +404,36 @@ class TestChannel(unittest.TestCase):
         Tasklet.sleep(1.0)
         
         self.assertEquals(False, test_channel.has_receiver())
-        
+
+class TestLock(unittest.TestCase):        
+    def testLock(self):
+        lock = Lock()
+        self.assertEquals(True, lock.acquire())   
+        self.assertEquals(True, lock.is_locked())    
+        self.assertEquals(None, lock.release())
+
+        xs = []
+
+        def t(x):
+            try:
+                lock.acquire() 
+                Tasklet.sleep(1.0)
+                xs.append(x)
+                lock.release()
+                return x
+            except TimeoutError:
+                pass
+
+        start = time.time()
+        for i in range(5):
+            Tasklet.new(t)(i)
+
+        join_result = Tasklet.join_children()
+        self.assertEquals(5, len(join_result))
+        self.assertEquals(10, sum(xs))
+
+        end = time.time()
+        self.assertAlmostEqual(5.0, end - start, places = 1)
+
 if __name__ == '__main__':
     unittest.main(timeout = 100.0)
