@@ -30,8 +30,6 @@ if '-Xleak' in sys.argv:
 from signal import SIGINT
 from concurrence import _event
 
-xx = 0
-
 def get_version_info():
     return {'libevent_version': _event.version(),
             'libevent_method': _event.method()}
