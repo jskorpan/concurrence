@@ -62,36 +62,38 @@ class Event(object):
 class FileDescriptorEvent(Event):
     def __init__(self, fd, rw):
         if rw == 'r':
-            ev = _event.EV_READ
+            event_type = _event.EV_READ
         elif rw == 'w':
-            ev = _event.EV_WRITE
+            event_type = _event.EV_WRITE
         else:
             assert False, "rw must be one of ['r', 'w']"
-        self._event = _event.event(self._on_event, ev, fd)
+        self._event = _event.event(fd, event_type, self._on_event)
         self._current_channel = None #this is where read/write ability is notified
 
-    def _on_event(self, ev_type):
+    def _on_event(self, event_type):
         if self._current_channel is None:
             return #already closed
-        if ev_type & _event.EV_TIMEOUT:
+        if event_type & _event.EV_TIMEOUT:
             self._current_channel.send_exception(TimeoutError, "timeout on fd event")
         else:
             self._current_channel.send(self)
 
-    def notify(self, channel = None, timeout = -1.0):
+    def notify(self, channel = None, timeout = -1):
         if channel is None: channel = Channel()
         self._current_channel = channel
-        self._event.add(timeout)
-        
-    def wait(self, channel = None, timeout = -1.0):
+        if timeout == -1:
+            self._event.add() #no timeout
+        elif timeout == -2: 
+            self._event.add(Tasklet.timeout()) #tasklet defined timeout
+        else:
+            self._event.add(timeout)
+
+    def wait(self, channel = None, timeout = -1):
         self.notify(channel, timeout)
         return self._current_channel.receive()        
 
-    def delete(self):
-        self._event.delete()
-
     def close(self):
-        self.delete()
+        self._event.delete()
         self._event = None
         self._current_channel = None
 
@@ -99,11 +101,10 @@ class SignalEvent(Event):
     def __init__(self, signo, callback, persist = True):
         self._persist = persist
         self._callback = callback
-        self._event = _event.event(self._on_event, _event.EV_SIGNAL, signo)
+        self._event = _event.event(signo, _event.EV_SIGNAL, self._on_event)
         self._event.add()
 
-    def _on_event(self, ev_type):
-        #print 'signal event'
+    def _on_event(self, event_type):
         if self._persist: 
             self._event.add()
         if callable(self._callback):
@@ -119,10 +120,10 @@ class TimeoutEvent(Event):
         self._persist = persist
         self._timeout = timeout
         self._callback = callback
-        self._event = _event.event(self._on_event, 0)
+        self._event = _event.event(-1, _event.EV_TIMEOUT, self._on_event)
         self._event.add(timeout)
 
-    def _on_event(self, ev_type):
+    def _on_event(self, event_type):
         if self._persist: 
             self._event.add(self._timeout)
         if callable(self._callback):
@@ -232,6 +233,7 @@ class Tasklet(stackless.tasklet):
         self._children = None
         self._join_channel = None
         self._mailbox = None
+        self._timeout_time = -1
 
     def __exec__(self, f, *args, **kwargs):
         """Wraps the excecution of the task function f in such
@@ -372,7 +374,8 @@ class Tasklet(stackless.tasklet):
         results is returned. If a task finishes with an exception the result value for that task will be an instance of :class:`JoinError`.
         Optionally a *timeout* for the wait can be specified. If all *tasks* do not finish within *timeout* a :class:`TimeoutError` will be
         raised."""
-            
+        #TODO honor current tasklet timeout        
+    
         if timeout != -1:
             deadline = time.time() + timeout
         else:
@@ -511,6 +514,16 @@ class Tasklet(stackless.tasklet):
             return f(*args, **kwargs)
         return cls.new(x, **kwargs)
         
+    _tasklet_pool = None
+    @classmethod
+    def defer(cls, f, *args, **kwargs):
+        """Calls f asynchronously using *args* and *kwargs*. Please make sure that f will always complete
+        after some time (i.e. set a timeout using Timeout.push)."""
+        if cls._tasklet_pool is None:
+            from concurrence import TaskletPool
+            cls._tasklet_pool = TaskletPool(5) #TODO make worker count dynamic
+        cls._tasklet_pool.defer(f, *args, **kwargs)
+ 
     @classmethod
     def new(cls, f, name = '', daemon = False):
         """Creates a new task that will run callable *f*. The new task can optionally
@@ -558,6 +571,19 @@ class Tasklet(stackless.tasklet):
         #overridden for documentation purposes
         stackless.tasklet.kill(self)
 
+    @classmethod
+    def timeout(cls):
+        """returns the number of seconds this Tasklet is allowed to continue before timeing out
+        use the timer module to set/update tasklet timeouts in a structured way."""
+        t = cls.current()
+        if t._timeout_time < 0:
+            return -1
+        else:
+            timeout = t._timeout_time - time.time()
+            if timeout < 0: timeout = 0.0 #expire immidiatly
+            return timeout
+        
+
 class Channel(object):
     """A Channel is a method for transfering control and/or communicate between Tasklets. 
     Please note that the Channel class is basically a small wrapper around a 
@@ -601,6 +627,8 @@ class Channel(object):
             #most common without timeout
             return self._channel.receive()
         else:
+            if timeout == -2:
+                timeout = Tasklet.timeout()
             current_task = Tasklet.current()
             def on_timeout():
                 current_task.raise_exception(TimeoutError)
@@ -621,6 +649,8 @@ class Channel(object):
             self._channel.send(value)
         else:
             #setup timeout event
+            if timeout == -2:
+                timeout = Tasklet.timeout() 
             current_task = Tasklet.current()
             def on_timeout():
                 current_task.raise_exception(TimeoutError)
@@ -673,7 +703,7 @@ def quit(exitcode = EXIT_CODE_OK):
     global _exitcode
     _exitcode = exitcode
     _running = False
-    
+
 #monkey patch sys exit to call our quit in order
 #to properly finish our dispatch loop
 sys._exit = sys.exit
@@ -716,11 +746,14 @@ def _dispatch(f = None):
     #if it still must be _running...
     event_heartbeat = TimeoutEvent(1.0, None, True)
     
+    #as a convenience, user can provide a callable *f* to start a new task
+    #lets start it here
     if callable(f):
         Tasklet.new(f)()
         
     global _running
     _running = True
+    e = None
     try:
         #this is it, the main dispatch loop...
         #tasklets are scheduled to run by stackless, 
@@ -728,6 +761,7 @@ def _dispatch(f = None):
         #that will trigger tasks to become runnable
         #ad infinitum...
         while _running:
+            #first let any tasklets run until they have all become blocked on IO            
             try:
                 while stackless.getruncount() > 1:
                     stackless.schedule()
@@ -735,24 +769,41 @@ def _dispatch(f = None):
                 pass
             except:
                 logging.exception("unhandled exception in dispatch schedule")
-            #note that we changed the way pyevent notifies us of pending events
-            #instead of calling the callbacks from within the pyevent extension
-            #it returns the list of callbacks that have to be called.
-            #calling from pyevent would give us a C stack which is not
-            #optimal (stackless would hardswitch instead of softswitch)
-            triggered = _event.loop()
-            while triggered:
-                callback, evtype = triggered.popleft()
+            
+            #now block on IO till any IO is ready.
+            #care has been taken to not callback directly into python
+            #from libevent. that would add c-data on the stack which would
+            #make stackless need to use hard-switching, which is slow.
+            #so we call 'loop' which blocks until something available.
+            try:
+                _event.loop()
+            except TaskletExit:
+                raise
+            except:
+                logging.exception("unhandled exception in event loop")
+
+            #we iterate over the available triggered events and 
+            #call the callback which is available as the 'data' object of the event
+            #some callbacks may trigger direct action (for instance timeouts, signals)
+            #others might resume a waiting task (socket io).
+            while _event.has_next():
                 try:
-                    callback(evtype)
+                    e, event_type, fd = _event.next()
+                    e.data(event_type)
                 except TaskletExit:
                     raise
                 except:
-                    logging.exception("unhandled exception in dispatch event callback")
+                    logging.exception("unhandled exception in event callback")
+
     finally:
+        del e
         event_interrupt.close()
+        del event_interrupt
         event_heartbeat.close()
-        
+        del event_heartbeat        
+
+    _event.shutdown() #inform libevent that we are shutting down
+
     if DEBUG_LEAK: 
         logging.warn("alive objects:")
         gc.collect()
@@ -763,13 +814,8 @@ def _dispatch(f = None):
     sys._exit(_exitcode)
 
 def _profile(f = None):
-    import resource 
-    def cpu():
-        return (resource.getrusage(resource.RUSAGE_SELF).ru_utime +
-                resource.getrusage(resource.RUSAGE_SELF).ru_stime)
-
     from cProfile import Profile
-    prof = Profile(cpu)
+    prof = Profile()
     try:
         prof = prof.runctx("_dispatch(f)", globals(), locals())
     except SystemExit:
@@ -785,5 +831,6 @@ def dispatch(f = None):
     if '-Xprofile' in sys.argv:
         _profile(f)
     else:
+        #_profile(f)
         _dispatch(f)
 

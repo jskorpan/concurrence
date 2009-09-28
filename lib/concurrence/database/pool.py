@@ -160,7 +160,7 @@ class Pool(BasePool):
                 
     def _get_connection_from_pool(self):
         self.log.debug("get conn from pool")
-        return self._pool.pop(True, Timeout.current())
+        return self._pool.pop(True, -2)
         
     def _return_connection_to_pool(self, connection):
         """when connection becomes readable while in the idle pool,

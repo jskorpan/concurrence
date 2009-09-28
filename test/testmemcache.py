@@ -4,9 +4,10 @@ from concurrence import unittest, Tasklet
 from concurrence.memcache.client import MemcacheConnection, MemcacheResult
 
 class MemcacheTest(unittest.TestCase):
-    def testNodeBasic(self):
+    def xtestNodeBasic(self):
         
-        node = MemcacheConnection(('127.0.0.1', 11211))
+        node = MemcacheConnection()
+        node.connect(('127.0.0.1', 11211))
 
         self.assertEquals(MemcacheResult.STORED, node.set('test1', '12345'))
         self.assertEquals(MemcacheResult.STORED, node.set('test2', '67890'))
@@ -51,5 +52,22 @@ class MemcacheTest(unittest.TestCase):
 
         node.close()
         
+    def testSpeed(self):
+        import time
+
+        node = MemcacheConnection()
+        node.connect(('127.0.0.1', 11211))
+
+        #Tasklet.sleep(1000)
+
+        N = 100000
+        
+        start = time.time()    
+        for i in range(N):
+            node.set('test2', 'hello world!')
+        end = time.time()
+        print '#set/sec', N / (end - start)
+        node.close()
+
 if __name__ == '__main__':
     unittest.main(timeout = 60)

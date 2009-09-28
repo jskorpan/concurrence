@@ -49,13 +49,13 @@ class Proxy(object):
             #normal clear, position = 0, limit = capacity
             self.buffer.clear()
         #read data from socket
-        return self.readStream.read(self.buffer, Timeout.current())
+        return self.readStream.read(self.buffer, -2)
     
     def writeToStream(self):
         #forward data to receiving socket
         self.buffer.flip()
         while self.buffer.remaining:
-            if not self.writeStream.write(self.buffer, Timeout.current()):
+            if not self.writeStream.write(self.buffer, -2):
                 return False
         return True                   
         

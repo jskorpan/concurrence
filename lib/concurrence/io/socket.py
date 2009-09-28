@@ -18,7 +18,7 @@ import _io
 from concurrence import Tasklet, FileDescriptorEvent
 from concurrence.io import IOStream
 
-DEFAULT_BACKLOG = 255    
+DEFAULT_BACKLOG = 512    
 
 class Socket(IOStream):
     log = logging.getLogger('Socket')
@@ -155,25 +155,43 @@ class Socket(IOStream):
             #unix domain socket that does not exist, Cannot assign requested address etc etc
             raise _io.error_from_errno(IOError)
         
-    def write(self, buffer, timeout = -1.0):
-        """Blocks till socket becomes writable and then writes as many bytes as possible from given
-        buffer to the socket. The buffer position is updated according to the number of bytes read from it.
-        This method could possible write 0 bytes. The method returns the total number of bytes written"""
-        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"        
-        self.writable.wait(timeout = timeout)
-        bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
+    def write(self, buffer, timeout = -1.0, assume_writable = True):
+        """Writes as many bytes as possible from the given buffer to this socket.
+        The buffer position is updated according to the number of bytes succesfully written to the socket.
+        This method returns the total number of bytes written. This method could possible write 0 bytes"""
+        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"     
+        #by default assume that we can write to the socket without blocking        
+        if assume_writable:
+            bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
+            if bytes_written < 0 and _io.get_errno() == EAGAIN:   
+                #nope, need to wait before sending our data
+                assume_writable = False
+        #if we cannot assume writability we will wait until data can be written again   
+        if not assume_writable:
+            self.writable.wait(timeout = timeout)
+            bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
+        #
         if bytes_written < 0:
             raise _io.error_from_errno(IOError)
         else:
             return bytes_written
 
-    def read(self, buffer, timeout = -1.0):
-        """Blocks till socket becomes readable and then reads as many bytes as possible the socket into the given
-        buffer. The buffer position is updated according to the number of bytes read from the socket.
+    def read(self, buffer, timeout = -1.0, assume_readable = True):
+        """Reads as many bytes as possible the socket into the given buffer. 
+        The buffer position is updated according to the number of bytes read from the socket.
         This method could possible read 0 bytes. The method returns the total number of bytes read"""
         assert self.state == self.STATE_CONNECTED, "socket must be connected in order to read from it"
-        self.readable.wait(timeout = timeout)
-        bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+        #by default assume that we can read from the socket without blocking        
+        if assume_readable:
+            bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+            if bytes_read < 0 and _io.get_errno() == EAGAIN:   
+                #nope, need to wait before reading our data
+                assume_readable = False
+        #if we cannot assume readability we will wait until data can be read again   
+        if not assume_readable:
+            self.readable.wait(timeout = timeout)
+            bytes_read, _ = buffer.recv(self.fd) #read from fd to 
+        
         if bytes_read < 0:
             raise _io.error_from_errno(IOError)
         else:

@@ -23,15 +23,12 @@ __license__ = 'BSD'
 __url__ = 'http://monkey.org/~dugsong/pyevent/'
 __version__ = '0.3'
 
-import sys
-import logging
 import collections
 
-cdef extern from "Python.h":
-    void  Py_INCREF(object o)
-    void  Py_DECREF(object o)
-    
-ctypedef void (*event_handler)(int fd, short evtype, void *arg)
+cdef class __event
+cdef struct __list
+
+ctypedef void (*event_handler)(int fd, short event_type, void* arg)
 
 cdef extern from "string.h":
     char *strerror(int errno)
@@ -49,100 +46,112 @@ cdef extern from "event.h":
         int   ev_flags
         void *ev_arg
 
-    void event_init()
-    char *event_get_version()
-    char *event_get_method()
-    void event_set(event_t *ev, int fd, short event,
-                   event_handler handler, void *arg)
-    void evtimer_set(event_t *ev, event_handler handler, void *arg)
-    int  event_add(event_t *ev, timeval *tv)
-    int  event_del(event_t *ev)
-    int  event_loop(int flags)
-    int  event_pending(event_t *ev, short, timeval *tv)
+    void event_init() nogil 
+    char *event_get_version() nogil
+    char *event_get_method() nogil
+    void event_set(event_t *ev, int fd, short event_type, event_handler handler, void *arg) nogil
+    int  event_add(event_t *ev, timeval *tv) nogil
+    int  event_del(event_t *ev) nogil
+    int  event_loop(int flags) nogil
+    int  event_pending(event_t *ev, short, timeval *tv) nogil
 
+    void evtimer_set(event_t *ev, event_handler handler, void *arg) nogil
+    
     int EVLOOP_ONCE
     int EVLOOP_NONBLOCK
 
-EV_TIMEOUT = 0x01
-EV_READ    = 0x02
-EV_WRITE   = 0x04
-EV_SIGNAL  = 0x08
-EV_PERSIST = 0x10
-
-triggered = collections.deque()
-
-cdef void __event_handler(int fd, short evtype, void *arg):
-    (<object>arg).__callback(evtype)
+EV_TIMEOUT      = 0x01
+EV_READ         = 0x02
+EV_WRITE        = 0x04
+EV_SIGNAL       = 0x08
+EV_PERSIST      = 0x10 
 
 class EventError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg + ": " + strerror(errno))
 
-cdef class event:
-    """event(callback, evtype=0, handle=None) -> event object
-    
-    Create a new event object with a user callback.
+#keep a singly-linked list of events that are triggered during 1 call to 'loop'
+#we will append at the end, and our client will read from the front 
+#therefore we keep 2 pointers to the head and tail of the list to easily
+#provide these FIFO operations
+cdef struct __list:
+    void *event
+    short flags
+    int fd
+    __list *next
 
-    Arguments:
+cdef __list* head
+cdef __list* tail
+head = NULL
+tail = NULL
 
-    callback -- user callback with (ev, handle, evtype, arg) prototype
-    arg      -- optional callback arguments
-    evtype   -- bitmask of EV_READ or EV_WRITE, or EV_SIGNAL
-    handle   -- for EV_READ or EV_WRITE, a file handle, descriptor, or socket
-                for EV_SIGNAL, a signal number
-    """
-    cdef event_t ev
-    cdef object evtype, callback
-    cdef timeval tv
-
-    def __init__(self, callback, short evtype = 0, handle = -1):
-
-        self.callback = callback
-        self.evtype = evtype
-        if evtype == 0 and not handle:
-            evtimer_set(&self.ev, __event_handler, <void *>self)
-        else:
-            if not isinstance(handle, int): 
-                handle = handle.fileno()
-            event_set(&self.ev, handle, evtype, __event_handler, <void *>self)
-
-    def __callback(self, short evtype):
-        if not self.pending():
-            Py_DECREF(self)
+cdef void __event_handler(int fd, short flags, void* arg) nogil:
+    cdef __list *tmp
+    cdef __list *trig
+    trig = <__list*>arg
+    trig.flags = flags
+    trig.fd = fd
+    global head
+    global tail
+    if head == NULL:
+        trig.next = NULL
+        head = trig
+        tail = trig
+    else:
+        trig.next = NULL
+        tail.next = trig
+        tail = trig
         
-        triggered.append((self.callback, evtype))
-            
-    def add(self, float timeout=-1):
+cdef class __event:
+    cdef public object data
+
+    cdef event_t ev
+    cdef __list trig
+    
+    def __init__(self, object data):
+        self.data = data
+        self.trig.event = <void *>self
+        self.trig.flags = 0
+        self.trig.fd = 0
+        self.trig.next = NULL
+                
+    def _set(self, int fd, short event_type): 
+        event_set(&self.ev, fd, event_type, __event_handler, <void *>&self.trig)
+
+    def add(self, float timeout = -1):
         """Add event to be executed after an optional timeout."""
-        if not self.pending():
-            Py_INCREF(self)
-            
+        cdef timeval tv
         if timeout >= 0.0:
-            self.tv.tv_sec = <long>timeout
-            self.tv.tv_usec = <long>((timeout - <float>self.tv.tv_sec) * 1000000.0)
-            if event_add(&self.ev, &self.tv) == -1:
+            tv.tv_sec = <long>timeout
+            tv.tv_usec = <long>((timeout - <float>tv.tv_sec) * 1000000.0)
+            if event_add(&self.ev, &tv) == -1:
                 raise EventError("could not add event")
         else:
-            self.tv.tv_sec = self.tv.tv_usec = 0
             if event_add(&self.ev, NULL) == -1:
                 raise EventError("could not add event")
 
-    def pending(self):
+    def pending(self, int event_type):
         """Return 1 if the event is scheduled to run, or else 0."""
-        return event_pending(&self.ev, EV_TIMEOUT|EV_SIGNAL|EV_READ|EV_WRITE, NULL)
+        return event_pending(&self.ev, event_type, NULL)
     
     def delete(self):
-        """Remove event from the event queue."""
-        if self.pending():
-           if event_del(&self.ev) == -1:
+        if event_del(&self.ev) == -1:
+            global _shutdown
+            if _shutdown:
+                pass #ignore the error, were quiting anyway
+            else:
                 raise EventError("could not delete event")
-           Py_DECREF(self)
-    
+
     def __dealloc__(self):
         self.delete()
-    
+
     def __repr__(self):
-        return '<event flags=0x%x, callback=%s' % (self.ev.ev_flags, self.callback)
+        return '<_event id=0x%x, flags=0x%x, data=%s>' % (id(self), self.ev.ev_flags, self.data)
+
+def event(fd, event_type, data):
+    e = __event(data)
+    e._set(fd, event_type)
+    return e 
 
 def version():
     return event_get_version()
@@ -150,12 +159,37 @@ def version():
 def method():
     return event_get_method()
 
-def loop():
-    """Dispatch all pending events on queue in a single pass."""
-    if event_loop(EVLOOP_ONCE) ==  -1:
-        raise EventError("error in event_loop")
-    return triggered
+def has_next():
+    global head
+    return head != NULL
+    
+def next():
+    global head
+    if head == NULL:
+        return None
+    else:
+        triggered = (<__event>head.event, head.flags, head.fd)
+        head = head.next
+        return triggered
 
-# XXX - make sure event queue is always initialized.
+def loop():
+    cdef int result
+    global head
+    if head == NULL:
+        with nogil:
+            result = event_loop(EVLOOP_ONCE)
+        if result == -1:
+            raise EventError("error in event_loop")
+    else:
+        raise EventError("can only enter loop when all previous events have been read")
+
+    return head != NULL
+
+_shutdown = False
+def shutdown():
+    global _shutdown
+    _shutdown = True
+    
+#init libevent
 event_init()
 

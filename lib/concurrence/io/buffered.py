@@ -3,7 +3,6 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence.timer import Timeout
 from concurrence.io import IOStream, Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError
 
 
@@ -25,12 +24,14 @@ class BufferedReader(object):
     def _read_more(self):
         #any partially read data will be put in front, otherwise normal clear:
         self.buffer.compact()
-        if not self.stream.read(self.buffer, Timeout.current()): 
+        if not self.stream.read(self.buffer, -2): 
             raise EOFError("while reading")
         self.buffer.flip() #prepare to read from buffer
         
     def read_lines(self):
         """note that it cant read line accross buffer"""
+        if self.buffer.remaining == 0:
+            self._read_more()
         while True:
             try:
                 yield self.buffer.read_line()
@@ -38,7 +39,14 @@ class BufferedReader(object):
                 self._read_more()
         
     def read_line(self):
-        return self.read_lines().next()
+        """note that it cant read line accross buffer"""
+        if self.buffer.remaining == 0:
+            self._read_more()
+        while True:
+            try:
+                return self.buffer.read_line()
+            except BufferUnderflowError:
+                self._read_more()
                 
     def read_bytes(self, n):
         """read exactly n bytes from stream"""
@@ -55,6 +63,8 @@ class BufferedReader(object):
         return ''.join(s)
 
     def read_short(self):
+        if self.buffer.remaining == 0:
+            self._read_more()
         while True:
             try:
                 return self.buffer.read_short()
@@ -105,7 +115,7 @@ class BufferedWriter(object):
     def flush(self):
         self.buffer.flip()
         while self.buffer.remaining:
-            if not self.stream.write(self.buffer, Timeout.current()):
+            if not self.stream.write(self.buffer, -2):
                 raise EOFError("while writing")
         self.buffer.clear()
         

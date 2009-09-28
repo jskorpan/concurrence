@@ -244,6 +244,7 @@ class TestTasklet(unittest.TestCase):
 
         Tasklet.join_all([ch1, ch2])
 
+        #we would expect that both task alternate
         self.assertEquals([(1, 0), (2, 0), (1, 1), (2, 1), (1, 2), (2, 2), (1, 3), (2, 3), (1, 4), (2, 4)], l)
 
     def testMessageSend(self):

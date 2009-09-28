@@ -4,7 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
     
-from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError
+from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError, get_errno
 
 class IOStream(object):
     """abstract class to indicate that something is a stream and capable
@@ -34,7 +34,7 @@ class Connector(object):
             #default is to connect to Socket and endpoint is address
             from concurrence.io.socket import Socket
             from concurrence.timer import Timeout
-            return Socket.connect(endpoint, Timeout.current())
+            return Socket.connect(endpoint, -2)
 
 class Server(object):
     """server class for connection oriented IO (TCP), prevents the need for server protocol libraries to hardcode a 

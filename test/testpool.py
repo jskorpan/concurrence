@@ -65,6 +65,18 @@ class TestPool(unittest.TestCase):
         self.assertTrue(closed)
         self.assertEquals(1, pool.connection_count)
         self.assertEquals(1, pool.idle_connection_count)
+
+        new, cnn4 = pool.connect()
+        self.assertFalse(new) #should not be new, but one of the idle's
+        self.assertTrue(cnn4)
+        self.assertEquals(1, pool.connection_count)
+        self.assertEquals(0, pool.idle_connection_count)
+
+        closed = pool.disconnect(cnn4, close = True)
+        self.assertTrue(closed)
+        self.assertEquals(0, pool.connection_count)
+        self.assertEquals(0, pool.idle_connection_count)
+
         
     def xtestIdleDisconnect(self):
         

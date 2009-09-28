@@ -38,3 +38,8 @@ _test:
 	cd test; make test
 
 test: _test 
+
+coverage:
+	cd test; coverage -e
+	cd test; PYTHON="coverage -x" make test
+	cd test; coverage -r

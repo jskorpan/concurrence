@@ -5,9 +5,9 @@
 
 import types
 
-cdef extern from "sys/socket.h":
-    int recv(int, void *, int, int)
-    int send(int, void *, int, int)
+cdef extern from "unistd.h":
+   int write(int, void *, int)
+   int read(int, void *, int) 
 
 cdef extern from "string.h":
     cdef void *memmove(void *, void *, int)
@@ -17,6 +17,9 @@ cdef extern from "string.h":
 cdef extern from "stdlib.h":
     cdef void *calloc(int, int)
     cdef void free(void *)    
+
+cdef extern from "errno.h":
+    int errno
 
 cdef extern from "Python.h":
     object PyString_FromStringAndSize(char *, int)
@@ -33,6 +36,9 @@ cdef extern from "io_base.h":
 def error_from_errno(object exc):
     return PyErr_SetFromErrno(exc)
 
+def get_errno():
+    return errno
+    
 class BufferError(Exception):
     pass
 
@@ -197,7 +203,7 @@ cdef class Buffer:
         The :attr:`position` of the buffer will be updated according to the number of bytes read.
         """
         cdef int b
-        b = recv(fd, self._buff + self._position, self._limit - self._position, 0)
+        b = read(fd, self._buff + self._position, self._limit - self._position)
         if b > 0: self._position = self._position + b
         return b, self._limit - self._position
 
@@ -206,8 +212,8 @@ cdef class Buffer:
         Returns a tuple (bytes_written, bytes_remaining). If *bytes_written* is negative, an IO Error was encountered.
         """
         cdef int b
-        b = send(fd, self._buff + self._position, self._limit - self._position, 0)
-        if b > 0: self._position = self._position + b
+        b = write(fd, self._buff + self._position, self._limit - self._position)
+        if b > 0: self._position = self._position + b   
         return b, self._limit - self._position
         
     def compact(self):
@@ -313,25 +319,26 @@ cdef class Buffer:
         maxlen = self._limit - self._position
         start = <char *>(self._buff + self._position)
         zpos = <char *>(memchr(start, 10, maxlen))
+        if maxlen == 0:
+            raise BufferUnderflowError()
         if zpos == NULL:
             raise BufferUnderflowError()
-        else:
-            n = zpos - start
-            if self._buff[self._position + n - 1] == 13: #\r\n
-                if include_separator:
-                    s = PyString_FromStringAndSize(start, n + 1)
-                    self._position = self._position + n + 1
-                else:
-                    s = PyString_FromStringAndSize(start, n - 1)
-                    self._position = self._position + n + 1
-            else: #\n
-                if include_separator:
-                    s = PyString_FromStringAndSize(start, n + 1)
-                    self._position = self._position + n + 1
-                else:
-                    s = PyString_FromStringAndSize(start, n)
-                    self._position = self._position + n + 1                                    
-            return s
+        n = zpos - start
+        if self._buff[self._position + n - 1] == 13: #\r\n
+            if include_separator:
+                s = PyString_FromStringAndSize(start, n + 1)
+                self._position = self._position + n + 1
+            else:
+                s = PyString_FromStringAndSize(start, n - 1)
+                self._position = self._position + n + 1
+        else: #\n
+            if include_separator:
+                s = PyString_FromStringAndSize(start, n + 1)
+                self._position = self._position + n + 1
+            else:
+                s = PyString_FromStringAndSize(start, n)
+                self._position = self._position + n + 1                                    
+        return s
     
     def scan_until_xmltoken(self):
         # < == 60, > == 62, ? == 63, / == 47
