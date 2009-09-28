@@ -716,7 +716,7 @@ def _dispatch(f = None):
         #and if no more are runnable, we wait for IO events to happen
         #that will trigger tasks to become runnable
         #ad infinitum...
-        while True:
+        while _running:
             #first let any tasklets run until they have all become blocked on IO            
             try:
                 while stackless.getruncount() > 1:
@@ -751,17 +751,14 @@ def _dispatch(f = None):
                 except:
                     logging.exception("unhandled exception in event callback")
 
-            if _running is None:
-                break
-            if _running is False:
-                _running = None
-
     finally:
         del e
         event_interrupt.close()
         del event_interrupt
         event_heartbeat.close()
         del event_heartbeat        
+
+    _event.shutdown() #inform libevent that we are shutting down
 
     if DEBUG_LEAK: 
         logging.warn("alive objects:")

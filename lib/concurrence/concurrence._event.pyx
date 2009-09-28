@@ -136,7 +136,11 @@ cdef class __event:
     
     def delete(self):
         if event_del(&self.ev) == -1:
-            raise EventError("could not delete event")
+            global _shutdown
+            if _shutdown:
+                pass #ignore the error, were quiting anyway
+            else:
+                raise EventError("could not delete event")
 
     def __dealloc__(self):
         self.delete()
@@ -180,6 +184,11 @@ def loop():
         raise EventError("can only enter loop when all previous events have been read")
 
     return head != NULL
+
+_shutdown = False
+def shutdown():
+    global _shutdown
+    _shutdown = True
     
 #init libevent
 event_init()
