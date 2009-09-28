@@ -514,6 +514,16 @@ class Tasklet(stackless.tasklet):
             return f(*args, **kwargs)
         return cls.new(x, **kwargs)
         
+    _tasklet_pool = None
+    @classmethod
+    def defer(cls, f, *args, **kwargs):
+        """Calls f asynchronously using *args* and *kwargs*. Please make sure that f will always complete
+        after some time (i.e. set a timeout using Timeout.push)."""
+        if cls._tasklet_pool is None:
+            from concurrence import TaskletPool
+            cls._tasklet_pool = TaskletPool(5) #TODO make worker count dynamic
+        cls._tasklet_pool.defer(f, *args, **kwargs)
+ 
     @classmethod
     def new(cls, f, name = '', daemon = False):
         """Creates a new task that will run callable *f*. The new task can optionally

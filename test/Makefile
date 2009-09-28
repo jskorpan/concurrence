@@ -1,6 +1,7 @@
 test:
 		-$(PYTHON) testtest.py
 		-$(PYTHON) testcore.py
+		-$(PYTHON) testextra.py
 		-$(PYTHON) testbuffer.py
 		-$(PYTHON) testbuffered.py
 		-$(PYTHON) teststackless.py
