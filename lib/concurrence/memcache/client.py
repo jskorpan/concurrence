@@ -3,10 +3,10 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence import Tasklet, Channel, Message, TaskletError
+from concurrence import Tasklet, Channel, Message, Lock, TaskletError
 from concurrence.timer import Timeout
-from concurrence.io.socket import Socket
-from concurrence.io.buffered import BufferedStream
+from concurrence.io import Socket, Buffer
+from concurrence.io.buffered import BufferedStream, BufferedReader, BufferedWriter
 from concurrence.containers.deque import Deque
 
 import logging
@@ -170,6 +170,47 @@ class MemcacheConnection(object):
 
     def multi_get(self, keys):
         return self._do_command(MemcacheCommandGet(keys))
+
+class PooledMemcacheConnection(object):
+    def __init__(self):
+        self.read_lock = Lock()
+        self.write_lock = Lock()
+
+    def connect(self, addr):
+        self._socket = Socket.connect(addr, -1)
+        
+class Memcache(object):
+    def __init__(self, tasklet_pool = None):
+        if tasklet_pool is None:
+            self._defer = Tasklet.defer
+        else:
+            self._defer = tasklet_pool.defer
+        self._servers = {} #addr->conn
+        self._server = None
+
+    def set_servers(self, server_list):
+        for addr in server_list:
+            conn = PooledMemcacheConnection()
+            conn.connect(addr)
+            self._servers[addr] = conn
+            self._server = conn
+
+    def _read_result(self, server_connection, cmd, result_channel):
+        print 'read res!', server_connection
+            
+    def _write_command(self, server_connection, cmd, result_channel):
+        with Timeout.push(10):
+            writer = BufferedWriter(server_connection._socket, Buffer(1024))
+            with server_connection.write_lock:
+                cmd.write(writer)
+                self._defer(self._read_result, server_connection, cmd, result_channel)
+
+    def set(self, key, data, flags = 0):
+        cmd = MemcacheCommandSet(key, data, flags)
+        result_channel = Channel()
+        self._defer(self._write_command, self._server, cmd, result_channel)
+        return result_channel.receive()
+        
 
             
 

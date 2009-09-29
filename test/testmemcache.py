@@ -1,7 +1,7 @@
 import os
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache.client import MemcacheConnection, MemcacheResult
+from concurrence.memcache.client import MemcacheConnection, MemcacheResult, Memcache
 
 class MemcacheTest(unittest.TestCase):
     def xtestNodeBasic(self):
@@ -52,7 +52,7 @@ class MemcacheTest(unittest.TestCase):
 
         node.close()
         
-    def testSpeed(self):
+    def xtestSpeed(self):
         import time
 
         node = MemcacheConnection()
@@ -68,6 +68,13 @@ class MemcacheTest(unittest.TestCase):
         end = time.time()
         print '#set/sec', N / (end - start)
         node.close()
+
+    def testMemcache(self):
+        
+        mc = Memcache()
+        mc.set_servers([('127.0.0.1', 11211)])
+        mc.set('test', 'blaat')
+
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)
