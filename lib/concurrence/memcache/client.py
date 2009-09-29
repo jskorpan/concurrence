@@ -213,6 +213,15 @@ class Memcache(object):
             writer.flush()
             self._defer(self._read_result, connection, cmd, result_channel)
 
+    def _connect_by_addr(self, addr, keys, result_channel):
+        current_task = Tasklet.current()
+        current_task.timeout = self.connect_timeout
+        connection = self._connection_manager.get_connection(addr)
+        result_channel.send((connection, keys))
+
+    def _connect_by_key(self, key):
+        return self._connection_manager.get_connection(self._key_to_addr(key))
+
     def _key_to_addr(self, key):
         return self._servers[hash(key) % len(self._servers)]
     
@@ -226,37 +235,29 @@ class Memcache(object):
                 addrs[addr] = [key]
         return addrs
 
-    def _connection_by_key(self, key):
-        return self._connection_manager.get_connection(self._key_to_addr(key))
-
-    def _connect_addr(self, addr, keys, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.connect_timeout
-        connection = self._connection_manager.get_connection(addr)
-        result_channel.send((connection, keys))
-
     def set(self, key, data, flags = 0):
         cmd = _MemcacheCmdSet(key, data, flags)
         result_channel = Channel()
-        self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
+        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
         return result_channel.receive()
 
     def get(self, key):
         cmd = _MemcacheCmdGet([key])
         result_channel = Channel()
-        self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
+        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
     def get_multi(self, keys):
         result_channel = Channel()
         grouped = self._keys_to_addr(keys).items()
+        n = len(grouped)
         for addr, _keys in grouped:
-            self._defer(self._connect_addr, addr, _keys, result_channel)
-        for connection, keys in result_channel.receive_n(len(grouped)):
-            self._defer(self._write_command, connection, _MemcacheCmdGet(keys), result_channel)
+            self._defer(self._connect_by_addr, addr, _keys, result_channel)
+        for connection, _keys in result_channel.receive_n(n):
+            self._defer(self._write_command, connection, _MemcacheCmdGet(_keys), result_channel)
         result = {}        
-        for _result in result_channel.receive_n(len(grouped)):
+        for _result in result_channel.receive_n(n):
             result.update(_result)
         return result
 
