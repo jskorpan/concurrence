@@ -67,6 +67,26 @@ class TestStackless(unittest.TestCase):
         
         self.assertEquals(1, stackless.getruncount()) #main
         
+    def testChannelMultiReceiver(self):
+
+        c = stackless.channel()
+        xs = []
+        def ch(i):
+            xs.append((i, c.receive()))         
+
+        child1 = stackless.tasklet(ch)(1)
+        child2 = stackless.tasklet(ch)(2)
+
+        self.assertEquals(3, stackless.getruncount()) #main
+
+        while stackless.getruncount() > 1:
+            stackless.schedule()
+
+        self.assertEquals(1, stackless.getruncount()) #main
+
+        self.assertEquals([], xs)
+        
+
     def testChannelException(self):
 
 

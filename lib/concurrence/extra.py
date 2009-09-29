@@ -24,7 +24,7 @@ class Lock(object):
     def release(self):
         assert self._locked
         if self._channel.has_receiver():
-            #stay locked, unblock receiver
+            #stay locked, unblock 1 receiver
             self._channel.send(True)
         else:
             self._locked = False       
