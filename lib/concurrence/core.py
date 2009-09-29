@@ -660,40 +660,6 @@ class Channel(object):
             finally:
                 event_timeout.close()
 
-class Lock(object):
-    def __init__(self):
-        self._locked = False
-        self._owner = None
-        self._channel = Channel()
-
-    def is_locked(self):
-        return self._locked
-
-    def acquire(self, blocking = True, timeout = -1):
-        if not self._locked:
-            self._locked = True
-            return True
-        else:
-            if not blocking:
-                return False
-            else:
-                return self._channel.receive(timeout) 
-
-    def release(self):
-        assert self._locked
-        if self._channel.has_receiver():
-            #stay locked, unblock receiver
-            self._channel.send(True)
-        else:
-            self._locked = False       
-
-    def __enter__(self):
-        return self
-     
-    def __exit__(self, type, value, traceback):
-        #self.pop()
-        pass
-
 _running = False #whether we are currently in dispatch, used stop the dispatch (use quit method)
 _exitcode = EXIT_CODE_OK
 
