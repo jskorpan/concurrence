@@ -8,7 +8,7 @@ from concurrence.io import IOStream, Buffer, BufferOverflowError, BufferUnderflo
 
 class BufferedReader(object):
     def __init__(self, stream, buffer):
-        assert isinstance(stream, IOStream)
+        assert stream is None or isinstance(stream, IOStream)
         self.stream = stream
         self.buffer = buffer
         #assume no reading from underlying stream was done, so make sure buffer reflects this:
@@ -73,7 +73,7 @@ class BufferedReader(object):
                 
 class BufferedWriter(object):
     def __init__(self, stream, buffer):
-        assert isinstance(stream, IOStream)
+        assert stream is None or isinstance(stream, IOStream)
         self.stream = stream
         self.buffer = buffer 
     

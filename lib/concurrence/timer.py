@@ -86,5 +86,5 @@ class Timeout:
         """Gets the current timeout for the current task in seconds. That is the number of seconds before the current task
         will timeout by raising a :class:`~concurrence.core.TimeoutError`. A timeout of -1 indicates that there is no timeout for the
         current task."""    
-        return Tasklet.timeout()
+        return Tasklet.current().timeout
 

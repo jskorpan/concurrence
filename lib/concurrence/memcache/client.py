@@ -3,7 +3,7 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence import Tasklet, Channel, Message, Lock, TaskletError
+from concurrence import Tasklet, Channel, Message, TaskletPool, Lock, TaskletError
 from concurrence.timer import Timeout
 from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStream, BufferedReader, BufferedWriter
@@ -114,31 +114,17 @@ class MemcacheConnection(object):
     """
     log = logging.getLogger('MemcacheConnection')
 
-    STATE_CLOSED = 0
-    STATE_CONNECTED = 1
-    STATE_FAILED = 2
-
     def __init__(self):
         self._stream = None
-        self._state = self.STATE_CLOSED
 
     def connect(self, addr):
-        if self._state == self.STATE_CONNECTED:
-            return
-        else:
-            assert self._stream is None
-            #TODO exception/timeout
-            self._stream = BufferedStream(Socket.connect(addr, -1))
-            self._state = self.STATE_CONNECTED
+        self._stream = BufferedStream(Socket.connect(addr, -2))
 
     def close(self):
         self._stream.close()
-        self._state = self.STATE_CLOSED
+        self._stream = None
 
     def _do_command(self, cmd):
-        if self._state in [self.STATE_FAILED, self.STATE_CLOSED]:
-            return MemcacheResult.ERROR
-            
         try:
             writer = self._stream.writer
             cmd.write(writer)
@@ -179,12 +165,25 @@ class PooledMemcacheConnection(object):
     def connect(self, addr):
         self._socket = Socket.connect(addr, -1)
         
+class MemcacheWorkerTasklet(Tasklet):
+
+    def __init__(self):
+        super(MemcacheWorkerTasklet, self).__init__()
+        self.reader = BufferedReader(None, Buffer(1024))    
+        self.writer = BufferedWriter(None, Buffer(1024))
+
+    def set_context(self, timeout, connection):
+        self.timeout = timeout
+        self.reader.stream = connection._socket
+        self.writer.stream = connection._socket
+
 class Memcache(object):
-    def __init__(self, tasklet_pool = None):
-        if tasklet_pool is None:
-            self._defer = Tasklet.defer
-        else:
-            self._defer = tasklet_pool.defer
+    def __init__(self):
+        self.read_timeout = 10
+        self.write_timeout = 10
+
+        tp = TaskletPool(5, MemcacheWorkerTasklet)
+        self._defer = tp.defer
         self._servers = {} #addr->conn
         self._server = None
 
@@ -195,20 +194,30 @@ class Memcache(object):
             self._servers[addr] = conn
             self._server = conn
 
-    def _read_result(self, server_connection, cmd, result_channel):
-        print 'read res!', server_connection
-            
-    def _write_command(self, server_connection, cmd, result_channel):
-        with Timeout.push(10):
-            writer = BufferedWriter(server_connection._socket, Buffer(1024))
-            with server_connection.write_lock:
-                cmd.write(writer)
-                self._defer(self._read_result, server_connection, cmd, result_channel)
+    def _read_result(self, connection, cmd, result_channel):
+        current_task = Tasklet.current()
+        current_task.set_context(self.read_timeout, connection)
+        reader = current_task.reader
+        with connection.read_lock:
+            result = cmd.read(reader)
+        result_channel.send(result)
+
+    def _write_command(self, connection, cmd, result_channel):
+        current_task = Tasklet.current()
+        current_task.set_context(self.write_timeout, connection)
+        writer = current_task.writer
+        with connection.write_lock:
+            cmd.write(writer)
+            writer.flush()
+            self._defer(self._read_result, connection, cmd, result_channel)
+
+    def _server_by_key(self, key):
+        return self._server
 
     def set(self, key, data, flags = 0):
         cmd = MemcacheCommandSet(key, data, flags)
         result_channel = Channel()
-        self._defer(self._write_command, self._server, cmd, result_channel)
+        self._defer(self._write_command, self._server_by_key(key), cmd, result_channel)
         return result_channel.receive()
         
 
