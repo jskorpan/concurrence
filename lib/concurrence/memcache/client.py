@@ -39,6 +39,7 @@ MemcacheResult.EXISTS = MemcacheResult()
 MemcacheResult.NOT_FOUND = MemcacheResult()
 MemcacheResult.DELETED = MemcacheResult()
 MemcacheResult.ERROR = MemcacheResult()
+
 MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
                            "NOT_STORED": MemcacheResult.NOT_STORED,
                            "EXISTS": MemcacheResult.EXISTS,
@@ -54,10 +55,7 @@ class MemcacheCommandGet(MemcacheCommand):
         self.result = {}
 
     def write(self, writer):
-        writer.write_bytes("get")
-        for key in self.keys:
-            writer.write_bytes(" " + key)
-        writer.write_bytes('\r\n')
+        writer.write_bytes("get %s\r\n" % " ".join(self.keys))
 
     def read(self, reader):
         result = {}
@@ -157,14 +155,25 @@ class MemcacheConnection(object):
     def multi_get(self, keys):
         return self._do_command(MemcacheCommandGet(keys))
 
-class PooledMemcacheConnection(object):
+class MemcacheTCPConnection(object):
     def __init__(self):
         self.read_lock = Lock()
         self.write_lock = Lock()
 
     def connect(self, addr):
-        self._socket = Socket.connect(addr, -1)
-        
+        self._socket = Socket.connect(addr, -2)
+
+class MemcacheTCPConnectionManager(object):
+    def __init__(self):
+        self._connections = {} #addr -> conn 
+ 
+    def get_connection(self, addr):
+        if not addr in self._connections:
+            connection = MemcacheTCPConnection()
+            connection.connect(addr)
+            self._connections[addr] = connection 
+        return self._connections[addr]
+
 class MemcacheWorkerTasklet(Tasklet):
 
     def __init__(self):
@@ -181,18 +190,14 @@ class Memcache(object):
     def __init__(self):
         self.read_timeout = 10
         self.write_timeout = 10
+        self.connect_timeout = 2
 
-        tp = TaskletPool(5, MemcacheWorkerTasklet)
+        tp = TaskletPool(5, MemcacheWorkerTasklet) #TODO make overridable singleton
         self._defer = tp.defer
-        self._servers = {} #addr->conn
-        self._server = None
+        self._connection_manager = MemcacheTCPConnectionManager() #TODO make overridable singleton
 
     def set_servers(self, server_list):
-        for addr in server_list:
-            conn = PooledMemcacheConnection()
-            conn.connect(addr)
-            self._servers[addr] = conn
-            self._server = conn
+        self._servers = server_list
 
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
@@ -211,15 +216,58 @@ class Memcache(object):
             writer.flush()
             self._defer(self._read_result, connection, cmd, result_channel)
 
-    def _server_by_key(self, key):
-        return self._server
+    def _key_to_addr(self, key):
+        return self._servers[hash(key) % len(self._servers)]
+    
+    def _keys_to_addr(self, keys):
+        addrs = {} #addr->[keys]
+        for key in keys:
+            addr = self._key_to_addr(key)
+            if addr in addrs:   
+                addrs[addr].append(key)
+            else:
+                addrs[addr] = [key]
+        return addrs
+
+    def _connection_by_key(self, key):
+        return self._connection_manager.get_connection(self._key_to_addr(key))
+
+    def _connect_addr(self, addr, keys, result_channel):
+        current_task = Tasklet.current()
+        current_task.timeout = self.connect_timeout
+        connection = self._connection_manager.get_connection(addr)
+        result_channel.send((connection, keys))
 
     def set(self, key, data, flags = 0):
         cmd = MemcacheCommandSet(key, data, flags)
         result_channel = Channel()
-        self._defer(self._write_command, self._server_by_key(key), cmd, result_channel)
+        self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
         return result_channel.receive()
-        
+
+    def get(self, key):
+        cmd = MemcacheCommandGet([key])
+        result_channel = Channel()
+        self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
+        return result_channel.receive()
+            
+    def get_multi(self, keys):
+        result_channel = Channel()
+        grouped = self._keys_to_addr(keys).items()
+        for addr, _keys in grouped:
+            self._defer(self._connect_addr, addr, _keys, result_channel)
+        for connection, keys in result_channel.receive_n(len(grouped)):
+            cmd = MemcacheCommandGet(keys)
+            self._defer(self._write_command, connection, cmd, result_channel)
+        result = {}        
+        for _result in result_channel.receive_n(len(grouped)):
+            result.update(_result)
+        return result
+
+ 
+                    
+
+
+
 
             
 

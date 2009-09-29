@@ -5,6 +5,13 @@ from concurrence import unittest, Tasklet
 from concurrence.memcache.client import MemcacheConnection, MemcacheResult, Memcache
 
 class MemcacheTest(unittest.TestCase):
+    def setUp(self):
+        for i in range(4):
+            os.system('/usr/bin/memcached -m 10 -p %d -u nobody -l 127.0.0.1&' % (11211 + i))
+
+    def tearDown(self):
+        os.system('killall /usr/bin/memcached')
+
     def testNodeBasic(self):
         
         node = MemcacheConnection()
@@ -53,7 +60,7 @@ class MemcacheTest(unittest.TestCase):
 
         node.close()
         
-    def testSpeed(self):
+    def xtestSpeed(self):
 
         node = MemcacheConnection()
         node.connect(('127.0.0.1', 11211))
@@ -69,7 +76,7 @@ class MemcacheTest(unittest.TestCase):
         print '#set/sec', N / (end - start)
         node.close()
 
-    def testMemcache(self):
+    def xtestMemcache(self):
         
         mc = Memcache()
         mc.set_servers([('127.0.0.1', 11211)])
@@ -82,6 +89,21 @@ class MemcacheTest(unittest.TestCase):
         end = time.time()
         print '#set/sec', N / (end - start)
 
+    def testMemcacheMultiServer(self):
+        
+        mc = Memcache()
+        mc.set_servers([('127.0.0.1', 11211), ('127.0.0.1', 11212), ('127.0.0.1', 11213), ('127.0.0.1', 11214)])
+
+        N = 10
+
+        for i in range(N):
+            mc.set('test%d' % i, 'hello world %d' % i)
+
+        for i in range(N):
+            print mc.get('test%d' % i)
+
+        for i in range(20000):
+            mc.get_multi(['test%d' % i for i in range(N)])
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)

@@ -632,6 +632,14 @@ class Channel(object):
             finally:
                 event_timeout.close()
 
+    def receive_n(self, n):
+        for i in range(n):
+            yield self.receive(-2)
+        
+    def __iter__(self):
+        while True:
+            yield self.receive(-2)
+
     def send(self, value, timeout = -1):
         """Sends to the channel. If there is no receiver, the caller will block until there is one.
         If a receiver is present, the *value* will be passed to the receiver and execution will continue in the 
