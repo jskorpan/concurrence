@@ -23,7 +23,7 @@ import cPickle as pickle
 #keep some time before retrying host
 #global consistent hashing algorithm for accessing set of memcached servers
 #replicated set
-#multiple connections to same host
+#multiple connections to same host (with maximum)
 #append, prepend commands
 #close down node no recv ERROR?
 #support for cas command
@@ -46,10 +46,10 @@ MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
                            "NOT_FOUND": MemcacheResult.NOT_FOUND,
                            "DELETED": MemcacheResult.DELETED}
 
-class MemcacheCommand(object):
+class _MemcacheCmd(object):
     pass
 
-class MemcacheCommandGet(MemcacheCommand):
+class _MemcacheCmdGet(_MemcacheCmd):
     def __init__(self, keys):
         self.keys = keys
         self.result = {}
@@ -74,21 +74,21 @@ class MemcacheCommandGet(MemcacheCommand):
             else:
                 assert False, "protocol error"
 
-class MemcacheCommandWithResult(MemcacheCommand):
+class _MemcacheCmdWithResult(_MemcacheCmd):
     def read(self, reader):
         response_line = reader.read_line()
         result = MemcacheResult.RESPONSES.get(response_line, None)
         assert result is not None, "protocol error"
         return result
     
-class MemcacheCommandDelete(MemcacheCommandWithResult):
+class _MemcacheCmdDelete(_MemcacheCmdWithResult):
     def __init__(self, key):
         self.key = key
 
     def write(self, writer):
         writer.write_bytes("delete %s\r\n" % (self.key, ))
 
-class MemcacheCommandStorage(MemcacheCommandWithResult):
+class _MemcacheCmdStorage(_MemcacheCmdWithResult):
     def __init__(self, key, value, flags):
         encoded_value = pickle.dumps(value, -1)
         self.cmd_bytes = "%s %s %d 0 %d\r\n%s\r\n" % (self.cmd, key, flags, len(encoded_value), encoded_value)
@@ -96,13 +96,13 @@ class MemcacheCommandStorage(MemcacheCommandWithResult):
     def write(self, writer):
         writer.write_bytes(self.cmd_bytes)
 
-class MemcacheCommandSet(MemcacheCommandStorage):
+class _MemcacheCmdSet(_MemcacheCmdStorage):
     cmd = "set"
 
-class MemcacheCommandAdd(MemcacheCommandStorage):
+class _MemcacheCmdAdd(_MemcacheCmdStorage):
     cmd = "add"
 
-class MemcacheCommandReplace(MemcacheCommandStorage):
+class _MemcacheCmdReplace(_MemcacheCmdStorage):
     cmd = "replace"
 
 class MemcacheConnection(object):
@@ -134,28 +134,25 @@ class MemcacheConnection(object):
             return MemcacheResult.ERROR
 
     def set(self, key, data, flags = 0):
-        return self._do_command(MemcacheCommandSet(key, data, flags))
+        return self._do_command(_MemcacheCmdSet(key, data, flags))
 
     def add(self, key, data, flags = 0):
-        return self._do_command(MemcacheCommandAdd(key, data, flags))
+        return self._do_command(_MemcacheCmdAdd(key, data, flags))
 
     def replace(self, key, data, flags = 0):
-        return self._do_command(MemcacheCommandReplace(key, data, flags))
+        return self._do_command(_MemcacheCmdReplace(key, data, flags))
 
     def delete(self, key):
-        return self._do_command(MemcacheCommandDelete(key))
+        return self._do_command(_MemcacheCmdDelete(key))
 
     def get(self, key):
-        result = self._do_command(MemcacheCommandGet([key]))
-        if key in result:
-            return result[key]
-        else:
-            return None
+        result = self._do_command(_MemcacheCmdGet([key]))
+        return result.get(key, None)
 
     def multi_get(self, keys):
-        return self._do_command(MemcacheCommandGet(keys))
+        return self._do_command(_MemcacheCmdGet(keys))
 
-class MemcacheTCPConnection(object):
+class _MemcacheTCPConnection(object):
     def __init__(self):
         self.read_lock = Lock()
         self.write_lock = Lock()
@@ -163,21 +160,21 @@ class MemcacheTCPConnection(object):
     def connect(self, addr):
         self._socket = Socket.connect(addr, -2)
 
-class MemcacheTCPConnectionManager(object):
+class _MemcacheTCPConnectionManager(object):
     def __init__(self):
         self._connections = {} #addr -> conn 
  
     def get_connection(self, addr):
         if not addr in self._connections:
-            connection = MemcacheTCPConnection()
+            connection = _MemcacheTCPConnection()
             connection.connect(addr)
             self._connections[addr] = connection 
         return self._connections[addr]
 
-class MemcacheWorkerTasklet(Tasklet):
+class _MemcacheWorkerTasklet(Tasklet):
 
     def __init__(self):
-        super(MemcacheWorkerTasklet, self).__init__()
+        super(_MemcacheWorkerTasklet, self).__init__()
         self.reader = BufferedReader(None, Buffer(1024))    
         self.writer = BufferedWriter(None, Buffer(1024))
 
@@ -192,9 +189,9 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        tp = TaskletPool(5, MemcacheWorkerTasklet) #TODO make overridable singleton
+        tp = TaskletPool(5, _MemcacheWorkerTasklet) #TODO make overridable singleton
         self._defer = tp.defer
-        self._connection_manager = MemcacheTCPConnectionManager() #TODO make overridable singleton
+        self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
 
     def set_servers(self, server_list):
         self._servers = server_list
@@ -239,25 +236,25 @@ class Memcache(object):
         result_channel.send((connection, keys))
 
     def set(self, key, data, flags = 0):
-        cmd = MemcacheCommandSet(key, data, flags)
+        cmd = _MemcacheCmdSet(key, data, flags)
         result_channel = Channel()
         self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
         return result_channel.receive()
 
     def get(self, key):
-        cmd = MemcacheCommandGet([key])
+        cmd = _MemcacheCmdGet([key])
         result_channel = Channel()
         self._defer(self._write_command, self._connection_by_key(key), cmd, result_channel)
-        return result_channel.receive()
-            
+        result = result_channel.receive()
+        return result.get(key, None)
+
     def get_multi(self, keys):
         result_channel = Channel()
         grouped = self._keys_to_addr(keys).items()
         for addr, _keys in grouped:
             self._defer(self._connect_addr, addr, _keys, result_channel)
         for connection, keys in result_channel.receive_n(len(grouped)):
-            cmd = MemcacheCommandGet(keys)
-            self._defer(self._write_command, connection, cmd, result_channel)
+            self._defer(self._write_command, connection, _MemcacheCmdGet(keys), result_channel)
         result = {}        
         for _result in result_channel.receive_n(len(grouped)):
             result.update(_result)

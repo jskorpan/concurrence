@@ -60,50 +60,56 @@ class MemcacheTest(unittest.TestCase):
 
         node.close()
         
-    def xtestSpeed(self):
+    def testSpeed(self):
 
         node = MemcacheConnection()
         node.connect(('127.0.0.1', 11211))
 
-        #Tasklet.sleep(1000)
-
         N = 100000
         
-        start = time.time()    
-        for i in range(N):
-            node.set('test2', 'hello world!')
-        end = time.time()
-        print '#set/sec', N / (end - start)
+        with unittest.timer() as tmr:
+            for i in range(N):
+                node.set('test2', 'hello world!')
+        print 'simple connection set keys/sec', tmr.sec(N)
         node.close()
 
-    def xtestMemcache(self):
+    def testMemcache(self):
         
         mc = Memcache()
         mc.set_servers([('127.0.0.1', 11211)])
 
         N = 10000
 
-        start = time.time()    
-        for i in range(N):
-            mc.set('test2', 'hello world!')
-        end = time.time()
-        print '#set/sec', N / (end - start)
+        with unittest.timer() as tmr:
+            for i in range(N):
+                mc.set('test2', 'hello world!')
+        print 'single server single set keys/sec', tmr.sec(N)
 
     def testMemcacheMultiServer(self):
         
         mc = Memcache()
         mc.set_servers([('127.0.0.1', 11211), ('127.0.0.1', 11212), ('127.0.0.1', 11213), ('127.0.0.1', 11214)])
 
-        N = 10
+        N = 10000
+        keys = ['test%d' % i for i in range(N)]
 
-        for i in range(N):
-            mc.set('test%d' % i, 'hello world %d' % i)
+        with unittest.timer() as tmr:
+            for i in range(N):
+                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
+        print 'multi server single set keys/sec', tmr.sec(N)
 
-        for i in range(N):
-            print mc.get('test%d' % i)
+        with unittest.timer() as tmr:
+            for i in range(N):
+                self.assertEquals('hello world %d' % i, mc.get(keys[i]))
+        print 'multi server single get keys/sec', tmr.sec(N)
 
-        for i in range(20000):
-            mc.get_multi(['test%d' % i for i in range(N)])
+        N = 10000
+        for stride in [10,20,40]:
+            with unittest.timer() as tmr:
+                for i in range(0, N, stride):
+                    result = mc.get_multi(keys[i:i+stride])
+                    self.assertEquals(stride, len(result))
+            print 'multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)

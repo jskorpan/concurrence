@@ -5,6 +5,7 @@
 
 import unittest
 import logging
+import time
 
 from concurrence import dispatch, Tasklet, quit 
 from concurrence.core import EXIT_CODE_TIMEOUT
@@ -21,6 +22,23 @@ class TestCase(unittest.TestCase):
             Tasklet.yield_() #this make sure that everything gets a change to exit before we start the next test
         except:
             pass
+
+class _Timer:
+    def __enter__(self):
+        self._start = time.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self._end = time.time()
+
+    def __str__(self):
+        self._end - self._start
+
+    def sec(self, n):
+        return n / (self._end - self._start)
+
+def timer():
+    return _Timer()
 
 def main(timeout = None):
 
