@@ -78,7 +78,7 @@ class MemcacheTest(unittest.TestCase):
     def testMemcache(self):
         
         mc = Memcache()
-        mc.set_servers([(MEMCACHE_IP, 11211)])
+        mc.set_servers([((MEMCACHE_IP, 11211), 100)])
 
         N = 10000
 
@@ -90,7 +90,10 @@ class MemcacheTest(unittest.TestCase):
     def testMemcacheMultiServer(self):
         
         mc = Memcache()
-        mc.set_servers([(MEMCACHE_IP, 11211), (MEMCACHE_IP, 11212), (MEMCACHE_IP, 11213), (MEMCACHE_IP, 11214)])
+        mc.set_servers([((MEMCACHE_IP, 11211), 100), 
+                        ((MEMCACHE_IP, 11212), 100), 
+                        ((MEMCACHE_IP, 11213), 100), 
+                        ((MEMCACHE_IP, 11214), 100)])
 
         N = 10000
         keys = ['test%d' % i for i in range(N)]

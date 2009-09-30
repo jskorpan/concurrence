@@ -9,6 +9,8 @@ from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStream, BufferedReader, BufferedWriter
 from concurrence.containers.deque import Deque
 
+from concurrence.memcache import ketama
+
 import logging
 import cPickle as pickle
 
@@ -183,6 +185,26 @@ class _MemcacheWorkerTasklet(Tasklet):
         self.reader.stream = connection._socket
         self.writer.stream = connection._socket
 
+class MemcacheModuloBehaviour(object):
+    def __init__(self):
+        pass
+
+    def set_servers(self, servers):
+        self._servers = servers
+
+    def key_to_addr(self, key):
+        return self._servers[hash(key) % len(self._servers)]
+
+class MemcacheKetamaBehaviour(object):
+    def __init__(self):
+        self._continuum = None
+
+    def set_servers(self, servers):
+        self._continuum = ketama.build_continuum(servers)
+
+    def key_to_addr(self, key):
+        return ketama.get_server(key, self._continuum)
+
 class Memcache(object):
     def __init__(self):
         self.read_timeout = 10
@@ -192,9 +214,15 @@ class Memcache(object):
         tp = TaskletPool(4, _MemcacheWorkerTasklet) #TODO make overridable singleton
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
+        
+        self.set_behaviour(MemcacheKetamaBehaviour()) #default
+
+    def set_behaviour(self, behaviour):
+        self._behaviour = behaviour
+        self._key_to_addr = behaviour.key_to_addr
 
     def set_servers(self, server_list):
-        self._servers = server_list
+        self._behaviour.set_servers(server_list)
 
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
@@ -222,9 +250,6 @@ class Memcache(object):
     def _connect_by_key(self, key):
         return self._connection_manager.get_connection(self._key_to_addr(key))
 
-    def _key_to_addr(self, key):
-        return self._servers[hash(key) % len(self._servers)]
-    
     def _keys_to_addr(self, keys):
         addrs = {} #addr->[keys]
         for key in keys:
