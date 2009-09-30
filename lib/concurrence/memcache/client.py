@@ -189,7 +189,7 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        tp = TaskletPool(5, _MemcacheWorkerTasklet) #TODO make overridable singleton
+        tp = TaskletPool(4, _MemcacheWorkerTasklet) #TODO make overridable singleton
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
 
