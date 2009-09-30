@@ -9,12 +9,12 @@ from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalid
 class IOStream(object):
     """abstract class to indicate that something is a stream and capable
     of the basic read and write ops on a buffer"""
-    def write(self, buffer, timeout = -1.0):
+    def write(self, buffer, timeout = -2, assume_writable = True):
         """should write available bytes from the buffer into stream and return
         the number of bytes written (could be less than available), or 0 on EOF
         or raise error, or timeout"""
 
-    def read(self, buffer, timeout = -1.0):
+    def read(self, buffer, timeout = -2, assume_readable = True):
         """should read from the stream into buffer and return number of bytes read, or 0 on EOF
         or raise error, or timeout"""
         pass

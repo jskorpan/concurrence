@@ -166,6 +166,8 @@ class Socket(IOStream):
             if bytes_written < 0 and _io.get_errno() == EAGAIN:   
                 #nope, need to wait before sending our data
                 assume_writable = False
+            #else if error != EAGAIN, assume_writable will stay True, and we fall trough and raise error below
+            
         #if we cannot assume writability we will wait until data can be written again   
         if not assume_writable:
             self.writable.wait(timeout = timeout)
@@ -187,11 +189,13 @@ class Socket(IOStream):
             if bytes_read < 0 and _io.get_errno() == EAGAIN:   
                 #nope, need to wait before reading our data
                 assume_readable = False
+            #else if error != EAGAIN, assume_readable will stay True, and we fall trough and raise error below
+            
         #if we cannot assume readability we will wait until data can be read again   
         if not assume_readable:
             self.readable.wait(timeout = timeout)
             bytes_read, _ = buffer.recv(self.fd) #read from fd to 
-        
+        #
         if bytes_read < 0:
             raise _io.error_from_errno(IOError)
         else:
