@@ -14,7 +14,7 @@ class MemcacheTest(unittest.TestCase):
     def tearDown(self):
         os.system('killall /usr/bin/memcached')
     
-    def testNodeBasic(self):
+    def testBasic(self):
         
         mc = Memcache()
         mc.set_servers([((MEMCACHE_IP, 11211), 100)])
@@ -101,6 +101,20 @@ class MemcacheTest(unittest.TestCase):
                     result = mc.get_multi(keys[i:i+stride])
                     self.assertEquals(stride, len(result))
             print 'multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
+
+        stride = 40
+        def fetcher():
+            for i in range(0, N, stride):
+                result = mc.get_multi(keys[i:i+stride])
+                print len(result)
+                self.assertEquals(stride, len(result))
+            print 'done'
+
+        with unittest.timer() as tmr:
+            for i in range(4):
+                Tasklet.new(fetcher)()
+            Tasklet.sleep(4)
+        print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)

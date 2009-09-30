@@ -39,10 +39,10 @@ class Lock(object):
 class TaskletPool(object):
     log = logging.getLogger('TaskletPool')
 
-    def __init__(self, min_worker_count, worker_tasklet_class = Tasklet):
+    def __init__(self, min_worker_count):
         self._queue = Deque()
         for i in range(min_worker_count):
-            worker_tasklet_class.new(self._worker)()
+            Tasklet.new(self._worker)()
 
     def _worker(self):
         while True:

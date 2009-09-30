@@ -150,17 +150,33 @@ class _MemcacheTCPConnectionManager(object):
             self._connections[addr] = connection 
         return self._connections[addr]
 
-class _MemcacheWorkerTasklet(Tasklet):
+        
+
+class BufferedStreamPool(object):
 
     def __init__(self):
-        super(_MemcacheWorkerTasklet, self).__init__()
-        self.reader = BufferedReader(None, Buffer(1024))    
-        self.writer = BufferedWriter(None, Buffer(1024))
+        self._pool = []
 
-    def set_context(self, timeout, connection):
-        self.timeout = timeout
-        self.reader.stream = connection._socket
-        self.writer.stream = connection._socket
+    class _borrowed_stream(object):
+        def __init__(self, pool, stream):
+            self._pool = pool
+            self._stream = stream
+
+        def __enter__(self):
+            return self._stream
+         
+        def __exit__(self, type, value, traceback):
+            self._pool.append(self._stream)
+
+    def borrow(self, stream):
+        if self._pool:
+            buffered_stream = self._pool.pop()
+        else:
+            buffered_stream = BufferedStream(None, 1024)
+
+        buffered_stream.set_stream(stream)
+
+        return self._borrowed_stream(self._pool, buffered_stream)
 
 class MemcacheModuloBehaviour(object):
     def __init__(self):
@@ -188,7 +204,9 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        tp = TaskletPool(4, _MemcacheWorkerTasklet) #TODO make overridable singleton
+        tp = TaskletPool(2) #TODO make overridable singleton
+
+        self._stream_pool = BufferedStreamPool()
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
 
@@ -210,22 +228,23 @@ class Memcache(object):
 
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
-        current_task.set_context(self.read_timeout, connection)
+        current_task.timeout = self.read_timeout
         cmd.codec = self._codec
-        reader = current_task.reader
         with connection.read_lock:
-            result = cmd.read(reader)
+            with self._stream_pool.borrow(connection._socket) as stream:
+                result = cmd.read(stream.reader)
         result_channel.send(result)
 
     def _write_command(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
-        current_task.set_context(self.write_timeout, connection)
+        current_task.timeout = self.write_timeout
         cmd.codec = self._codec
-        writer = current_task.writer
         with connection.write_lock:
-            cmd.write(writer)
-            writer.flush()
-            self._defer(self._read_result, connection, cmd, result_channel)
+            with self._stream_pool.borrow(connection._socket) as stream:
+                writer = stream.writer
+                cmd.write(writer)
+                writer.flush()
+                self._defer(self._read_result, connection, cmd, result_channel)
 
     def _connect_by_addr(self, addr, keys, result_channel):
         current_task = Tasklet.current()
@@ -246,29 +265,22 @@ class Memcache(object):
                 addrs[addr] = [key]
         return addrs
 
-    def delete(self, key):
-        cmd = _MemcacheCmdDelete(key)
+    def _do_command(self, cmd):
         result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
+        self._defer(self._write_command, self._connect_by_key(cmd.key), cmd, result_channel)
         return result_channel.receive()
+
+    def delete(self, key):
+        return self._do_command(_MemcacheCmdDelete(key))
         
     def set(self, key, data):
-        cmd = _MemcacheCmdSet(key, data)
-        result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
-        return result_channel.receive()
+        return self._do_command(_MemcacheCmdSet(key, data))
 
     def add(self, key, data):
-        cmd = _MemcacheCmdAdd(key, data)
-        result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
-        return result_channel.receive()
+        return self._do_command(_MemcacheCmdAdd(key, data))
 
     def replace(self, key, data):
-        cmd = _MemcacheCmdReplace(key, data)
-        result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
-        return result_channel.receive()
+        return self._do_command(_MemcacheCmdReplace(key, data))
 
     def get(self, key):
         cmd = _MemcacheCmdGet([key])

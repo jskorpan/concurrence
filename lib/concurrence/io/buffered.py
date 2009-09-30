@@ -125,6 +125,11 @@ class BufferedStream(object):
         self.reader = BufferedReader(stream, Buffer(read_buffer_size or buffer_size))
         self.writer = BufferedWriter(stream, Buffer(write_buffer_size or buffer_size))
 
+    def set_stream(self, stream):
+        self.stream = stream
+        self.reader.stream = stream
+        self.writer.stream = stream
+
     def file(self):
         return CompatibleFile(self.reader, self.writer)
 
