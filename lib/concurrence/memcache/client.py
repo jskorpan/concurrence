@@ -70,18 +70,24 @@ class RawCodec(Codec):
     def encode(self, value):
         return str(value), 0
             
-class _MemcacheCmd(object):
-    pass
+class MemcacheTextProtocol(object):
+    def __init__(self):
+        self._codec = None
 
-class _MemcacheCmdGet(_MemcacheCmd):
-    def __init__(self, keys):
-        self.keys = keys
-        self.result = {}
+    def _read_result(self, reader):
+        response_line = reader.read_line()
+        result = MemcacheResult.RESPONSES.get(response_line, None)
+        assert result is not None, "protocol error"
+        return result
 
-    def write(self, writer):
-        writer.write_bytes("get %s\r\n" % " ".join(self.keys))
+    def _write_storage(self, writer, cmd, key, value):
+        encoded_value, flags = self._codec.encode(value)
+        writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), encoded_value))
 
-    def read(self, reader):
+    def write_get(self, writer, keys):
+        writer.write_bytes("get %s\r\n" % " ".join(keys))
+
+    def read_get(self, reader):
         result = {}
         while True:
             response_line = reader.read_line()
@@ -92,43 +98,35 @@ class _MemcacheCmdGet(_MemcacheCmd):
                 n = int(response_fields[3])
                 encoded_value = reader.read_bytes(n)
                 reader.read_line() #\r\n
-                result[key] = self.codec.decode(flags, encoded_value)
+                result[key] = self._codec.decode(flags, encoded_value)
             elif response_line == 'END':
                 return result 
             else:
                 assert False, "protocol error"
-
-class _MemcacheCmdWithResult(_MemcacheCmd):
-    def read(self, reader):
-        response_line = reader.read_line()
-        result = MemcacheResult.RESPONSES.get(response_line, None)
-        assert result is not None, "protocol error"
-        return result
     
-class _MemcacheCmdDelete(_MemcacheCmdWithResult):
-    def __init__(self, key):
-        self.key = key
+    def write_delete(self, writer, key):
+        writer.write_bytes("delete %s\r\n" % (key, ))
+    
+    def read_delete(self, reader):
+        return self._read_result(reader)
 
-    def write(self, writer):
-        writer.write_bytes("delete %s\r\n" % (self.key, ))
+    def write_set(self, writer, key, value):
+        return self._write_storage(writer, "set", key, value)
 
-class _MemcacheCmdStorage(_MemcacheCmdWithResult):
-    def __init__(self, key, value):
-        self.key = key
-        self.value = value
-        
-    def write(self, writer):
-        encoded_value, flags = self.codec.encode(self.value)
-        writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (self.cmd, self.key, flags, len(encoded_value), encoded_value))
+    def read_set(self, reader):
+        return self._read_result(reader)
 
-class _MemcacheCmdSet(_MemcacheCmdStorage):
-    cmd = "set"
+    def write_add(self, writer, key, value):
+        return self._write_storage(writer, "add", key, value)
 
-class _MemcacheCmdAdd(_MemcacheCmdStorage):
-    cmd = "add"
+    def read_add(self, reader):
+        return self._read_result(reader)
 
-class _MemcacheCmdReplace(_MemcacheCmdStorage):
-    cmd = "replace"
+    def write_replace(self, writer, key, value):
+        return self._write_storage(writer, "replace", key, value)
+
+    def read_replace(self, reader):
+        return self._read_result(reader)
 
 
 class _MemcacheTCPConnection(object):
@@ -209,7 +207,7 @@ class Memcache(object):
         self._stream_pool = BufferedStreamPool()
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
-
+        self._protocol = MemcacheTextProtocol()
         self.set_codec(DefaultCodec())
         self.set_behaviour(MemcacheKetamaBehaviour()) #default
         
@@ -218,7 +216,8 @@ class Memcache(object):
 
     def set_codec(self, codec):
         self._codec = codec
-        
+        self._protocol._codec = codec
+
     def set_behaviour(self, behaviour):
         self._behaviour = behaviour
         self._key_to_addr = behaviour.key_to_addr
@@ -229,20 +228,18 @@ class Memcache(object):
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
         current_task.timeout = self.read_timeout
-        cmd.codec = self._codec
         with connection.read_lock:
             with self._stream_pool.borrow(connection._socket) as stream:
-                result = cmd.read(stream.reader)
+                result = getattr(self._protocol, 'read_' + cmd)(stream.reader)
         result_channel.send(result)
 
-    def _write_command(self, connection, cmd, result_channel):
+    def _write_command(self, connection, cmd, args, result_channel):
         current_task = Tasklet.current()
         current_task.timeout = self.write_timeout
-        cmd.codec = self._codec
         with connection.write_lock:
             with self._stream_pool.borrow(connection._socket) as stream:
                 writer = stream.writer
-                cmd.write(writer)
+                getattr(self._protocol, 'write_' + cmd)(writer, *args)
                 writer.flush()
                 self._defer(self._read_result, connection, cmd, result_channel)
 
@@ -265,27 +262,26 @@ class Memcache(object):
                 addrs[addr] = [key]
         return addrs
 
-    def _do_command(self, cmd):
+    def _do_command(self, cmd, *args):
         result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(cmd.key), cmd, result_channel)
+        self._defer(self._write_command, self._connect_by_key(args[0]), cmd, args, result_channel)
         return result_channel.receive()
 
     def delete(self, key):
-        return self._do_command(_MemcacheCmdDelete(key))
+        return self._do_command("delete", key)
         
     def set(self, key, data):
-        return self._do_command(_MemcacheCmdSet(key, data))
+        return self._do_command("set", key, data)
 
     def add(self, key, data):
-        return self._do_command(_MemcacheCmdAdd(key, data))
+        return self._do_command("add", key, data)
 
     def replace(self, key, data):
-        return self._do_command(_MemcacheCmdReplace(key, data))
+        return self._do_command("replace", key, data)
 
     def get(self, key):
-        cmd = _MemcacheCmdGet([key])
         result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
+        self._defer(self._write_command, self._connect_by_key(key), "get", [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
@@ -296,7 +292,7 @@ class Memcache(object):
         for addr, _keys in grouped:
             self._defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
-            self._defer(self._write_command, connection, _MemcacheCmdGet(_keys), result_channel)
+            self._defer(self._write_command, connection, "get", [_keys], result_channel)
         result = {}        
         for _result in result_channel.receive_n(n):
             result.update(_result)
