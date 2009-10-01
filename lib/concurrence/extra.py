@@ -45,7 +45,7 @@ class TaskletPool(object):
     def __init__(self, min_worker_count):
         self._queue = Deque()
         for i in range(min_worker_count):
-            Tasklet.new(self._worker)()
+            Tasklet.new(self._worker, daemon = True)()
 
     def _worker(self):
         while True:
@@ -60,5 +60,14 @@ class TaskletPool(object):
 
     def defer(self, f, *args, **kwargs):
         self._queue.append((f, args, kwargs))
+
+_task_pool = TaskletPool(10)
         
+defer = _task_pool.defer
+    
+
+
+
+
         
+

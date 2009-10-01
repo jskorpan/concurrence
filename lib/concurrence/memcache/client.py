@@ -3,7 +3,7 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence import Tasklet, Channel, Message, TaskletPool, Lock, TaskletError
+from concurrence import Tasklet, Channel, Message, TaskletPool, Lock, TaskletError, defer
 from concurrence.timer import Timeout
 from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStream, BufferedReader, BufferedWriter
@@ -24,7 +24,6 @@ import cPickle as pickle
 #plugable serialization support (and/or provide choise, default (py-serialized, utf-8 encoded json, etc)?
 #todo detect timeouts on write/read, and mark host as dead
 #keep some time before retrying host
-#global consistent hashing algorithm for accessing set of memcached servers
 #replicated set
 #multiple connections to same host (with maximum)
 #append, prepend commands
@@ -38,19 +37,27 @@ import cPickle as pickle
 #!! reverse the locking, e.g. don't let random worker task get locked when we already know it will loc
 #instead defer working when we know it can proceed...
 
-#buffer/stream sharing must be fixed, sometimes a buffer/stream needs to stay associated with a connection, e.g.
-#when you do a read from the socket, more data may be avaialable in the buffer than your 'logical' response reader might
-#need, so when the next logical read comes, it must get the previous stream that still contains that leftover data...
-
+#TODO what is the best pattern for enums in python?
 class MemcacheResult(object):
-    pass
+    _all = {}
+
+    def __init__(self, name):
+        self._name = name
+        self._all[name] = self
+    
+    def __repr__(self):
+        return "<MemcacheResult: %s>" % self._name
         
-MemcacheResult.STORED = MemcacheResult()
-MemcacheResult.NOT_STORED = MemcacheResult()
-MemcacheResult.EXISTS = MemcacheResult()
-MemcacheResult.NOT_FOUND = MemcacheResult()
-MemcacheResult.DELETED = MemcacheResult()
-MemcacheResult.ERROR = MemcacheResult()
+    @classmethod
+    def get(cls, name, default):
+        return cls._all.get(name, default)
+
+MemcacheResult.STORED = MemcacheResult("STORED")
+MemcacheResult.NOT_STORED = MemcacheResult("NOT_STORED")
+MemcacheResult.EXISTS = MemcacheResult("EXISTS")
+MemcacheResult.NOT_FOUND = MemcacheResult("NOT_FOUND")
+MemcacheResult.DELETED = MemcacheResult("DELETED")
+MemcacheResult.ERROR = MemcacheResult("ERROR")
 
 MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
                            "NOT_STORED": MemcacheResult.NOT_STORED,
@@ -85,7 +92,7 @@ class MemcacheTextProtocol(object):
 
     def _read_result(self, reader):
         response_line = reader.read_line()
-        result = MemcacheResult.RESPONSES.get(response_line, None)
+        result = MemcacheResult.get(response_line, None)
         assert result is not None, "protocol error"
         return result
 
@@ -245,13 +252,9 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        self.x = 0
-        
-        tp = TaskletPool(4) #TODO make overridable singleton
-
-        self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
         self._protocol = MemcacheTextProtocol()
+
         self.set_codec(DefaultCodec())
         self.set_behaviour(MemcacheKetamaBehaviour()) #default
         
@@ -275,7 +278,6 @@ class Memcache(object):
         with connection.read_lock:
             with connection.get_reader() as reader:
                 result = getattr(self._protocol, 'read_' + cmd)(reader)
-        #print 'erd'
         result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
@@ -288,7 +290,7 @@ class Memcache(object):
             with connection.get_writer() as writer:
                 getattr(self._protocol, 'write_' + cmd)(writer, *args)
                 writer.flush()
-                self._defer(self._read_result, connection, cmd, result_channel)
+                defer(self._read_result, connection, cmd, result_channel)
         
     def _connect_by_addr(self, addr, keys, result_channel):
         current_task = Tasklet.current()
@@ -311,7 +313,7 @@ class Memcache(object):
 
     def _do_command(self, cmd, *args):
         result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(args[0]), cmd, args, result_channel)
+        defer(self._write_command, self._connect_by_key(args[0]), cmd, args, result_channel)
         return result_channel.receive()
 
     def delete(self, key):
@@ -328,7 +330,7 @@ class Memcache(object):
 
     def get(self, key):
         result_channel = Channel()
-        self._defer(self._write_command, self._connect_by_key(key), "get", [[key]], result_channel)
+        defer(self._write_command, self._connect_by_key(key), "get", [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
@@ -337,9 +339,9 @@ class Memcache(object):
         grouped = self._keys_to_addr(keys).items()
         n = len(grouped)
         for addr, _keys in grouped:
-            self._defer(self._connect_by_addr, addr, _keys, result_channel)
+            defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
-            self._defer(self._write_command, connection, "get", [_keys], result_channel)
+            defer(self._write_command, connection, "get", [_keys], result_channel)
         result = {}        
         for _result in result_channel.receive_n(n):
             result.update(_result)

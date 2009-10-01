@@ -521,7 +521,8 @@ class Tasklet(stackless.tasklet):
         be named *name*. If no *name* is given a name is derived from the callable *f*.
         
         The result of *f* will be the result of the tasklet. *f* may throw an exception, in which case
-        the exception will be the result of the tasklet."""
+        the exception will be the result of the tasklet.
+        """
         t = cls()
         if name is '':
             t.name = f.__name__

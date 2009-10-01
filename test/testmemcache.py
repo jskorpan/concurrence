@@ -104,7 +104,7 @@ class TestMemcache(unittest.TestCase):
 
     def testMultiClientMultiServer(self):
         
-        N = 40 * 10
+        N = 40 * 500
         keys = ['test%d' % i for i in range(N)]
         
         mc = Memcache()
@@ -123,12 +123,11 @@ class TestMemcache(unittest.TestCase):
             for i in range(0, N, stride):
                 result = mc.get_multi(keys[i:i+stride])
                 self.assertEquals(stride, len(result))
-            print 'done'
 
         with unittest.timer() as tmr:
             for i in range(4):
                 Tasklet.new(fetcher)()
-            Tasklet.sleep(4) #TODO fix join_children
+            Tasklet.join_children()
         print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
     def testTextProtocol(self):
