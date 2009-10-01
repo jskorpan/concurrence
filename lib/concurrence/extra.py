@@ -42,10 +42,21 @@ class Lock(object):
 class TaskletPool(object):
     log = logging.getLogger('TaskletPool')
 
-    def __init__(self, min_worker_count):
+    def __init__(self):
         self._queue = Deque()
-        for i in range(min_worker_count):
-            Tasklet.new(self._worker, daemon = True)()
+        self._workers = []
+        self._workers.append(Tasklet.new(self._worker, daemon = True)())
+        self._adjuster = Tasklet.interval(0.25, self._adjust, daemon = True)()
+        self._queue_len = 0.0
+
+    def _adjust(self):  
+        gamma = 0.995
+        self._queue_len = (gamma * self._queue_len) + ((1.0 - gamma) * len(self._queue))
+        x = int(self._queue_len) - len(self._workers)
+        if x > 0:
+            for _ in range(x):
+                self._workers.append(Tasklet.new(self._worker, daemon = True)())
+            self.log.debug('adjusted #worker tasks, now: %s', len(self._workers))
 
     def _worker(self):
         while True:
@@ -61,7 +72,7 @@ class TaskletPool(object):
     def defer(self, f, *args, **kwargs):
         self._queue.append((f, args, kwargs))
 
-_task_pool = TaskletPool(10)
+_task_pool = TaskletPool()
         
 defer = _task_pool.defer
     
