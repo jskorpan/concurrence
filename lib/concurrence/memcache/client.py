@@ -142,43 +142,70 @@ class MemcacheTextProtocol(object):
 
 
 class _MemcacheTCPConnection(object):
+    _write_buffer_size = 1024 * 2
+    _read_buffer_size = 1024 * 16
+
+    _reader_pool = []
+    _writer_pool = []
+
     def __init__(self):
         self.read_lock = Lock()
         self.write_lock = Lock()
         self._socket = None
-        self._stream = None
+        self._writer = None
+        self._reader = None
 
     def connect(self, addr):
         self._socket = Socket.connect(addr, -2)
-        self._stream = BufferedStream(self._socket)
 
     class _borrowed_writer(object):
-        def __init__(self, connection, stream):
+        def __init__(self, connection):
+            if connection._writer is None:
+                if connection._writer_pool:
+                    writer = connection._writer_pool.pop()
+                else:
+                    writer = BufferedWriter(None, Buffer(connection._write_buffer_size))
+            else:
+                writer = connection._writer
+            writer.stream = connection._socket
+            self._writer = writer
             self._connection = connection
-            self._writer = stream.writer
 
         def __enter__(self):
             return self._writer
-         
+
         def __exit__(self, type, value, traceback):
-            pass
+            assert self._writer.buffer.position == 0, "todo implement this case?"
+            self._connection._writer_pool.append(self._writer)
 
     class _borrowed_reader(object):
-        def __init__(self, connection, stream):
+        def __init__(self, connection):
+            if connection._reader is None:
+                if connection._reader_pool:
+                    reader = connection._reader_pool.pop()
+                else:
+                    reader = BufferedReader(None, Buffer(connection._read_buffer_size))
+            else:
+                reader = connection._reader
+            reader.stream = connection._socket
+            self._reader = reader
             self._connection = connection
-            self._reader = stream.reader
 
         def __enter__(self):
             return self._reader
-         
+
         def __exit__(self, type, value, traceback):
-            pass
+            if self._reader.buffer.remaining:
+                self._connection._reader = self._reader
+            else:
+                self._connection._reader_pool.append(self._reader)
+                self._connection._reader = None
 
     def get_writer(self):
-        return self._borrowed_writer(self, self._stream)
+        return self._borrowed_writer(self)
 
     def get_reader(self):
-        return self._borrowed_reader(self, self._stream)
+        return self._borrowed_reader(self)
     
 class _MemcacheTCPConnectionManager(object):
     def __init__(self):
@@ -220,7 +247,7 @@ class Memcache(object):
 
         self.x = 0
         
-        tp = TaskletPool(1) #TODO make overridable singleton
+        tp = TaskletPool(4) #TODO make overridable singleton
 
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton

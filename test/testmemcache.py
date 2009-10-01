@@ -128,7 +128,7 @@ class TestMemcache(unittest.TestCase):
         with unittest.timer() as tmr:
             for i in range(4):
                 Tasklet.new(fetcher)()
-            Tasklet.sleep(4.0)
+            Tasklet.sleep(4) #TODO fix join_children
         print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
     def testTextProtocol(self):
