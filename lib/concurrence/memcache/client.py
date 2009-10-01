@@ -19,6 +19,7 @@ import cPickle as pickle
 #bundling of multiple requests in 1 flush (autoflush on/off)
 #statistics
 #not use pickle for string and unicode types (use flags to indicate this)
+#gzip support
 #timeout on commands (test tasklet based timeout)
 #plugable serialization support (and/or provide choise, default (py-serialized, utf-8 encoded json, etc)?
 #todo detect timeouts on write/read, and mark host as dead
@@ -48,6 +49,27 @@ MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
                            "NOT_FOUND": MemcacheResult.NOT_FOUND,
                            "DELETED": MemcacheResult.DELETED}
 
+class Codec(object):
+    def decode(self, flags, encoded_value):
+        assert False, "implement"
+
+    def encode(self, value):
+        assert False, "implement"
+
+class DefaultCodec(Codec):
+    def decode(self, flags, encoded_value):
+        return pickle.loads(encoded_value)
+
+    def encode(self, value):
+        return pickle.dumps(value, -1), 0
+
+class RawCodec(Codec):
+    def decode(self, flags, encoded_value):
+        return encoded_value
+
+    def encode(self, value):
+        return str(value), 0
+            
 class _MemcacheCmd(object):
     pass
 
@@ -70,7 +92,7 @@ class _MemcacheCmdGet(_MemcacheCmd):
                 n = int(response_fields[3])
                 encoded_value = reader.read_bytes(n)
                 reader.read_line() #\r\n
-                result[key] = pickle.loads(encoded_value)
+                result[key] = self.codec.decode(flags, encoded_value)
             elif response_line == 'END':
                 return result 
             else:
@@ -91,12 +113,13 @@ class _MemcacheCmdDelete(_MemcacheCmdWithResult):
         writer.write_bytes("delete %s\r\n" % (self.key, ))
 
 class _MemcacheCmdStorage(_MemcacheCmdWithResult):
-    def __init__(self, key, value, flags):
-        encoded_value = pickle.dumps(value, -1)
-        self.cmd_bytes = "%s %s %d 0 %d\r\n%s\r\n" % (self.cmd, key, flags, len(encoded_value), encoded_value)
-
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value
+        
     def write(self, writer):
-        writer.write_bytes(self.cmd_bytes)
+        encoded_value, flags = self.codec.encode(self.value)
+        writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (self.cmd, self.key, flags, len(encoded_value), encoded_value))
 
 class _MemcacheCmdSet(_MemcacheCmdStorage):
     cmd = "set"
@@ -107,52 +130,6 @@ class _MemcacheCmdAdd(_MemcacheCmdStorage):
 class _MemcacheCmdReplace(_MemcacheCmdStorage):
     cmd = "replace"
 
-class MemcacheConnection(object):
-    """this represents the connection/protocol to 1 memcached host
-    this class supports concurrent usage of get/set methods by multiple
-    tasks, the cmds are queued and performed in order agains the memcached host.    
-    """
-    log = logging.getLogger('MemcacheConnection')
-
-    def __init__(self):
-        self._stream = None
-
-    def connect(self, addr):
-        self._stream = BufferedStream(Socket.connect(addr, -2))
-
-    def close(self):
-        self._stream.close()
-        self._stream = None
-
-    def _do_command(self, cmd):
-        try:
-            writer = self._stream.writer
-            cmd.write(writer)
-            writer.flush()
-            reader = self._stream.reader
-            return cmd.read(reader)
-        except Exception:
-            self.log.exception("error while performing command")
-            return MemcacheResult.ERROR
-
-    def set(self, key, data, flags = 0):
-        return self._do_command(_MemcacheCmdSet(key, data, flags))
-
-    def add(self, key, data, flags = 0):
-        return self._do_command(_MemcacheCmdAdd(key, data, flags))
-
-    def replace(self, key, data, flags = 0):
-        return self._do_command(_MemcacheCmdReplace(key, data, flags))
-
-    def delete(self, key):
-        return self._do_command(_MemcacheCmdDelete(key))
-
-    def get(self, key):
-        result = self._do_command(_MemcacheCmdGet([key]))
-        return result.get(key, None)
-
-    def multi_get(self, keys):
-        return self._do_command(_MemcacheCmdGet(keys))
 
 class _MemcacheTCPConnection(object):
     def __init__(self):
@@ -206,7 +183,7 @@ class MemcacheKetamaBehaviour(object):
         return ketama.get_server(key, self._continuum)
 
 class Memcache(object):
-    def __init__(self):
+    def __init__(self, servers = None):
         self.read_timeout = 10
         self.write_timeout = 10
         self.connect_timeout = 2
@@ -214,19 +191,27 @@ class Memcache(object):
         tp = TaskletPool(4, _MemcacheWorkerTasklet) #TODO make overridable singleton
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
-        
-        self.set_behaviour(MemcacheKetamaBehaviour()) #default
 
+        self.set_codec(DefaultCodec())
+        self.set_behaviour(MemcacheKetamaBehaviour()) #default
+        
+        if servers is not None:
+            self.set_servers(servers)
+
+    def set_codec(self, codec):
+        self._codec = codec
+        
     def set_behaviour(self, behaviour):
         self._behaviour = behaviour
         self._key_to_addr = behaviour.key_to_addr
 
-    def set_servers(self, server_list):
-        self._behaviour.set_servers(server_list)
+    def set_servers(self, servers):
+        self._behaviour.set_servers(servers)
 
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
         current_task.set_context(self.read_timeout, connection)
+        cmd.codec = self._codec
         reader = current_task.reader
         with connection.read_lock:
             result = cmd.read(reader)
@@ -235,6 +220,7 @@ class Memcache(object):
     def _write_command(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
         current_task.set_context(self.write_timeout, connection)
+        cmd.codec = self._codec
         writer = current_task.writer
         with connection.write_lock:
             cmd.write(writer)
@@ -260,8 +246,26 @@ class Memcache(object):
                 addrs[addr] = [key]
         return addrs
 
-    def set(self, key, data, flags = 0):
-        cmd = _MemcacheCmdSet(key, data, flags)
+    def delete(self, key):
+        cmd = _MemcacheCmdDelete(key)
+        result_channel = Channel()
+        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
+        return result_channel.receive()
+        
+    def set(self, key, data):
+        cmd = _MemcacheCmdSet(key, data)
+        result_channel = Channel()
+        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
+        return result_channel.receive()
+
+    def add(self, key, data):
+        cmd = _MemcacheCmdAdd(key, data)
+        result_channel = Channel()
+        self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
+        return result_channel.receive()
+
+    def replace(self, key, data):
+        cmd = _MemcacheCmdReplace(key, data)
         result_channel = Channel()
         self._defer(self._write_command, self._connect_by_key(key), cmd, result_channel)
         return result_channel.receive()
