@@ -33,6 +33,14 @@ import cPickle as pickle
 #UPD support
 #binary support
 #how to handle timouts in the pipelined case?
+#TODO validate keys!, they are 'txt' not random bins!, e.g. some chars not allowed, which ones?
+
+#!! reverse the locking, e.g. don't let random worker task get locked when we already know it will loc
+#instead defer working when we know it can proceed...
+
+#buffer/stream sharing must be fixed, sometimes a buffer/stream needs to stay associated with a connection, e.g.
+#when you do a read from the socket, more data may be avaialable in the buffer than your 'logical' response reader might
+#need, so when the next logical read comes, it must get the previous stream that still contains that leftover data...
 
 class MemcacheResult(object):
     pass
@@ -137,10 +145,41 @@ class _MemcacheTCPConnection(object):
     def __init__(self):
         self.read_lock = Lock()
         self.write_lock = Lock()
+        self._socket = None
+        self._stream = None
 
     def connect(self, addr):
         self._socket = Socket.connect(addr, -2)
+        self._stream = BufferedStream(self._socket)
 
+    class _borrowed_writer(object):
+        def __init__(self, connection, stream):
+            self._connection = connection
+            self._writer = stream.writer
+
+        def __enter__(self):
+            return self._writer
+         
+        def __exit__(self, type, value, traceback):
+            pass
+
+    class _borrowed_reader(object):
+        def __init__(self, connection, stream):
+            self._connection = connection
+            self._reader = stream.reader
+
+        def __enter__(self):
+            return self._reader
+         
+        def __exit__(self, type, value, traceback):
+            pass
+
+    def get_writer(self):
+        return self._borrowed_writer(self, self._stream)
+
+    def get_reader(self):
+        return self._borrowed_reader(self, self._stream)
+    
 class _MemcacheTCPConnectionManager(object):
     def __init__(self):
         self._connections = {} #addr -> conn 
@@ -152,36 +191,6 @@ class _MemcacheTCPConnectionManager(object):
             connection.addr = addr
             self._connections[addr] = connection 
         return self._connections[addr]
-
-        
-
-class BufferedStreamPool(object):
-
-    def __init__(self):
-        self._pool = []
-
-    class _borrowed_stream(object):
-        def __init__(self, pool, stream):
-            self._pool = pool
-            self._stream = stream
-
-        def __enter__(self):
-            return self._stream
-         
-        def __exit__(self, type, value, traceback):
-            #self._pool.append(self._stream)
-            pass
-
-    def borrow(self, stream):
-        if self._pool:
-            #buffered_stream = self._pool.pop()
-            buffered_stream = BufferedStream(None, 1024)
-        else:
-            buffered_stream = BufferedStream(None, 1024)
-
-        buffered_stream.set_stream(stream)
-
-        return self._borrowed_stream(self._pool, buffered_stream)
 
 class MemcacheModuloBehaviour(object):
     def __init__(self):
@@ -213,7 +222,6 @@ class Memcache(object):
         
         tp = TaskletPool(1) #TODO make overridable singleton
 
-        self._stream_pool = BufferedStreamPool()
         self._defer = tp.defer
         self._connection_manager = _MemcacheTCPConnectionManager() #TODO make overridable singleton
         self._protocol = MemcacheTextProtocol()
@@ -235,42 +243,25 @@ class Memcache(object):
         self._behaviour.set_servers(servers)
 
     def _read_result(self, connection, cmd, result_channel):
-        try:
-            self.x += 1
-            current_task = Tasklet.current()
-            print 'rd', current_task, self.x, cmd
-            current_task.timeout = self.read_timeout
-            with connection.read_lock:
-                print 'rd got lock'
-                with self._stream_pool.borrow(connection._socket) as stream:
-                    print 'rd got stream, read from: ', connection.addr
-                    result = getattr(self._protocol, 'read_' + cmd)(stream.reader)
-                    print 'rd res', result
-            #print 'erd'
-            result_channel.send(result)
-        finally:
-            self.x -= 1
+        current_task = Tasklet.current()
+        current_task.timeout = self.read_timeout
+        with connection.read_lock:
+            with connection.get_reader() as reader:
+                result = getattr(self._protocol, 'read_' + cmd)(reader)
+        #print 'erd'
+        result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
         #TODO make sure that there is a maximu on the number of writes before
         #we read again, e.g. due to deferred, the corresponding read result 
         #could be postponed indefinitly...
-        try:
-            self.x += 1
-            current_task = Tasklet.current()
-            print 'wr', current_task, self.x, cmd, args
-            current_task.timeout = self.write_timeout
-            with connection.write_lock:
-                with self._stream_pool.borrow(connection._socket) as stream:
-                    #print 'wr got stream', stream.writer.buffer
-                    writer = stream.writer
-                    print 'write to', connection.addr
-                    getattr(self._protocol, 'write_' + cmd)(writer, *args)
-                    writer.flush()
-                    self._defer(self._read_result, connection, cmd, result_channel)
-            #print 'ewr'
-        finally:
-            self.x -= 1
+        current_task = Tasklet.current()
+        current_task.timeout = self.write_timeout
+        with connection.write_lock:
+            with connection.get_writer() as writer:
+                getattr(self._protocol, 'write_' + cmd)(writer, *args)
+                writer.flush()
+                self._defer(self._read_result, connection, cmd, result_channel)
         
     def _connect_by_addr(self, addr, keys, result_channel):
         current_task = Tasklet.current()

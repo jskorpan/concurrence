@@ -104,7 +104,7 @@ class TestMemcache(unittest.TestCase):
 
     def testMultiClientMultiServer(self):
         
-        N = 40 * 1
+        N = 40 * 10
         keys = ['test%d' % i for i in range(N)]
         
         mc = Memcache()
@@ -126,9 +126,9 @@ class TestMemcache(unittest.TestCase):
             print 'done'
 
         with unittest.timer() as tmr:
-            for i in range(2):
+            for i in range(4):
                 Tasklet.new(fetcher)()
-            Tasklet.sleep(40)
+            Tasklet.sleep(4.0)
         print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
     def testTextProtocol(self):
@@ -178,7 +178,16 @@ class TestMemcache(unittest.TestCase):
             result = protocol.read_get(reader)
             self.assertEquals(10, len(result))
             self.assertTrue(('test%d' % i) in result)
-            
+
+        #pipelined multiget with same set of keys
+        protocol.write_get(writer, ['test2', 'test8', 'test9', 'test11', 'test23', 'test24', 'test29', 'test31', 'test34'])
+        writer.flush()
+        protocol.write_get(writer, ['test2', 'test8', 'test9', 'test11', 'test23', 'test24', 'test29', 'test31', 'test34'])
+        writer.flush()
+        result1 = protocol.read_get(reader)
+        result2 = protocol.read_get(reader)
+        self.assertEquals(result1, result2)
+        
 if __name__ == '__main__':
     unittest.main(timeout = 60)
     

@@ -159,7 +159,7 @@ class Socket(IOStream):
         """Writes as many bytes as possible from the given buffer to this socket.
         The buffer position is updated according to the number of bytes succesfully written to the socket.
         This method returns the total number of bytes written. This method could possible write 0 bytes"""
-        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"     
+        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"
         #by default assume that we can write to the socket without blocking        
         if assume_writable:
             bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
@@ -187,14 +187,12 @@ class Socket(IOStream):
         if assume_readable:
             bytes_read, _ = buffer.recv(self.fd) #read from fd to 
             if bytes_read < 0 and _io.get_errno() == EAGAIN:   
-                print 'eagain'
                 #nope, need to wait before reading our data
                 assume_readable = False
             #else if error != EAGAIN, assume_readable will stay True, and we fall trough and raise error below
             
         #if we cannot assume readability we will wait until data can be read again   
         if not assume_readable:
-            print 'read wait'
             self.readable.wait(timeout = timeout)
             bytes_read, _ = buffer.recv(self.fd) #read from fd to 
         #

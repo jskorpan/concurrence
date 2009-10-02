@@ -51,9 +51,7 @@ class TaskletPool(object):
         while True:
             try:
                 f, args, kwargs = self._queue.popleft(True, -1)
-                print 'tsk start'
                 f(*args, **kwargs)
-                print 'task end'
             except TaskletExit:
                 raise
             except:
