@@ -6,7 +6,7 @@ from concurrence.memcache.client import MemcacheResult, Memcache
 
 MEMCACHE_IP = '127.0.0.1'
 
-class MemcacheTest(unittest.TestCase):
+class TestMemcache(unittest.TestCase):
     def setUp(self):
         for i in range(4):
             os.system('/usr/bin/memcached -m 10 -p %d -u nobody -l 127.0.0.1&' % (11211 + i))
@@ -102,19 +102,83 @@ class MemcacheTest(unittest.TestCase):
                     self.assertEquals(stride, len(result))
             print 'multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
+    def testMultiClientMultiServer(self):
+        
+        N = 40 * 1
+        keys = ['test%d' % i for i in range(N)]
+        
+        mc = Memcache()
+        mc.set_servers([((MEMCACHE_IP, 11211), 100), 
+                        ((MEMCACHE_IP, 11212), 100), 
+                        ((MEMCACHE_IP, 11213), 100), 
+                        ((MEMCACHE_IP, 11214), 100)])
+
+        with unittest.timer() as tmr:
+            for i in range(N):
+                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
+        print 'multi client multi server single set keys/sec', tmr.sec(N)
+        
         stride = 40
         def fetcher():
             for i in range(0, N, stride):
                 result = mc.get_multi(keys[i:i+stride])
-                print len(result)
                 self.assertEquals(stride, len(result))
             print 'done'
 
         with unittest.timer() as tmr:
-            for i in range(4):
+            for i in range(2):
                 Tasklet.new(fetcher)()
-            Tasklet.sleep(4)
+            Tasklet.sleep(40)
         print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
+    def testTextProtocol(self):
+        from concurrence.io import Socket, BufferedStream
+        from concurrence.memcache.client import MemcacheTextProtocol, RawCodec
+        
+        socket = Socket.connect((MEMCACHE_IP, 11211))
+        stream = BufferedStream(socket)
+        writer = stream.writer
+        reader = stream.reader
+        
+        protocol = MemcacheTextProtocol(RawCodec())
+        
+        protocol.write_set(writer, 'hello', 'world')
+        writer.flush()
+        self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+        
+        N = 100
+        for i in range(N):
+            protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i)
+            writer.flush()
+            self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+
+        #single get
+        for i in range(N):
+            protocol.write_get(writer, ['test%d' % i])
+            writer.flush()
+            result = protocol.read_get(reader)
+            self.assertEquals({'test%d' % i: 'hello world %d' % i}, result)
+
+        #multi get
+        for i in range(0, N, 10):
+            keys = ['test%d' % x for x in range(i, i + 10)]
+            protocol.write_get(writer, keys)
+            writer.flush()
+            result = protocol.read_get(reader)
+            self.assertEquals(10, len(result))
+            #self.assertEquals({'test%d' % i: 'hello world %d' % i}, result)
+            
+        #multi get pipeline, e.g. write N gets, but don't read out the results yet
+        for i in range(0, N, 10):
+            keys = ['test%d' % x for x in range(i, i + 10)]
+            protocol.write_get(writer, keys)
+            writer.flush()
+        #now read the results
+        for i in range(0, N, 10):
+            result = protocol.read_get(reader)
+            self.assertEquals(10, len(result))
+            self.assertTrue(('test%d' % i) in result)
+            
 if __name__ == '__main__':
     unittest.main(timeout = 60)
+    

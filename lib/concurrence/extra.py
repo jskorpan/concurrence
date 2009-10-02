@@ -13,12 +13,15 @@ class Lock(object):
 
     def acquire(self, blocking = True, timeout = -2):
         if not self._locked:
+            #print '1'
             self._locked = True
             return True
         else:
             if not blocking:
+                #print '2'
                 return False
             else:
+                #print '3'
                 return self._channel.receive(timeout) 
 
     def release(self):
@@ -48,7 +51,9 @@ class TaskletPool(object):
         while True:
             try:
                 f, args, kwargs = self._queue.popleft(True, -1)
+                print 'tsk start'
                 f(*args, **kwargs)
+                print 'task end'
             except TaskletExit:
                 raise
             except:

@@ -32,6 +32,7 @@ import cPickle as pickle
 #support for cas command
 #UPD support
 #binary support
+#how to handle timouts in the pipelined case?
 
 class MemcacheResult(object):
     pass
@@ -71,8 +72,8 @@ class RawCodec(Codec):
         return str(value), 0
             
 class MemcacheTextProtocol(object):
-    def __init__(self):
-        self._codec = None
+    def __init__(self, codec = None):
+        self._codec = codec
 
     def _read_result(self, reader):
         response_line = reader.read_line()
@@ -88,9 +89,12 @@ class MemcacheTextProtocol(object):
         writer.write_bytes("get %s\r\n" % " ".join(keys))
 
     def read_get(self, reader):
+        #print 'read_get'
         result = {}
         while True:
+            #print 'wait line'
             response_line = reader.read_line()
+            #print 'got line', response_line
             if response_line.startswith('VALUE'):
                 response_fields = response_line.split(' ')
                 key = response_fields[1]
@@ -145,6 +149,7 @@ class _MemcacheTCPConnectionManager(object):
         if not addr in self._connections:
             connection = _MemcacheTCPConnection()
             connection.connect(addr)
+            connection.addr = addr
             self._connections[addr] = connection 
         return self._connections[addr]
 
@@ -164,11 +169,13 @@ class BufferedStreamPool(object):
             return self._stream
          
         def __exit__(self, type, value, traceback):
-            self._pool.append(self._stream)
+            #self._pool.append(self._stream)
+            pass
 
     def borrow(self, stream):
         if self._pool:
-            buffered_stream = self._pool.pop()
+            #buffered_stream = self._pool.pop()
+            buffered_stream = BufferedStream(None, 1024)
         else:
             buffered_stream = BufferedStream(None, 1024)
 
@@ -202,7 +209,9 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        tp = TaskletPool(2) #TODO make overridable singleton
+        self.x = 0
+        
+        tp = TaskletPool(1) #TODO make overridable singleton
 
         self._stream_pool = BufferedStreamPool()
         self._defer = tp.defer
@@ -226,23 +235,43 @@ class Memcache(object):
         self._behaviour.set_servers(servers)
 
     def _read_result(self, connection, cmd, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.read_timeout
-        with connection.read_lock:
-            with self._stream_pool.borrow(connection._socket) as stream:
-                result = getattr(self._protocol, 'read_' + cmd)(stream.reader)
-        result_channel.send(result)
-
+        try:
+            self.x += 1
+            current_task = Tasklet.current()
+            print 'rd', current_task, self.x, cmd
+            current_task.timeout = self.read_timeout
+            with connection.read_lock:
+                print 'rd got lock'
+                with self._stream_pool.borrow(connection._socket) as stream:
+                    print 'rd got stream, read from: ', connection.addr
+                    result = getattr(self._protocol, 'read_' + cmd)(stream.reader)
+                    print 'rd res', result
+            #print 'erd'
+            result_channel.send(result)
+        finally:
+            self.x -= 1
+        
     def _write_command(self, connection, cmd, args, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.write_timeout
-        with connection.write_lock:
-            with self._stream_pool.borrow(connection._socket) as stream:
-                writer = stream.writer
-                getattr(self._protocol, 'write_' + cmd)(writer, *args)
-                writer.flush()
-                self._defer(self._read_result, connection, cmd, result_channel)
-
+        #TODO make sure that there is a maximu on the number of writes before
+        #we read again, e.g. due to deferred, the corresponding read result 
+        #could be postponed indefinitly...
+        try:
+            self.x += 1
+            current_task = Tasklet.current()
+            print 'wr', current_task, self.x, cmd, args
+            current_task.timeout = self.write_timeout
+            with connection.write_lock:
+                with self._stream_pool.borrow(connection._socket) as stream:
+                    #print 'wr got stream', stream.writer.buffer
+                    writer = stream.writer
+                    print 'write to', connection.addr
+                    getattr(self._protocol, 'write_' + cmd)(writer, *args)
+                    writer.flush()
+                    self._defer(self._read_result, connection, cmd, result_channel)
+            #print 'ewr'
+        finally:
+            self.x -= 1
+        
     def _connect_by_addr(self, addr, keys, result_channel):
         current_task = Tasklet.current()
         current_task.timeout = self.connect_timeout

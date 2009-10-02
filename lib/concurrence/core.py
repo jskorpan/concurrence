@@ -542,7 +542,7 @@ class Tasklet(stackless.tasklet):
         return t
 
     def __str__(self):
-        return "<Tasklet name='%s'>" % self.name
+        return "<tasklet id='%0x' name='%s'>" % (id(self), self.name)
 
     def tree(self, level = 0):
         """An inorder treewalk starting at the current task and 
