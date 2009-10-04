@@ -6,13 +6,14 @@
 from concurrence import Tasklet, Channel, Message, TaskletPool, Lock, TaskletError, defer
 from concurrence.timer import Timeout
 from concurrence.io import Socket, Buffer
-from concurrence.io.buffered import BufferedStream, BufferedReader, BufferedWriter
+from concurrence.io.buffered import BufferedStreamShared
 from concurrence.containers.deque import Deque
 
 from concurrence.memcache import ketama
 
 import logging
 import cPickle as pickle
+from collections import deque
 
 #TODO:
 #proper buffer sizes
@@ -138,84 +139,36 @@ class MemcacheTextProtocol(object):
     def read_replace(self, reader):
         return self._read_result(reader)
 
-
-class _MemcacheTCPConnection(object):
+class _MemcacheTCPConnection(BufferedStreamShared):
     _write_buffer_size = 1024
     _read_buffer_size = 1024 * 16
 
-    _reader_pool = []
-    _writer_pool = []
-
-    def __init__(self):
+    def __init__(self, stream):
+        super(_MemcacheTCPConnection, self).__init__(stream)
         self.read_lock = Lock()
         self.write_lock = Lock()
-        self._socket = None
-        self._writer = None
-        self._reader = None
 
-    def connect(self, addr):
-        self._socket = Socket.connect(addr, -2)
-
-    class _borrowed_writer(object):
-        def __init__(self, connection):
-            if connection._writer is None:
-                if connection._writer_pool:
-                    writer = connection._writer_pool.pop()
-                else:
-                    writer = BufferedWriter(None, Buffer(connection._write_buffer_size))
-            else:
-                writer = connection._writer
-            writer.stream = connection._socket
-            self._writer = writer
-            self._connection = connection
-
-        def __enter__(self):
-            return self._writer
-
-        def __exit__(self, type, value, traceback):
-            assert self._writer.buffer.position == 0, "todo implement this case?"
-            self._connection._writer_pool.append(self._writer)
-
-    class _borrowed_reader(object):
-        def __init__(self, connection):
-            if connection._reader is None:
-                if connection._reader_pool:
-                    reader = connection._reader_pool.pop()
-                else:
-                    reader = BufferedReader(None, Buffer(connection._read_buffer_size))
-            else:
-                reader = connection._reader
-            reader.stream = connection._socket
-            self._reader = reader
-            self._connection = connection
-
-        def __enter__(self):
-            return self._reader
-
-        def __exit__(self, type, value, traceback):
-            if self._reader.buffer.remaining:
-                self._connection._reader = self._reader
-            else:
-                self._connection._reader_pool.append(self._reader)
-                self._connection._reader = None
-
-    def get_writer(self):
-        return self._borrowed_writer(self)
-
-    def get_reader(self):
-        return self._borrowed_reader(self)
-    
 class _MemcacheTCPConnectionManager(object):
+    NUM_CONNECTIONS_PER_ADDRESS = 2
+
     def __init__(self):
-        self._connections = {} #addr -> conn 
- 
+        self._connections = {} #addr -> deque([conns]) 
+        self._connecting = {} #addr -> count
+
     def get_connection(self, addr):
         if not addr in self._connections:
-            connection = _MemcacheTCPConnection()
-            connection.connect(addr)
+            self._connections[addr] = deque()
+            self._connecting[addr] = 0
+        connections = self._connections[addr] 
+        if (len(connections) + self._connecting[addr]) < self.NUM_CONNECTIONS_PER_ADDRESS: 
+            self._connecting[addr] += 1
+            connection = _MemcacheTCPConnection(Socket.connect(addr, -2))
             connection.addr = addr
-            self._connections[addr] = connection 
-        return self._connections[addr]
+            self._connections[addr].appendleft(connection) 
+            self._connecting[addr] -= 1
+        connection = self._connections[addr][0]
+        self._connections[addr].rotate()
+        return connection
 
 class MemcacheModuloBehaviour(object):
     def __init__(self):

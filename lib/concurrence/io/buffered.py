@@ -196,3 +196,64 @@ class CompatibleFile(object):
     def flush(self):
         self._writer.flush()
 
+class BufferedStreamShared(object):
+    _write_buffer_size = 1024 * 4
+    _read_buffer_size = 1024 * 4
+
+    _reader_pool = []
+    _writer_pool = []
+
+    def __init__(self, stream):
+        self._stream = stream
+        self._writer = None
+        self._reader = None
+
+    class _borrowed_writer(object):
+        def __init__(self, stream):
+            if stream._writer is None:
+                if stream._writer_pool:
+                    writer = stream._writer_pool.pop()
+                else:
+                    writer = BufferedWriter(None, Buffer(stream._write_buffer_size))
+            else:
+                writer = stream._writer
+            writer.stream = stream._stream
+            self._writer = writer
+            self._stream = stream
+
+        def __enter__(self):
+            return self._writer
+
+        def __exit__(self, type, value, traceback):
+            assert self._writer.buffer.position == 0, "todo implement this case?"
+            self._stream._writer_pool.append(self._writer)
+
+    class _borrowed_reader(object):
+        def __init__(self, stream):
+            if stream._reader is None:
+                if stream._reader_pool:
+                    reader = stream._reader_pool.pop()
+                else:
+                    reader = BufferedReader(None, Buffer(stream._read_buffer_size))
+            else:
+                reader = stream._reader
+            reader.stream = stream._stream
+            self._reader = reader
+            self._stream = stream
+
+        def __enter__(self):
+            return self._reader
+
+        def __exit__(self, type, value, traceback):
+            if self._reader.buffer.remaining:
+                self._stream._reader = self._reader
+            else:
+                self._stream._reader_pool.append(self._reader)
+                self._stream._reader = None
+
+    def get_writer(self):
+        return self._borrowed_writer(self)
+
+    def get_reader(self):
+        return self._borrowed_reader(self)
+
