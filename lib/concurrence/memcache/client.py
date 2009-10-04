@@ -34,10 +34,10 @@ import cPickle as pickle
 #how to handle timouts in the pipelined case?
 #TODO validate keys!, they are 'txt' not random bins!, e.g. some chars not allowed, which ones?
 
-#!! reverse the locking, e.g. don't let random worker task get locked when we already know it will loc
-#instead defer working when we know it can proceed...
 
-#TODO what is the best pattern for enums in python?
+#!! reverse the locking, e.g. don't let random worker task get locked when we already know it will loc
+#instead defer working when we know it can proceed..., also pipe line depth control
+
 class MemcacheResult(object):
     _all = {}
 
@@ -58,12 +58,6 @@ MemcacheResult.EXISTS = MemcacheResult("EXISTS")
 MemcacheResult.NOT_FOUND = MemcacheResult("NOT_FOUND")
 MemcacheResult.DELETED = MemcacheResult("DELETED")
 MemcacheResult.ERROR = MemcacheResult("ERROR")
-
-MemcacheResult.RESPONSES = {"STORED": MemcacheResult.STORED,
-                           "NOT_STORED": MemcacheResult.NOT_STORED,
-                           "EXISTS": MemcacheResult.EXISTS,
-                           "NOT_FOUND": MemcacheResult.NOT_FOUND,
-                           "DELETED": MemcacheResult.DELETED}
 
 class Codec(object):
     def decode(self, flags, encoded_value):
@@ -104,12 +98,9 @@ class MemcacheTextProtocol(object):
         writer.write_bytes("get %s\r\n" % " ".join(keys))
 
     def read_get(self, reader):
-        #print 'read_get'
         result = {}
         while True:
-            #print 'wait line'
             response_line = reader.read_line()
-            #print 'got line', response_line
             if response_line.startswith('VALUE'):
                 response_fields = response_line.split(' ')
                 key = response_fields[1]
@@ -149,7 +140,7 @@ class MemcacheTextProtocol(object):
 
 
 class _MemcacheTCPConnection(object):
-    _write_buffer_size = 1024 * 2
+    _write_buffer_size = 1024
     _read_buffer_size = 1024 * 16
 
     _reader_pool = []
@@ -277,7 +268,8 @@ class Memcache(object):
         current_task.timeout = self.read_timeout
         with connection.read_lock:
             with connection.get_reader() as reader:
-                result = getattr(self._protocol, 'read_' + cmd)(reader)
+               #print 'rd', cmd, connection.addr
+               result = getattr(self._protocol, 'read_' + cmd)(reader)
         result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
@@ -288,6 +280,7 @@ class Memcache(object):
         current_task.timeout = self.write_timeout
         with connection.write_lock:
             with connection.get_writer() as writer:
+                #print 'wr', cmd, connection.addr
                 getattr(self._protocol, 'write_' + cmd)(writer, *args)
                 writer.flush()
                 defer(self._read_result, connection, cmd, result_channel)

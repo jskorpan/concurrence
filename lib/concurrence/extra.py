@@ -2,35 +2,30 @@ import logging
 
 from concurrence.core import Tasklet, Channel, Deque
 
-class Lock(object):
-    def __init__(self):
-        self._locked = False
-        self._owner = None
+class Semaphore(object):
+    def __init__(self, count):
+        self._count = count
         self._channel = Channel()
 
-    def is_locked(self):
-        return self._locked
+    @property
+    def count(self):
+        return self._count
 
     def acquire(self, blocking = True, timeout = -2):
-        if not self._locked:
-            #print '1'
-            self._locked = True
+        if self._count > 0:
+            self._count -= 1
             return True
         else:
-            if not blocking:
-                #print '2'
+            if not blocking: 
                 return False
             else:
-                #print '3'
-                return self._channel.receive(timeout) 
+                return self._channel.receive(timeout)
 
     def release(self):
-        assert self._locked
         if self._channel.has_receiver():
-            #stay locked, unblock 1 receiver
             self._channel.send(True)
         else:
-            self._locked = False       
+            self._count += 1
 
     def __enter__(self):
         self.acquire()
@@ -39,24 +34,36 @@ class Lock(object):
     def __exit__(self, type, value, traceback):
         self.release()
 
+class Lock(Semaphore):
+    def __init__(self):
+        super(Lock, self).__init__(1)
+
+    def is_locked(self):
+        return self.count == 0
+
 class TaskletPool(object):
     log = logging.getLogger('TaskletPool')
+
+    GAMMA = 0.995
+    TRESHOLD = 2.0
 
     def __init__(self):
         self._queue = Deque()
         self._workers = []
-        self._workers.append(Tasklet.new(self._worker, daemon = True)())
-        self._adjuster = Tasklet.interval(0.25, self._adjust, daemon = True)()
+        self._add_worker()
+        self._add_worker()
+        self._adjuster = Tasklet.interval(0.5, self._adjust, daemon = True)()
         self._queue_len = 0.0
 
+    def _add_worker(self):
+        self._workers.append(Tasklet.new(self._worker, daemon = True)())
+        self.log.debug('addded worker, #now: %s', len(self._workers))
+
     def _adjust(self):  
-        gamma = 0.995
-        self._queue_len = (gamma * self._queue_len) + ((1.0 - gamma) * len(self._queue))
-        x = int(self._queue_len) - len(self._workers)
-        if x > 0:
-            for _ in range(x):
-                self._workers.append(Tasklet.new(self._worker, daemon = True)())
-            self.log.debug('adjusted #worker tasks, now: %s', len(self._workers))
+        self._queue_len = (self.GAMMA * self._queue_len) + ((1.0 - self.GAMMA) * len(self._queue))
+        x = self._queue_len / len(self._workers)
+        if x > self.TRESHOLD:
+            self._add_worker()
 
     def _worker(self):
         while True:

@@ -116,7 +116,7 @@ class TestMemcache(unittest.TestCase):
         with unittest.timer() as tmr:
             for i in range(N):
                 self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
-        print 'multi client multi server single set keys/sec', tmr.sec(N)
+        print 'single client multi server single set keys/sec', tmr.sec(N)
         
         stride = 40
         def fetcher():
@@ -124,11 +124,12 @@ class TestMemcache(unittest.TestCase):
                 result = mc.get_multi(keys[i:i+stride])
                 self.assertEquals(stride, len(result))
 
-        with unittest.timer() as tmr:
-            for i in range(4):
-                Tasklet.new(fetcher)()
-            Tasklet.join_children()
-        print 'multi client, multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
+        for nr_clients in [2,4,8,16]:
+            with unittest.timer() as tmr:
+                for i in range(nr_clients):
+                    Tasklet.new(fetcher)()
+                Tasklet.join_children()
+            print 'multi client (%d), multi server multi get (%d) keys/sec' % (nr_clients, stride), tmr.sec(N * nr_clients)
 
     def testTextProtocol(self):
         from concurrence.io import Socket, BufferedStream
