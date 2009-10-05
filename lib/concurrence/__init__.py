@@ -8,7 +8,7 @@ __version_info__ = tuple([ int(num) for num in __version__.split('.')])
 from concurrence.core import dispatch, quit, disable_threading, get_version_info
 from concurrence.core import Channel, Tasklet, Message, Deque, FileDescriptorEvent, SignalEvent, TimeoutEvent
 from concurrence.core import TimeoutError, TaskletError, JoinError
-from concurrence.extra import TaskletPool, Lock, Semaphore, defer
+from concurrence.extra import TaskletPool, DeferredQueue, Lock, Semaphore, defer
 from concurrence.local import TaskLocal, TaskInstance
 
 import concurrence._unittest as unittest

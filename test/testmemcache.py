@@ -124,7 +124,7 @@ class TestMemcache(unittest.TestCase):
                 result = mc.get_multi(keys[i:i+stride])
                 self.assertEquals(stride, len(result))
 
-        for nr_clients in [2,4,8,16]:
+        for nr_clients in [2,4,8,16,32,64,128]:
             with unittest.timer() as tmr:
                 for i in range(nr_clients):
                     Tasklet.new(fetcher)()

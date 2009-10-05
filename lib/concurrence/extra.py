@@ -1,6 +1,7 @@
-import logging
-
 from concurrence.core import Tasklet, Channel, Deque
+
+import logging
+from collections import deque
 
 class Semaphore(object):
     def __init__(self, count):
@@ -83,7 +84,32 @@ _task_pool = TaskletPool()
         
 defer = _task_pool.defer
     
-
+class DeferredQueue(object):
+    log = logging.getLogger('DeferredQueue')
+    
+    def __init__(self):
+        self._queue = deque()
+        self._working = False
+        
+    def _pump(self):
+        try:
+            while self._queue:
+                try:
+                    f, args, kwargs = self._queue.popleft()
+                    f(*args, **kwargs)
+                except TaskletExit:
+                    raise
+                except:
+                    self.log.exception("in deferred queue")
+        finally:
+            self._working = False
+            
+    def defer(self, f, *args, **kwargs):
+        self._queue.append((f, args, kwargs))
+        if not self._working:
+            self._working = True
+            _task_pool.defer(self._pump)
+    
 
 
 

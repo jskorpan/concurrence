@@ -3,7 +3,7 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-from concurrence import Tasklet, Channel, Message, TaskletPool, Lock, TaskletError, defer
+from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError, defer
 from concurrence.timer import Timeout
 from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStreamShared
@@ -34,10 +34,6 @@ from collections import deque
 #binary support
 #how to handle timouts in the pipelined case?
 #TODO validate keys!, they are 'txt' not random bins!, e.g. some chars not allowed, which ones?
-
-
-#!! reverse the locking, e.g. don't let random worker task get locked when we already know it will loc
-#instead defer working when we know it can proceed..., also pipe line depth control
 
 class MemcacheResult(object):
     _all = {}
@@ -145,8 +141,8 @@ class _MemcacheTCPConnection(BufferedStreamShared):
 
     def __init__(self, stream):
         super(_MemcacheTCPConnection, self).__init__(stream)
-        self.read_lock = Lock()
-        self.write_lock = Lock()
+        self.read_queue = DeferredQueue()
+        self.write_queue = DeferredQueue()
 
 class _MemcacheTCPConnectionManager(object):
     NUM_CONNECTIONS_PER_ADDRESS = 2
@@ -219,24 +215,19 @@ class Memcache(object):
     def _read_result(self, connection, cmd, result_channel):
         current_task = Tasklet.current()
         current_task.timeout = self.read_timeout
-        with connection.read_lock:
-            with connection.get_reader() as reader:
-               #print 'rd', cmd, connection.addr
-               result = getattr(self._protocol, 'read_' + cmd)(reader)
+        with connection.get_reader() as reader:
+           #print 'rd', cmd, connection.addr
+           result = getattr(self._protocol, 'read_' + cmd)(reader)
         result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
-        #TODO make sure that there is a maximu on the number of writes before
-        #we read again, e.g. due to deferred, the corresponding read result 
-        #could be postponed indefinitly...
         current_task = Tasklet.current()
         current_task.timeout = self.write_timeout
-        with connection.write_lock:
-            with connection.get_writer() as writer:
-                #print 'wr', cmd, connection.addr
-                getattr(self._protocol, 'write_' + cmd)(writer, *args)
-                writer.flush()
-                defer(self._read_result, connection, cmd, result_channel)
+        with connection.get_writer() as writer:
+            #print 'wr', cmd, connection.addr
+            getattr(self._protocol, 'write_' + cmd)(writer, *args)
+            writer.flush()
+            connection.read_queue.defer(self._read_result, connection, cmd, result_channel)
         
     def _connect_by_addr(self, addr, keys, result_channel):
         current_task = Tasklet.current()
@@ -259,7 +250,8 @@ class Memcache(object):
 
     def _do_command(self, cmd, *args):
         result_channel = Channel()
-        defer(self._write_command, self._connect_by_key(args[0]), cmd, args, result_channel)
+        connection = self._connect_by_key(args[0])
+        connection.write_queue.defer(self._write_command, connection, cmd, args, result_channel)
         return result_channel.receive()
 
     def delete(self, key):
@@ -276,7 +268,8 @@ class Memcache(object):
 
     def get(self, key):
         result_channel = Channel()
-        defer(self._write_command, self._connect_by_key(key), "get", [[key]], result_channel)
+        connection = self._connect_by_key(key)
+        connection.write_queue.defer(self._write_command, connection, "get", [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
@@ -287,7 +280,7 @@ class Memcache(object):
         for addr, _keys in grouped:
             defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
-            defer(self._write_command, connection, "get", [_keys], result_channel)
+            connection.write_queue.defer(self._write_command, connection, "get", [_keys], result_channel)
         result = {}        
         for _result in result_channel.receive_n(n):
             result.update(_result)

@@ -3,7 +3,7 @@ import logging
 import time
 import sys
 
-from concurrence import unittest, Tasklet, Channel, Lock, Semaphore, TaskletPool, Deque, TimeoutError, TaskletError, JoinError, Message
+from concurrence import unittest, Tasklet, Channel, Lock, Semaphore, TaskletPool, DeferredQueue, Deque, TimeoutError, TaskletError, JoinError, Message
 
 class TestTaskletPool(unittest.TestCase):
     def testBasic(self):
@@ -33,6 +33,25 @@ class TestTaskletPool(unittest.TestCase):
         self.assertAlmostEqual(4.0, end - start, places = 1)
         self.assertEquals(190, sum(xs))
 
+class TestDeferredQueue(unittest.TestCase):
+    def testDeferredQueue(self):
+        
+        d = DeferredQueue()
+        
+        def f(i):
+            print Tasklet.current(), i
+        
+        for i in range(10):    
+            d.defer(f, i)
+        
+        Tasklet.sleep(1)
+
+        for i in range(10):    
+            d.defer(f, i)
+
+        Tasklet.sleep(1)
+        
+        
 class TestPrimitives(unittest.TestCase):        
     def testSemaphore(self):
         sema = Semaphore(4)
