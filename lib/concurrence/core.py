@@ -579,6 +579,10 @@ class Tasklet(stackless.tasklet):
         else:
             self._timeout_time = time.time() + timeout
 
+    @classmethod
+    def set_timeout(cls, timeout):
+        cls.current().timeout = timeout
+
 class Channel(object):
     """A Channel is a method for transfering control and/or communicate between Tasklets. 
     Please note that the Channel class is basically a small wrapper around a 
