@@ -33,9 +33,25 @@ class TestMemcache(unittest.TestCase):
 
         self.assertEquals({'test1': '12345', 'test2': 'hello world!'}, mc.get_multi(['test1', 'test2', 'test3']))
        
+        #update to int type
+        mc.set('test2', 10)
+        self.assertEquals(10, mc.get('test2'))
+        self.assertEquals(int, type(mc.get('test2')))
+
+        #update to long type
+        mc.set('test2', 10L)
+        self.assertEquals(10L, mc.get('test2'))
+        self.assertEquals(long, type(mc.get('test2')))
+
+        #update to string type
+        mc.set('test2', 'blaat')
+        self.assertEquals('blaat', mc.get('test2'))
+        self.assertEquals(str, type(mc.get('test2')))
+
         #update to unicode type
         mc.set('test2', u'C\xe9line')
         self.assertEquals(u'C\xe9line', mc.get('test2'))
+        self.assertEquals(unicode, type(mc.get('test2')))
 
         #update to some other type
         mc.set('test2', {'piet': 'blaat', 10: 20})
