@@ -2,6 +2,7 @@
 from __future__ import with_statement
 
 import time
+import logging
 
 from concurrence import dispatch, unittest, Tasklet
 from concurrence.database.mysql import client, dbapi, PacketReadError
@@ -12,6 +13,7 @@ DB_PASSWD = 'concurrence_test'
 DB_DB = 'concurrence_test'
 
 class TestMySQL(unittest.TestCase):
+    log = logging.getLogger('TestMySQL')
     
     def testMySQLClient(self):
         cnn = client.connect(host = DB_HOST, user = DB_USER, 
@@ -331,16 +333,19 @@ class TestMySQL(unittest.TestCase):
 
         from concurrence.io import Buffer, BufferUnderflowError
         from concurrence.database.mysql import PacketReader
-        b = Buffer(1024)
-        
-        b.write_byte(100)
 
-        b.flip()
+        def create_reader(bytes):
+            b = Buffer(1024)        
+            for byte in bytes:
+                b.write_byte(byte)
+            b.flip()
 
-        p = PacketReader(b)
-        p.packet.position = b.position
-        p.packet.limit = b.limit
-        
+            p = PacketReader(b)
+            p.packet.position = b.position
+            p.packet.limit = b.limit
+            return p
+
+        p = create_reader([100])        
         self.assertEquals(100, p.read_length_coded_binary())
         self.assertEquals(p.packet.position, p.packet.limit)
         try:
@@ -349,8 +354,98 @@ class TestMySQL(unittest.TestCase):
             pass
         except:
             self.fail('expected underflow')
-        
-        
+
+        try:
+            p = create_reader([252])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        try:
+            p = create_reader([252, 0xff])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        p = create_reader([252, 0xff, 0xff])        
+        self.assertEquals(0xFFFF, p.read_length_coded_binary())
+        self.assertEquals(3, p.packet.limit)
+        self.assertEquals(3, p.packet.position)
+
+
+        try:
+            p = create_reader([253])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        try:
+            p = create_reader([253, 0xff])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        try:
+            p = create_reader([253, 0xff, 0xff])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        p = create_reader([253, 0xff, 0xff, 0xff])        
+        self.assertEquals(0xFFFFFF, p.read_length_coded_binary())
+        self.assertEquals(4, p.packet.limit)
+        self.assertEquals(4, p.packet.position)
+
+        try:
+            p = create_reader([254])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        try:
+            p = create_reader([254, 0xff])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        try:
+            p = create_reader([254, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])        
+            p.read_length_coded_binary()
+            self.fail('expected underflow')
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+
+        p = create_reader([254, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])        
+       
+        self.assertEquals(9, p.packet.limit)
+        self.assertEquals(0, p.packet.position)
+        self.assertEquals(0xFFFFFFFFFFFFFFFFL, p.read_length_coded_binary())
+        self.assertEquals(9, p.packet.limit)
+        self.assertEquals(9, p.packet.position)
+
 if __name__ == '__main__':
     unittest.main(timeout = 60)        
         
