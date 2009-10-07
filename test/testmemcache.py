@@ -1,18 +1,39 @@
+from __future__ import with_statement
+
 import os
 import time
+import logging
 
 from concurrence import unittest, Tasklet
 from concurrence.memcache import MemcacheResultCode, Memcache
 
 MEMCACHE_IP = '127.0.0.1'
 
+MEMCACHED_PATHS = ['/usr/bin/memcached',
+                   '/opt/local/bin/memcached']
+
+MEMCACHED_BIN = None
+for path in MEMCACHED_PATHS:
+    if os.path.exists(path):
+        MEMCACHED_BIN = path
+        break
+assert MEMCACHED_BIN is not None, "could not find memcached daemon binary"
+
 class TestMemcache(unittest.TestCase):
+    log = logging.getLogger("TestMemcache")
+    
     def setUp(self):
+        self.log.debug("using memcached daemon: %s", MEMCACHED_BIN)
+        
         for i in range(4):
-            os.system('/usr/bin/memcached -m 10 -p %d -u nobody -l 127.0.0.1&' % (11211 + i))
+            cmd = '%s -m 10 -p %d -u nobody -l 127.0.0.1&' % (MEMCACHED_BIN, 11211 + i)
+            self.log.debug(cmd)
+            os.system(cmd)
     
     def tearDown(self):
-        os.system('killall /usr/bin/memcached')
+        cmd = 'killall %s' % MEMCACHED_BIN
+        self.log.debug(cmd)
+        os.system(cmd)
     
     def testBasic(self):
         

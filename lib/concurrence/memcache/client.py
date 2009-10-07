@@ -2,6 +2,7 @@
 #
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
+from __future__ import with_statement
 
 from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError, defer
 from concurrence.timer import Timeout
@@ -153,20 +154,20 @@ class Memcache(object):
         self._behaviour.set_servers(servers)
 
     def _read_result(self, connection, cmd, result_channel):
-        Tasklet.set_timeout(self.read_timeout)
+        Tasklet.set_current_timeout(self.read_timeout)
         with connection.get_reader() as reader:
            result = getattr(self._protocol, 'read_' + cmd)(reader)
         result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
-        Tasklet.set_timeout(self.write_timeout)
+        Tasklet.set_current_timeout(self.write_timeout)
         with connection.get_writer() as writer:
             getattr(self._protocol, 'write_' + cmd)(writer, *args)
             writer.flush()
             connection.read_queue.defer(self._read_result, connection, cmd, result_channel)
         
     def _connect_by_addr(self, addr, keys, result_channel):
-        Tasklet.set_timeout(self.connect_timeout)
+        Tasklet.set_current_timeout(self.connect_timeout)
         connection = self._connection_manager.get_connection(addr)
         result_channel.send((connection, keys))
 

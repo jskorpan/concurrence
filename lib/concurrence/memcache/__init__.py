@@ -4,6 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
 class MemcacheResultCode(object):
+    """type safe enumeration of memcache result codes"""
     _all = {}
 
     def __init__(self, name):
