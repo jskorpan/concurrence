@@ -46,7 +46,11 @@ def main(timeout = None):
     logging.root.setLevel(logging.DEBUG)
 
     if timeout is not None:
-        Tasklet.later(timeout, quit, name = 'unittest_timeout')(EXIT_CODE_TIMEOUT)
+        def quit_test():
+            logging.error("quiting unittest on timeout")
+            quit(EXIT_CODE_TIMEOUT)
+        logging.debug("test will timeout in %s seconds", timeout)
+        timeout_task = Tasklet.later(timeout, quit_test, name = 'unittest_timeout')()
         
     dispatch(unittest.main)
 

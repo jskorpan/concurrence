@@ -53,14 +53,14 @@ class TaskletPool(object):
         self._workers = []
         self._add_worker()
         self._add_worker()
-        self._adjuster = Tasklet.interval(0.5, self._adjust, daemon = True)()
+        self._adjuster = Tasklet.interval(1.0, self._adjust, daemon = True)()
         self._queue_len = 0.0
 
     def _add_worker(self):
         self._workers.append(Tasklet.new(self._worker, daemon = True)())
         self.log.debug('addded worker, #now: %s', len(self._workers))
 
-    def _adjust(self):  
+    def _adjust(self):
         self._queue_len = (self.GAMMA * self._queue_len) + ((1.0 - self.GAMMA) * len(self._queue))
         x = self._queue_len / len(self._workers)
         if x > self.TRESHOLD:
