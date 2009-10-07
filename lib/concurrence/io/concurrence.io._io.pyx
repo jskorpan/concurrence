@@ -4,6 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
 import types
+import sys
 
 cdef extern from "unistd.h":
    int write(int, void *, int)
@@ -340,45 +341,6 @@ cdef class Buffer:
                 self._position = self._position + n + 1                                    
         return s
     
-    def scan_until_xmltoken(self):
-        # < == 60, > == 62, ? == 63, / == 47
-        # retval '<' = 0, '>' = 1, '</' = 2, '/>' = 3, '<?' = 4, '?>' = 5
-        cdef int p, l
-        
-        if self._position == self._limit:
-            raise BufferUnderflowError()
-        
-        p = self._position
-        l = self._limit - 1
-        while p < l:
-            if self._buff[p] == 60 and self._buff[p + 1] == 47: # '</'
-                self._position = p + 2
-                return 2
-            elif self._buff[p] == 47 and self._buff[p + 1] == 62: # '/>'
-                self._position = p + 2
-                return 3
-            elif self._buff[p] == 60 and self._buff[p + 1] == 63: # '<?'
-                self._position = p + 2
-                return 4
-            elif self._buff[p] == 63 and self._buff[p + 1] == 62: # '?>'
-                self._position = p + 2
-                return 5
-            elif self._buff[p] == 60: # '<'
-                self._position = p + 1
-                return 0
-            elif self._buff[p] == 62: # '>'
-                self._position = p + 1
-                return 1
-            else:
-                p = p + 1
-
-        #we can also report '>' at end of buffer
-        if self._buff[p] == 62: # '>'
-            self._position = p + 1
-            return 1
-
-        raise BufferUnderflowError()
-        
     def write_bytes(self, s):
         """Writes a number of bytes given by the python string s to the buffer and updates position. Raises 
         :exc:`BufferOverflowError` if you try to write beyond the current :attr:`limit`."""
@@ -430,13 +392,47 @@ cdef class Buffer:
             return 2
         else:
             raise BufferOverflowError()
+
+    def hex_dump(self, out = None):
+        highlight1 = "\033[34m"
+        highlight2 = "\033[32m"
+        default = "\033[0m"
+
+        if out is None: out = sys.stdout
+
+        import string
+
+        out.write('<concurrence.io.Buffer id=%x, position=%d, limit=%d, capacity=%d>\n' % (id(self), self.position, self.limit, self.capacity))
+        printable = set(string.printable)
+        whitespace = set(string.whitespace)
+        x = 0
+        s1 = []
+        s2 = []
+        while x < self.capacity:
+            v = self[x]
+            if x < self.position:
+                s1.append('%s%02x%s' % (highlight1, v, default))
+            elif x < self.limit:
+                s1.append('%s%02x%s' % (highlight2, v, default))
+            else:
+                s1.append('%02x' % v)
+            c = chr(v)
+            if c in printable and not c in whitespace:
+                s2.append(c)
+            else:
+                s2.append('.')
+            x += 1
+            if x % 16 == 0:
+                out.write('%04x' % (x - 16) + '  ' + ' '.join(s1[:8]) + '  ' + ' '.join(s1[8:]) + '  ' + ''.join(s2[:8]) + ' ' + (''.join(s2[8:]) + '\n'))
+                s1 = []
+                s2 = []
+        out.flush()
         
-    
     def __repr__(self):
-        s = []
-        for i in range(min(16, self.capacity)):
-            s.append('%02x' % self._buff[i])
-        return '<Buffer object at %x, pos=%d, lim=%d, cap=%d,\n\t[%s]>' % (id(self), self.position, self.limit, self.capacity, ' '.join(s))
+        import cStringIO
+        sio = cStringIO.StringIO()
+        self.hex_dump(sio)
+        return sio.getvalue()
     
     def __str__(self):
         return repr(self)

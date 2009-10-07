@@ -334,8 +334,9 @@ class TestMySQL(unittest.TestCase):
         b = Buffer(1024)
         
         b.write_byte(100)
+
         b.flip()
-        
+
         p = PacketReader(b)
         p.packet.position = b.position
         p.packet.limit = b.limit
