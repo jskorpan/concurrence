@@ -280,6 +280,76 @@ class TestMySQL(unittest.TestCase):
         self.assertEquals(256, len(b2))
         self.assertEquals(blob, b2)
         
+    def testAutoInc(self):
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER, 
+                            passwd = DB_PASSWD, db = DB_DB)
+        
+        cur = cnn.cursor()
+        
+        cur.execute("truncate tblautoincint")
+
+        cur.execute("ALTER TABLE tblautoincint AUTO_INCREMENT = 100")
+        cur.execute("insert into tblautoincint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(100, cur.lastrowid)
+        cur.execute("insert into tblautoincint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(101, cur.lastrowid)
+
+        cur.execute("ALTER TABLE tblautoincint AUTO_INCREMENT = 4294967294")
+        cur.execute("insert into tblautoincint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(4294967294, cur.lastrowid)
+        cur.execute("insert into tblautoincint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(4294967295, cur.lastrowid)
+
+        cur.execute("truncate tblautoincbigint")
+
+        cur.execute("ALTER TABLE tblautoincbigint AUTO_INCREMENT = 100")
+        cur.execute("insert into tblautoincbigint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(100, cur.lastrowid)
+        cur.execute("insert into tblautoincbigint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(101, cur.lastrowid)
+
+        cur.execute("ALTER TABLE tblautoincbigint AUTO_INCREMENT = 18446744073709551614")
+        cur.execute("insert into tblautoincbigint (test_string) values (%s)", ('piet',))
+        self.assertEqual(1, cur.rowcount)
+        self.assertEqual(18446744073709551614, cur.lastrowid)
+        #this fails on mysql, but that is a mysql problem
+        #cur.execute("insert into tblautoincbigint (test_string) values (%s)", ('piet',))
+        #self.assertEqual(1, cur.rowcount)
+        #self.assertEqual(18446744073709551615, cur.lastrowid)
+        
+        cur.close()
+        cnn.close()
+        
+    def testLengthCodedBinary(self):
+
+        from concurrence.io import Buffer, BufferUnderflowError
+        from concurrence.database.mysql import PacketReader
+        b = Buffer(1024)
+        
+        b.write_byte(100)
+        b.flip()
+        
+        p = PacketReader(b)
+        p.packet.position = b.position
+        p.packet.limit = b.limit
+        
+        self.assertEquals(100, p.read_length_coded_binary())
+        self.assertEquals(p.packet.position, p.packet.limit)
+        try:
+            p.read_length_coded_binary()
+        except BufferUnderflowError:
+            pass
+        except:
+            self.fail('expected underflow')
+        
+        
 if __name__ == '__main__':
     unittest.main(timeout = 60)        
         
