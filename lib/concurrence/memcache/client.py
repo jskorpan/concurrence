@@ -34,6 +34,8 @@ from collections import deque
 #binary support
 #how to handle timouts in the pipelined case?
 #TODO validate keys!, they are 'txt' not random bins!, e.g. some chars not allowed, which ones?
+#CLAMP timestamps at 2**31-1
+#CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
 class MemcacheResult(object):
     _all = {}
@@ -157,6 +159,7 @@ class _MemcacheTCPConnectionManager(object):
             self._connecting[addr] = 0
         connections = self._connections[addr] 
         if (len(connections) + self._connecting[addr]) < self.NUM_CONNECTIONS_PER_ADDRESS: 
+            #TODO try/finally for self._connecting
             self._connecting[addr] += 1
             connection = _MemcacheTCPConnection(Socket.connect(addr, -2))
             connection.addr = addr
