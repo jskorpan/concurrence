@@ -84,7 +84,7 @@ class BufferedWriter(object):
         self.buffer.clear()
 
     def write_bytes(self, s):
-        assert type(s) == str, "arg must be a str"
+        assert type(s) == str, "arg must be a str, got: %s" % type(s)
         try:
             self.buffer.write_bytes(s)
         except BufferOverflowError:

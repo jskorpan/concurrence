@@ -563,8 +563,7 @@ class Tasklet(stackless.tasklet):
         #overridden for documentation purposes
         stackless.tasklet.kill(self)
 
-    @property
-    def timeout(self):
+    def get_timeout(self):
         if self._timeout_time < 0:
             return -1
         else:
@@ -572,12 +571,17 @@ class Tasklet(stackless.tasklet):
             if timeout < 0: timeout = 0.0 #expire immidiatly
             return timeout
 
-    @timeout.setter
-    def timeout(self, timeout):
+    def set_timeout(self, timeout):
         if timeout < 0:
             self._timeout_time = -1
         else:
             self._timeout_time = time.time() + timeout
+
+    timeout = property(get_timeout, set_timeout)
+    
+    @classmethod
+    def set_current_timeout(cls, timeout):
+        cls.current().timeout = timeout
 
 class Channel(object):
     """A Channel is a method for transfering control and/or communicate between Tasklets. 

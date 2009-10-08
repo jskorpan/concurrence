@@ -1,26 +1,47 @@
+from __future__ import with_statement
+
 import os
 import time
+import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache.client import MemcacheResult, Memcache
+from concurrence.memcache import MemcacheResultCode, Memcache
 
 MEMCACHE_IP = '127.0.0.1'
 
+MEMCACHED_PATHS = ['/usr/bin/memcached',
+                   '/opt/local/bin/memcached']
+
+MEMCACHED_BIN = None
+for path in MEMCACHED_PATHS:
+    if os.path.exists(path):
+        MEMCACHED_BIN = path
+        break
+assert MEMCACHED_BIN is not None, "could not find memcached daemon binary"
+
 class TestMemcache(unittest.TestCase):
+    log = logging.getLogger("TestMemcache")
+    
     def setUp(self):
+        self.log.debug("using memcached daemon: %s", MEMCACHED_BIN)
+        
         for i in range(4):
-            os.system('/usr/bin/memcached -m 10 -p %d -u nobody -l 127.0.0.1&' % (11211 + i))
+            cmd = '%s -m 10 -p %d -u nobody -l 127.0.0.1&' % (MEMCACHED_BIN, 11211 + i)
+            self.log.debug(cmd)
+            os.system(cmd)
     
     def tearDown(self):
-        os.system('killall /usr/bin/memcached')
+        cmd = 'killall %s' % MEMCACHED_BIN
+        self.log.debug(cmd)
+        os.system(cmd)
     
     def testBasic(self):
         
         mc = Memcache()
         mc.set_servers([((MEMCACHE_IP, 11211), 100)])
 
-        self.assertEquals(MemcacheResult.STORED, mc.set('test1', '12345'))
-        self.assertEquals(MemcacheResult.STORED, mc.set('test2', '67890'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('test1', '12345'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('test2', '67890'))
 
         self.assertEquals('12345', mc.get('test1'))
         self.assertEquals('67890', mc.get('test2'))
@@ -33,32 +54,48 @@ class TestMemcache(unittest.TestCase):
 
         self.assertEquals({'test1': '12345', 'test2': 'hello world!'}, mc.get_multi(['test1', 'test2', 'test3']))
        
+        #update to int type
+        mc.set('test2', 10)
+        self.assertEquals(10, mc.get('test2'))
+        self.assertEquals(int, type(mc.get('test2')))
+
+        #update to long type
+        mc.set('test2', 10L)
+        self.assertEquals(10L, mc.get('test2'))
+        self.assertEquals(long, type(mc.get('test2')))
+
+        #update to string type
+        mc.set('test2', 'blaat')
+        self.assertEquals('blaat', mc.get('test2'))
+        self.assertEquals(str, type(mc.get('test2')))
+
         #update to unicode type
         mc.set('test2', u'C\xe9line')
         self.assertEquals(u'C\xe9line', mc.get('test2'))
+        self.assertEquals(unicode, type(mc.get('test2')))
 
         #update to some other type
         mc.set('test2', {'piet': 'blaat', 10: 20})
         self.assertEquals({'piet': 'blaat', 10: 20}, mc.get('test2'))
 
         #test delete
-        self.assertEquals(MemcacheResult.NOT_FOUND, mc.delete('test_del1'))
-        self.assertEquals(MemcacheResult.STORED, mc.set('test_del1', 'hello'))
+        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.delete('test_del1'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('test_del1', 'hello'))
         self.assertEquals('hello', mc.get('test_del1'))
-        self.assertEquals(MemcacheResult.DELETED, mc.delete('test_del1'))
+        self.assertEquals(MemcacheResultCode.DELETED, mc.delete('test_del1'))
         self.assertEquals(None, mc.get('test_del1'))
  
         #test add command
         mc.delete('add1')
-        self.assertEquals(MemcacheResult.STORED, mc.add('add1', '11111'))
-        self.assertEquals(MemcacheResult.NOT_STORED, mc.add('add1', '22222'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.add('add1', '11111'))
+        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.add('add1', '22222'))
 
         #test replace
-        self.assertEquals(MemcacheResult.STORED, mc.set('replace1', '11111'))
-        self.assertEquals(MemcacheResult.STORED, mc.replace('replace1', '11111'))
-        self.assertEquals(MemcacheResult.STORED, mc.replace('replace1', '11111'))
-        self.assertEquals(MemcacheResult.DELETED, mc.delete('replace1'))
-        self.assertEquals(MemcacheResult.NOT_STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('replace1', '11111'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResultCode.DELETED, mc.delete('replace1'))
+        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.replace('replace1', '11111'))
 
 
     def testMemcache(self):
@@ -86,7 +123,7 @@ class TestMemcache(unittest.TestCase):
 
         with unittest.timer() as tmr:
             for i in range(N):
-                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
+                self.assertEquals(MemcacheResultCode.STORED, mc.set(keys[i], 'hello world %d' % i))
         print 'multi server single set keys/sec', tmr.sec(N)
 
         with unittest.timer() as tmr:
@@ -104,7 +141,7 @@ class TestMemcache(unittest.TestCase):
 
     def testMultiClientMultiServer(self):
         
-        N = 40 * 500
+        N = 40 * 100
         keys = ['test%d' % i for i in range(N)]
         
         mc = Memcache()
@@ -115,7 +152,7 @@ class TestMemcache(unittest.TestCase):
 
         with unittest.timer() as tmr:
             for i in range(N):
-                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
+                self.assertEquals(MemcacheResultCode.STORED, mc.set(keys[i], 'hello world %d' % i))
         print 'single client multi server single set keys/sec', tmr.sec(N)
         
         stride = 40
@@ -133,7 +170,8 @@ class TestMemcache(unittest.TestCase):
 
     def testTextProtocol(self):
         from concurrence.io import Socket, BufferedStream
-        from concurrence.memcache.client import MemcacheTextProtocol, RawCodec
+        from concurrence.memcache.client import MemcacheTextProtocol
+        from concurrence.memcache.codec import RawCodec
         
         socket = Socket.connect((MEMCACHE_IP, 11211))
         stream = BufferedStream(socket)
@@ -144,13 +182,13 @@ class TestMemcache(unittest.TestCase):
         
         protocol.write_set(writer, 'hello', 'world')
         writer.flush()
-        self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+        self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
         
         N = 100
         for i in range(N):
             protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i)
             writer.flush()
-            self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+            self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
 
         #single get
         for i in range(N):

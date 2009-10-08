@@ -196,7 +196,7 @@ class TestTasklet(unittest.TestCase):
         def looper(channel):
             res = channel.receive()
             if res == None:
-                raise Exception("some exception")
+                raise Exception("this is an expected exception!! (not a failed test...)")
             else:
                 recvd.append(res)
             

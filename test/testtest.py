@@ -4,7 +4,7 @@ class TestTest(unittest.TestCase):
     def testTimeout(self):
         try:
             Tasklet.sleep(4)
-            self.fail('expected timeout')
+            self.fail('expected timeout!')
         except TaskletExit:
             pass #caused by timeout
         

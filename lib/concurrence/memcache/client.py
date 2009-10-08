@@ -2,6 +2,7 @@
 #
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
+from __future__ import with_statement
 
 from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError, defer
 from concurrence.timer import Timeout
@@ -9,7 +10,9 @@ from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStreamShared
 from concurrence.containers.deque import Deque
 
-from concurrence.memcache import ketama
+from concurrence.memcache import MemcacheResultCode
+from concurrence.memcache.codec import DefaultCodec, RawCodec
+from concurrence.memcache.behaviour import MemcacheKetamaBehaviour
 
 import logging
 import cPickle as pickle
@@ -37,55 +40,13 @@ from collections import deque
 #CLAMP timestamps at 2**31-1
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
-class MemcacheResult(object):
-    _all = {}
-
-    def __init__(self, name):
-        self._name = name
-        self._all[name] = self
-    
-    def __repr__(self):
-        return "<MemcacheResult: %s>" % self._name
-        
-    @classmethod
-    def get(cls, name, default):
-        return cls._all.get(name, default)
-
-MemcacheResult.STORED = MemcacheResult("STORED")
-MemcacheResult.NOT_STORED = MemcacheResult("NOT_STORED")
-MemcacheResult.EXISTS = MemcacheResult("EXISTS")
-MemcacheResult.NOT_FOUND = MemcacheResult("NOT_FOUND")
-MemcacheResult.DELETED = MemcacheResult("DELETED")
-MemcacheResult.ERROR = MemcacheResult("ERROR")
-
-class Codec(object):
-    def decode(self, flags, encoded_value):
-        assert False, "implement"
-
-    def encode(self, value):
-        assert False, "implement"
-
-class DefaultCodec(Codec):
-    def decode(self, flags, encoded_value):
-        return pickle.loads(encoded_value)
-
-    def encode(self, value):
-        return pickle.dumps(value, -1), 0
-
-class RawCodec(Codec):
-    def decode(self, flags, encoded_value):
-        return encoded_value
-
-    def encode(self, value):
-        return str(value), 0
-            
 class MemcacheTextProtocol(object):
     def __init__(self, codec = None):
         self._codec = codec
 
     def _read_result(self, reader):
         response_line = reader.read_line()
-        result = MemcacheResult.get(response_line, None)
+        result = MemcacheResultCode.get(response_line, None)
         assert result is not None, "protocol error"
         return result
 
@@ -169,26 +130,6 @@ class _MemcacheTCPConnectionManager(object):
         self._connections[addr].rotate()
         return connection
 
-class MemcacheModuloBehaviour(object):
-    def __init__(self):
-        pass
-
-    def set_servers(self, servers):
-        self._servers = servers
-
-    def key_to_addr(self, key):
-        return self._servers[hash(key) % len(self._servers)]
-
-class MemcacheKetamaBehaviour(object):
-    def __init__(self):
-        self._continuum = None
-
-    def set_servers(self, servers):
-        self._continuum = ketama.build_continuum(servers)
-
-    def key_to_addr(self, key):
-        return ketama.get_server(key, self._continuum)
-
 class Memcache(object):
     def __init__(self, servers = None):
         self.read_timeout = 10
@@ -216,25 +157,20 @@ class Memcache(object):
         self._behaviour.set_servers(servers)
 
     def _read_result(self, connection, cmd, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.read_timeout
+        Tasklet.set_current_timeout(self.read_timeout)
         with connection.get_reader() as reader:
-           #print 'rd', cmd, connection.addr
            result = getattr(self._protocol, 'read_' + cmd)(reader)
         result_channel.send(result)
         
     def _write_command(self, connection, cmd, args, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.write_timeout
+        Tasklet.set_current_timeout(self.write_timeout)
         with connection.get_writer() as writer:
-            #print 'wr', cmd, connection.addr
             getattr(self._protocol, 'write_' + cmd)(writer, *args)
             writer.flush()
             connection.read_queue.defer(self._read_result, connection, cmd, result_channel)
         
     def _connect_by_addr(self, addr, keys, result_channel):
-        current_task = Tasklet.current()
-        current_task.timeout = self.connect_timeout
+        Tasklet.set_current_timeout(self.connect_timeout)
         connection = self._connection_manager.get_connection(addr)
         result_channel.send((connection, keys))
 
