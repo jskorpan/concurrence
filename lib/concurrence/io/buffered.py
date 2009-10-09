@@ -257,3 +257,6 @@ class BufferedStreamShared(object):
     def get_reader(self):
         return self._borrowed_reader(self)
 
+    def close(self):
+        self._stream.close()
+        

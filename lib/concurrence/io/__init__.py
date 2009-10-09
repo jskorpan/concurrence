@@ -20,7 +20,7 @@ class IOStream(object):
         pass
     
 from concurrence.io.socket import Socket, SocketServer
-from concurrence.io.buffered import BufferedReader, BufferedWriter, BufferedStream
+from concurrence.io.buffered import BufferedReader, BufferedWriter, BufferedStream, BufferedStreamShared
 
 #TODO what if more arguments are needed for connect?, eg. passwords etc?
 class Connector(object):
