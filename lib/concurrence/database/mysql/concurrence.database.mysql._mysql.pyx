@@ -195,28 +195,44 @@ cdef class PacketReader:
         return self._read_packet()
 
     cdef _read_length_coded_binary(self):
-        cdef unsigned int n, w
+        cdef unsigned int n, v
+        cdef unsigned long long vw
         cdef Buffer packet
 
         packet = self.packet
         if packet._position + 1 > packet._limit: raise  BufferUnderflowError()        
         n = packet._buff[packet._position]
-        w = 1
-        if n >= 251:
-            if n == 251:
-                assert False, 'unexpected, only valid for row data packet'
-            elif n == 252:
-                if packet._position + 2 > packet._limit: raise  BufferUnderflowError()
-                n = packet._buff[packet._position + 1] | ((packet._buff[packet._position + 2]) << 8)  
-                w = 3
-            elif n == 253:
-                if packet._position + 3 > packet._limit: raise  BufferUnderflowError()
-                n = packet._buff[packet._position + 1] | ((packet._buff[packet._position + 2]) << 8) | ((packet._buff[packet._position + 3]) << 16)
-                w = 4
-            else:
-                assert False, 'not implemented yet, n: %02x' % n
-        packet._position = packet._position + w
-        return n
+        if n < 251:
+            packet._position = packet._position + 1
+            return n
+        elif n == 251:
+            assert False, 'unexpected, only valid for row data packet'
+        elif n == 252:
+            #16 bit word
+            if packet._position + 3 > packet._limit: raise  BufferUnderflowError()
+            v = packet._buff[packet._position + 1] | ((packet._buff[packet._position + 2]) << 8)
+            packet._position = packet._position + 3
+            return v              
+        elif n == 253:
+            #24 bit word
+            if packet._position + 4 > packet._limit: raise  BufferUnderflowError()
+            v = packet._buff[packet._position + 1] | ((packet._buff[packet._position + 2]) << 8) | ((packet._buff[packet._position + 3]) << 16)
+            packet._position = packet._position + 4
+            return v
+        else:
+            #64 bit word
+            if packet._position + 9 > packet._limit: raise  BufferUnderflowError()
+            vw = 0
+            vw |= (<unsigned long long>packet._buff[packet._position + 1]) << 0
+            vw |= (<unsigned long long>packet._buff[packet._position + 2]) << 8
+            vw |= (<unsigned long long>packet._buff[packet._position + 3]) << 16
+            vw |= (<unsigned long long>packet._buff[packet._position + 4]) << 24 
+            vw |= (<unsigned long long>packet._buff[packet._position + 5]) << 32
+            vw |= (<unsigned long long>packet._buff[packet._position + 6]) << 40
+            vw |= (<unsigned long long>packet._buff[packet._position + 7]) << 48
+            vw |= (<unsigned long long>packet._buff[packet._position + 8]) << 56
+            packet._position = packet._position + 9
+            return vw
 
     def read_length_coded_binary(self):
         return self._read_length_coded_binary()
