@@ -3,7 +3,7 @@ from concurrence.io import BufferedStreamShared, Socket
 
 class Connection(object):
     def __init__(self, stream):
-        self.stream = BufferedStreamShared(stream)
+        self.stream = BufferedStreamShared(stream, 1024)
         
     def handle(self):
         """writes the familiar greeting to client"""
@@ -28,4 +28,6 @@ def server():
         defer(client_connection.handle)
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig()
     dispatch(server)

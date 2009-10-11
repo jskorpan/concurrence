@@ -197,24 +197,25 @@ class CompatibleFile(object):
         self._writer.flush()
 
 class BufferedStreamShared(object):
-    _write_buffer_size = 1024 * 4
-    _read_buffer_size = 1024 * 4
 
-    _reader_pool = []
-    _writer_pool = []
+    _reader_pool = {} #buffer_size -> [list of readers]
+    _writer_pool = {} #bufffer_size -> [list of writers]
 
-    def __init__(self, stream):
+    def __init__(self, stream, buffer_size = 1024 * 8, read_buffer_size = 0, write_buffer_size = 0):
         self._stream = stream
         self._writer = None
         self._reader = None
+        self._read_buffer_size = read_buffer_size or buffer_size
+        self._write_buffer_size = write_buffer_size or buffer_size
 
     class _borrowed_writer(object):
         def __init__(self, stream):
+            buffer_size = stream._write_buffer_size
             if stream._writer is None:
-                if stream._writer_pool:
-                    writer = stream._writer_pool.pop()
+                if stream._writer_pool.get(buffer_size, []):
+                    writer = stream._writer_pool[buffer_size].pop()
                 else:
-                    writer = BufferedWriter(None, Buffer(stream._write_buffer_size))
+                    writer = BufferedWriter(None, Buffer(buffer_size))
             else:
                 writer = stream._writer
             writer.stream = stream._stream
@@ -226,15 +227,18 @@ class BufferedStreamShared(object):
 
         def __exit__(self, type, value, traceback):
             assert self._writer.buffer.position == 0, "todo implement this case?"
-            self._stream._writer_pool.append(self._writer)
+            writer_pool = self._stream._writer_pool.setdefault(self._stream._write_buffer_size, [])
+            writer_pool.append(self._writer)
+            self._stream._writer = None
 
     class _borrowed_reader(object):
         def __init__(self, stream):
+            buffer_size = stream._read_buffer_size
             if stream._reader is None:
-                if stream._reader_pool:
-                    reader = stream._reader_pool.pop()
+                if stream._reader_pool.get(buffer_size, []):
+                    reader = stream._reader_pool[buffer_size].pop()
                 else:
-                    reader = BufferedReader(None, Buffer(stream._read_buffer_size))
+                    reader = BufferedReader(None, Buffer(buffer_size))
             else:
                 reader = stream._reader
             reader.stream = stream._stream
@@ -248,7 +252,8 @@ class BufferedStreamShared(object):
             if self._reader.buffer.remaining:
                 self._stream._reader = self._reader
             else:
-                self._stream._reader_pool.append(self._reader)
+                reader_pool = self._stream._reader_pool.setdefault(self._stream._read_buffer_size, [])
+                reader_pool.append(self._reader)
                 self._stream._reader = None
 
     def get_writer(self):

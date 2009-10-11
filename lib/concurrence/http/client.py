@@ -11,7 +11,7 @@ import logging
 
 from concurrence import Tasklet, Channel, Message, __version__
 from concurrence.timer import Timeout
-from concurrence.io import Connector, BufferedStream
+from concurrence.io import Connector, BufferedStreamShared
 from concurrence.http import HTTPError, HTTPRequest, HTTPResponse
 
 AGENT = 'Concurrence-Http-Client/' + __version__
@@ -48,7 +48,7 @@ class HTTPConnection(object):
                 self._host = endpoint[0]
             except: 
                 pass                
-        self._stream = BufferedStream(Connector.connect(endpoint))
+        self._stream = BufferedStreamShared(Connector.connect(endpoint), read_buffer_size = 1024 * 8, write_buffer_size = 1024 * 4)
 
     def receive(self):
         """Receive the next :class:`HTTPResponse` from the connection."""
@@ -66,53 +66,53 @@ class HTTPConnection(object):
 
         response = HTTPResponse()
 
-        reader = self._stream.reader
+        with self._stream.get_reader() as reader:
         
-        lines = reader.read_lines()
-                
-        #parse status line
-        response.status = lines.next()
-        
-        #rest of response headers
-        for line in lines:
-            if not line: break
-            key, value = line.split(': ')
-            response.add_header(key, value)
+            lines = reader.read_lines()
+                    
+            #parse status line
+            response.status = lines.next()
+            
+            #rest of response headers
+            for line in lines:
+                if not line: break
+                key, value = line.split(': ')
+                response.add_header(key, value)
 
-        #read data
-        transfer_encoding = response.get_header('Transfer-Encoding', None)
-        
-        try:
-            content_length = int(response.get_header('Content-Length'))
-        except:
-            content_length = None
+            #read data
+            transfer_encoding = response.get_header('Transfer-Encoding', None)
+            
+            try:
+                content_length = int(response.get_header('Content-Length'))
+            except:
+                content_length = None
 
-        #TODO better support large data        
-        chunks = []
+            #TODO better support large data        
+            chunks = []
 
-        if transfer_encoding == 'chunked':
-            while True:
-                chunk_line = reader.read_line()
-                chunk_size = int(chunk_line.split(';')[0], 16)
-                if chunk_size > 0:
-                    data = reader.read_bytes(chunk_size)
-                    reader.read_line() #chunk is always followed by a single empty line
+            if transfer_encoding == 'chunked':
+                while True:
+                    chunk_line = reader.read_line()
+                    chunk_size = int(chunk_line.split(';')[0], 16)
+                    if chunk_size > 0:
+                        data = reader.read_bytes(chunk_size)
+                        reader.read_line() #chunk is always followed by a single empty line
+                        chunks.append(data)
+                    else:
+                        reader.read_line() #chunk is always followed by a single empty line
+                        break 
+            elif content_length is not None:
+                while content_length > 0:
+                    n = min(CHUNK_SIZE, content_length)
+                    data = reader.read_bytes(n)
                     chunks.append(data)
-                else:
-                    reader.read_line() #chunk is always followed by a single empty line
-                    break 
-        elif content_length is not None:
-            while content_length > 0:
-                n = min(CHUNK_SIZE, content_length)
-                data = reader.read_bytes(n)
-                chunks.append(data)
-                content_length -= len(data)
-        else:
-            assert False, 'TODO'
+                    content_length -= len(data)
+            else:
+                assert False, 'TODO'
 
-        response.iter = chunks
+            response.iter = chunks
 
-        return response
+            return response
 
     def get(self, path, host = None):
         """Returns a new :class:`HTTPRequest` with request.method = 'GET' and request.path = *path*.
@@ -153,16 +153,16 @@ class HTTPConnection(object):
         if request.host is None:
             assert False, "request host must be set"
 
-        writer = self._stream.writer        
-        writer.clear()
-        writer.write_bytes("%s %s HTTP/1.1\r\n" % (request.method, request.path))
-        writer.write_bytes("Host: %s\r\n" % request.host)
-        for header_name, header_value in request.headers:
-            writer.write_bytes("%s: %s\r\n" % (header_name, header_value))
-        writer.write_bytes("\r\n")
-        if request.body is not None:
-           writer.write_bytes(request.body)
-        writer.flush()        
+        with self._stream.get_writer() as writer:       
+            writer.clear()
+            writer.write_bytes("%s %s HTTP/1.1\r\n" % (request.method, request.path))
+            writer.write_bytes("Host: %s\r\n" % request.host)
+            for header_name, header_value in request.headers:
+                writer.write_bytes("%s: %s\r\n" % (header_name, header_value))
+            writer.write_bytes("\r\n")
+            if request.body is not None:
+               writer.write_bytes(request.body)
+            writer.flush()        
 
     def close(self):
         """Close this connection."""
