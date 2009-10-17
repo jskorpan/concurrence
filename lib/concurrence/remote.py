@@ -166,9 +166,7 @@ class RemoteClient(object):
 
     def close(self):
         self._message_writer_task.kill()
-        self._message_writer = None
         self._message_reader_task.kill()
-        self._message_reader = None
         self._stream.close()
         
     def send(self, remote_task_id, msg, args, kwargs):
@@ -183,15 +181,13 @@ class RemoteClient(object):
             return result
         finally:
             del self._blocked_message[msg_id]
-            print 'blmsg del'
 
     def lookup(self, name):
         remote_task_id = MSG_LOOKUP.call(self._bootstrap_task)(name)
-        print remote_task_id
-        #if remote_task_id > 0:
-        #    return RemoteTasklet(self, remote_task_id)
-        #else:
-        #    return None
+        if remote_task_id > 0:
+            return RemoteTasklet(self, remote_task_id)
+        else:
+            return None
 
 class RemoteTasklet(object):
     """Proxy to a remote task. Do not create this yourself, use lookup method on a RemoteClient"""
