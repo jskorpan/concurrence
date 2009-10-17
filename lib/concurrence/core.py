@@ -749,7 +749,9 @@ def _dispatch(f = None):
             #make stackless need to use hard-switching, which is slow.
             #so we call 'loop' which blocks until something available.
             try:
+                #print 1
                 _event.loop()
+                #print 2
             except TaskletExit:
                 raise
             except:
@@ -762,6 +764,7 @@ def _dispatch(f = None):
             while _event.has_next():
                 try:
                     e, event_type, fd = _event.next()
+                    print e
                     e.data(event_type)
                 except TaskletExit:
                     raise
@@ -777,13 +780,14 @@ def _dispatch(f = None):
 
     _event.shutdown() #inform libevent that we are shutting down
 
-    if DEBUG_LEAK: 
+    if True: 
         logging.warn("alive objects:")
         gc.collect()
         _print_objects(gc.get_objects())
         logging.warn('garbage:')
         _print_objects(gc.garbage)
 
+    print 'exit'
     sys._exit(_exitcode)
 
 def _profile(f = None):

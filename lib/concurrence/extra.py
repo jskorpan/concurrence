@@ -51,9 +51,9 @@ class TaskletPool(object):
     def __init__(self):
         self._queue = Deque()
         self._workers = []
-        self._add_worker()
-        self._add_worker()
-        self._adjuster = Tasklet.interval(1.0, self._adjust, daemon = True)()
+        #self._add_worker()
+        #self._add_worker()
+        #self._adjuster = Tasklet.interval(1.0, self._adjust, daemon = True)()
         self._queue_len = 0.0
 
     def _add_worker(self):
