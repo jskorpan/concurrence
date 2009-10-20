@@ -111,9 +111,14 @@ class TaskletExtra(object):
     _tasklet_pool = None
 
     @classmethod
+    def _defer(cls, f, *args, **kwargs):
+        cls._tasklet_pool.defer(f, *args, **kwargs)
+
+    @classmethod
     def defer(cls, f, *args, **kwargs):
-        if not cls._tasklet_pool:
-            cls._tasklet_pool = TaskletPool()
+        #first time init the tasklet pool, next time _defer is used directly
+        cls.defer = cls._defer
+        cls._tasklet_pool = TaskletPool()
         cls._tasklet_pool.defer(f, *args, **kwargs)
         
 Tasklet.__bases__ += (TaskletExtra,)

@@ -4,7 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 from __future__ import with_statement
 
-from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError, defer
+from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError
 from concurrence.timer import Timeout
 from concurrence.io import Socket, Buffer
 from concurrence.io.buffered import BufferedStreamShared
@@ -217,7 +217,7 @@ class Memcache(object):
         grouped = self._keys_to_addr(keys).items()
         n = len(grouped)
         for addr, _keys in grouped:
-            defer(self._connect_by_addr, addr, _keys, result_channel)
+            Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
             connection.write_queue.defer(self._write_command, connection, "get", [_keys], result_channel)
         result = {}        
