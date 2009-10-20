@@ -1,4 +1,4 @@
-from concurrence import unittest, Message, Tasklet, TimeoutError
+from concurrence import unittest, Message, Tasklet, Channel, TimeoutError
 from concurrence.remote import RemoteServer, RemoteTasklet, RemoteClient
 
 import logging
@@ -13,7 +13,7 @@ class MSG_SLEEP(Message): pass
 class RemoteTest(unittest.TestCase):
 
     def testRemote(self):
-        
+
         client_results = []
         server_results = []
 
@@ -40,9 +40,9 @@ class RemoteTest(unittest.TestCase):
                 logging.exception("")
                 self.fail("")
             finally:
-                if server_endpoint is not None: 
+                if server_endpoint is not None:
                     server_endpoint.close()
-            
+
         def client():
             try:
                 remote_client = RemoteClient()
@@ -70,18 +70,14 @@ class RemoteTest(unittest.TestCase):
             except Exception:
                 logging.exception("")
                 self.fail("")
-        
+
         server_task = Tasklet.new(server)()
         client_task = Tasklet.new(client)()
 
         Tasklet.join_children()
-        
+
         self.assertEquals([60,60], client_results)
         self.assertEquals(['t', 't', 's', 's', 't', 't', 'sl', 'sl', 'q'], server_results)
 
-
-
-
-        
 if __name__ == '__main__':
     unittest.main(timeout = 5)

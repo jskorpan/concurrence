@@ -9,15 +9,15 @@ from concurrence.core import stackless
 class TestError(Exception): pass
 
 class TestStackless(unittest.TestCase):
-    
+
     def setUp(self):
         logging.debug(self)
-        
+
     def testSchedule(self):
 
         res1 = []
         res2 = []
-        
+
         def ch1():
             for i in range(10):
                 res1.append((i, stackless.getruncount()))
@@ -40,13 +40,13 @@ class TestStackless(unittest.TestCase):
         self.assertEquals([(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3)], res2)
 
         self.assertEquals(1, stackless.getruncount()) #main
-        
+
     def testChannel(self):
-        
+
         c = stackless.channel()
-        
+
         recvd = []
-        
+
         def ch1():
             for i in range(10):
                 recvd.append(c.receive())
@@ -59,20 +59,20 @@ class TestStackless(unittest.TestCase):
         child2 = stackless.tasklet(ch2)()
 
         self.assertEquals(3, stackless.getruncount()) #main
-        
+
         while stackless.getruncount() > 1:
             stackless.schedule()
 
         self.assertEquals(range(10), recvd)
-        
+
         self.assertEquals(1, stackless.getruncount()) #main
-        
+
     def testChannelMultiReceiver(self):
 
         c = stackless.channel()
         xs = []
         def ch(i):
-            xs.append((i, c.receive()))         
+            xs.append((i, c.receive()))
 
         child1 = stackless.tasklet(ch)(1)
         child2 = stackless.tasklet(ch)(2)
@@ -85,7 +85,7 @@ class TestStackless(unittest.TestCase):
         self.assertEquals(1, stackless.getruncount()) #main
 
         self.assertEquals([], xs)
-        
+
 
     def testChannelException(self):
 
@@ -100,7 +100,7 @@ class TestStackless(unittest.TestCase):
                     result.append(c.receive())
                 except TestError, te:
                     result.append(te)
-             
+
         def ch2():
             c.send(True)
             c.send_exception(TestError, "test")
@@ -109,19 +109,19 @@ class TestStackless(unittest.TestCase):
         child2 = stackless.tasklet(ch2)()
 
         self.assertEquals(3, stackless.getruncount()) #main + ch1 + ch2
-        
+
         while stackless.getruncount() > 1:
             stackless.schedule()
 
         self.assertEquals(True, result[0])
         self.assertTrue(isinstance(result[1], TestError))
-        
+
         self.assertEquals(1, stackless.getruncount()) #main
 
     def testKillOnChannel(self):
-        
+
         c = stackless.channel()
-        
+
         def child(r):
             r.b1 = c.balance
             r.rc1 = stackless.getruncount()
@@ -141,7 +141,7 @@ class TestStackless(unittest.TestCase):
 
         r = result()
         ch = stackless.tasklet(child)(r)
-        
+
         stackless.schedule()
 
         ch.kill()
@@ -153,9 +153,9 @@ class TestStackless(unittest.TestCase):
         self.assertEquals((True, True), (r.alive1, r.alive2))
 
     def testExceptionOnChannel(self):
-        
+
         c = stackless.channel()
-        
+
         def child(r):
             r.b1 = c.balance
             try:
@@ -167,11 +167,11 @@ class TestStackless(unittest.TestCase):
 
         r = result()
         ch = stackless.tasklet(child)(r)
-        
+
         stackless.schedule()
 
         ch.raise_exception(TestError)
-        
+
         self.assertEquals((0, 0), (r.b1, r.b2))
 
     def testKillOnSchedule(self):
@@ -191,7 +191,7 @@ class TestStackless(unittest.TestCase):
                 r.alive1 = r.cur1.alive
 
                 try:
-                    stackless.schedule()    
+                    stackless.schedule()
                 except TaskletExit:
                     #print 'kill'
                     r.rc2 = stackless.getruncount()
@@ -205,8 +205,8 @@ class TestStackless(unittest.TestCase):
         x = 0
         while True:
             x += 1
-            stackless.schedule()    
-            if x == 10: 
+            stackless.schedule()
+            if x == 10:
                 ch1.kill()
             if x >= 15:
                 break
@@ -217,7 +217,7 @@ class TestStackless(unittest.TestCase):
         self.assertEquals((True, True), (r.alive1, r.alive2))
 
     def testKillOrder(self):
-        
+
         def ch1():
             #print 'ch1 start', stackless.getcurrent()
             try:
