@@ -47,18 +47,19 @@ class TaskletPool(object):
 
     GAMMA = 0.995
     TRESHOLD = 2.0
+    INIT_WORKERS = 2
 
     def __init__(self):
         self._queue = Deque()
         self._workers = []
-        self._add_worker()
-        self._add_worker()
+        for i in range(self.INIT_WORKERS):
+            self._add_worker()
         self._adjuster = Tasklet.interval(1.0, self._adjust, daemon = True)()
         self._queue_len = 0.0
 
     def _add_worker(self):
         self._workers.append(Tasklet.new(self._worker, daemon = True)())
-        self.log.debug('addded worker, #now: %s', len(self._workers))
+        self.log.debug('added worker, #now: %s', len(self._workers))
 
     def _adjust(self):
         self._queue_len = (self.GAMMA * self._queue_len) + ((1.0 - self.GAMMA) * len(self._queue))
@@ -80,10 +81,6 @@ class TaskletPool(object):
     def defer(self, f, *args, **kwargs):
         self._queue.append((f, args, kwargs))
 
-_task_pool = TaskletPool()
-        
-defer = _task_pool.defer
-    
 class DeferredQueue(object):
     log = logging.getLogger('DeferredQueue')
     
@@ -108,8 +105,18 @@ class DeferredQueue(object):
         self._queue.append((f, args, kwargs))
         if not self._working:
             self._working = True
-            _task_pool.defer(self._pump)
+            Tasklet.defer(self._pump)
     
+class TaskletExtra(object):
+    _tasklet_pool = None
+
+    @classmethod
+    def defer(cls, f, *args, **kwargs):
+        if not cls._tasklet_pool:
+            cls._tasklet_pool = TaskletPool()
+        cls._tasklet_pool.defer(f, *args, **kwargs)
+        
+Tasklet.__bases__ += (TaskletExtra,)
 
 
 

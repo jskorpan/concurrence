@@ -4,7 +4,12 @@ import logging
 
 logging.basicConfig(level = logging.DEBUG)
 
-from concurrence.core import stackless
+try:
+    import stackless
+except ImportError:
+    #we might be running from CPython, or PyPy
+    #try the greenlet based stackless emulation
+    import concurrence._stackless as stackless
 
 class TestError(Exception): pass
 

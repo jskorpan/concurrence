@@ -17,7 +17,8 @@ class TestTaskletPool(unittest.TestCase):
 
         tp = TaskletPool()
 
-        for i in range(20):
+        N = 10
+        for i in range(N):
             tp.defer(handler, i)
  
         start = time.time()
@@ -25,14 +26,14 @@ class TestTaskletPool(unittest.TestCase):
         xs = []
         while True:
             xs.append(d.popleft(True, 30))
-            if len(xs) == 20:
+            if len(xs) == N:
                 break
         
         end = time.time()
         
-        #5 workers taking 1 second to process 20 items = 4.0 total proc time
-        self.assertAlmostEqual(4.0, end - start, places = 1)
-        self.assertEquals(190, sum(xs))
+        #X workers taking 1 second to process N items = Z total proc time
+        self.assertAlmostEqual(N / TaskletPool.INIT_WORKERS, end - start, places = 1)
+        self.assertEquals(45, sum(xs))
 
 class TestDeferredQueue(unittest.TestCase):
     def testDeferredQueue(self):
@@ -40,7 +41,7 @@ class TestDeferredQueue(unittest.TestCase):
         d = DeferredQueue()
         
         def f(i):
-            print Tasklet.current(), i
+            pass
         
         for i in range(10):    
             d.defer(f, i)
