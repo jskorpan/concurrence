@@ -14,6 +14,7 @@ test:
 		-$(PYTHON) teststatistic.py
 		-$(PYTHON) testmysql.py
 		-$(PYTHON) testtimer.py
+		-$(PYTHON) ../lib/concurrence/memcache/ketama.py
 		-$(PYTHON) testmemcache.py
 		-$(PYTHON) testweb.py
 		-$(PYTHON) testremote.py

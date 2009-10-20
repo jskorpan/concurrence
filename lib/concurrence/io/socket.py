@@ -19,6 +19,7 @@ from concurrence import Tasklet, FileDescriptorEvent
 from concurrence.io import IOStream
 
 DEFAULT_BACKLOG = 512    
+XMOD = 8
 
 class Socket(IOStream):
     log = logging.getLogger('Socket')
@@ -29,6 +30,8 @@ class Socket(IOStream):
     STATE_CONNECTED = 3
     STATE_CLOSING = 4
     STATE_CLOSED = 5
+
+    _x = 0
     
     def __init__(self, socket, state = STATE_INIT):
         """don't call directly pls use one of the provided classmethod to create a socket"""
@@ -159,13 +162,20 @@ class Socket(IOStream):
         """Writes as many bytes as possible from the given buffer to this socket.
         The buffer position is updated according to the number of bytes succesfully written to the socket.
         This method returns the total number of bytes written. This method could possible write 0 bytes"""
-        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"     
+        assert self.state == self.STATE_CONNECTED, "socket must be connected in order to write to it"
+
+        self._x += 1
+        if self._x % XMOD == 0: 
+            assume_writable = False
+
         #by default assume that we can write to the socket without blocking        
         if assume_writable:
             bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
             if bytes_written < 0 and _io.get_errno() == EAGAIN:   
                 #nope, need to wait before sending our data
                 assume_writable = False
+            #else if error != EAGAIN, assume_writable will stay True, and we fall trough and raise error below
+            
         #if we cannot assume writability we will wait until data can be written again   
         if not assume_writable:
             self.writable.wait(timeout = timeout)
@@ -181,17 +191,24 @@ class Socket(IOStream):
         The buffer position is updated according to the number of bytes read from the socket.
         This method could possible read 0 bytes. The method returns the total number of bytes read"""
         assert self.state == self.STATE_CONNECTED, "socket must be connected in order to read from it"
+
+        self._x += 1
+        if self._x % XMOD == 0: 
+            assume_readable = False
+
         #by default assume that we can read from the socket without blocking        
         if assume_readable:
             bytes_read, _ = buffer.recv(self.fd) #read from fd to 
             if bytes_read < 0 and _io.get_errno() == EAGAIN:   
                 #nope, need to wait before reading our data
                 assume_readable = False
+            #else if error != EAGAIN, assume_readable will stay True, and we fall trough and raise error below
+            
         #if we cannot assume readability we will wait until data can be read again   
         if not assume_readable:
             self.readable.wait(timeout = timeout)
             bytes_read, _ = buffer.recv(self.fd) #read from fd to 
-        
+        #
         if bytes_read < 0:
             raise _io.error_from_errno(IOError)
         else:

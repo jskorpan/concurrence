@@ -3,3 +3,6 @@
 build
 .project
 .pydevproject
+tmp
+*.dep
+.settings

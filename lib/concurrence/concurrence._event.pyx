@@ -40,13 +40,13 @@ cdef extern from "event.h":
     struct timeval:
         unsigned int tv_sec
         unsigned int tv_usec
-    
+
     struct event_t "event":
         int   ev_fd
         int   ev_flags
         void *ev_arg
 
-    void event_init() nogil 
+    void event_init() nogil
     char *event_get_version() nogil
     char *event_get_method() nogil
     void event_set(event_t *ev, int fd, short event_type, event_handler handler, void *arg) nogil
@@ -56,7 +56,7 @@ cdef extern from "event.h":
     int  event_pending(event_t *ev, short, timeval *tv) nogil
 
     void evtimer_set(event_t *ev, event_handler handler, void *arg) nogil
-    
+
     int EVLOOP_ONCE
     int EVLOOP_NONBLOCK
 
@@ -64,14 +64,14 @@ EV_TIMEOUT      = 0x01
 EV_READ         = 0x02
 EV_WRITE        = 0x04
 EV_SIGNAL       = 0x08
-EV_PERSIST      = 0x10 
+EV_PERSIST      = 0x10
 
 class EventError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg + ": " + strerror(errno))
 
 #keep a singly-linked list of events that are triggered during 1 call to 'loop'
-#we will append at the end, and our client will read from the front 
+#we will append at the end, and our client will read from the front
 #therefore we keep 2 pointers to the head and tail of the list to easily
 #provide these FIFO operations
 cdef struct __list:
@@ -101,21 +101,21 @@ cdef void __event_handler(int fd, short flags, void* arg) nogil:
         trig.next = NULL
         tail.next = trig
         tail = trig
-        
+
 cdef class __event:
     cdef public object data
 
     cdef event_t ev
     cdef __list trig
-    
+
     def __init__(self, object data):
         self.data = data
         self.trig.event = <void *>self
         self.trig.flags = 0
         self.trig.fd = 0
         self.trig.next = NULL
-                
-    def _set(self, int fd, short event_type): 
+
+    def _set(self, int fd, short event_type):
         event_set(&self.ev, fd, event_type, __event_handler, <void *>&self.trig)
 
     def add(self, float timeout = -1):
@@ -133,14 +133,10 @@ cdef class __event:
     def pending(self, int event_type):
         """Return 1 if the event is scheduled to run, or else 0."""
         return event_pending(&self.ev, event_type, NULL)
-    
+
     def delete(self):
         if event_del(&self.ev) == -1:
-            global _shutdown
-            if _shutdown:
-                pass #ignore the error, were quiting anyway
-            else:
-                raise EventError("could not delete event")
+            raise EventError("could not delete event")
 
     def __dealloc__(self):
         self.delete()
@@ -151,7 +147,7 @@ cdef class __event:
 def event(fd, event_type, data):
     e = __event(data)
     e._set(fd, event_type)
-    return e 
+    return e
 
 def version():
     return event_get_version()
@@ -162,7 +158,7 @@ def method():
 def has_next():
     global head
     return head != NULL
-    
+
 def next():
     global head
     if head == NULL:
@@ -185,11 +181,6 @@ def loop():
 
     return head != NULL
 
-_shutdown = False
-def shutdown():
-    global _shutdown
-    _shutdown = True
-    
 #init libevent
 event_init()
 

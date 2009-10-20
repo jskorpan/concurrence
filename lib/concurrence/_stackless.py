@@ -44,7 +44,7 @@ class channel(object):
     def __init__(self):
         self.balance = 0
         self.queue = deque()
-        
+
     def receive(self):
         return _scheduler._receive(self)
 
@@ -170,7 +170,7 @@ class scheduler(object):
         #The receiver will become blocked and inserted
         #into the queue. The next sender will
         #handle the rest through "Sending 1)".        
-        if channel.queue: #some sender
+        if channel.balance > 0: #some sender
             channel.balance -= 1
             sender = channel.queue.popleft()
             sender.blocked = False
@@ -210,7 +210,7 @@ class scheduler(object):
         #    into the queue. The next receiver will
         #    handle the rest through "Receiving 1)".     
         #print 'send q', channel.queue   
-        if channel.queue: #some receiver   
+        if channel.balance < 0: #some receiver   
             channel.balance += 1
             receiver = channel.queue.popleft()
             receiver.data = data

@@ -5,8 +5,9 @@
 
 import unittest
 import logging
+import time
 
-from concurrence import dispatch, Tasklet, quit 
+from concurrence import dispatch, Tasklet, quit
 from concurrence.core import EXIT_CODE_TIMEOUT
 
 from concurrence.io import IOStream
@@ -14,13 +15,31 @@ from concurrence.io import IOStream
 
 class TestCase(unittest.TestCase):
     def setUp(self):
-        logging.debug(self)
+        logging.debug("setUp %s", self)
 
     def tearDown(self):
         try:
             Tasklet.yield_() #this make sure that everything gets a change to exit before we start the next test
+            logging.debug("tearDown %s, tasklet count #%d", self, Tasklet.count())
         except:
             pass
+
+class _Timer:
+    def __enter__(self):
+        self._start = time.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self._end = time.time()
+
+    def __str__(self):
+        self._end - self._start
+
+    def sec(self, n):
+        return n / (self._end - self._start)
+
+def timer():
+    return _Timer()
 
 def main(timeout = None):
 
@@ -28,7 +47,11 @@ def main(timeout = None):
     logging.root.setLevel(logging.DEBUG)
 
     if timeout is not None:
-        Tasklet.later(timeout, quit, name = 'unittest_timeout')(EXIT_CODE_TIMEOUT)
-        
+        def quit_test():
+            logging.error("quiting unittest on timeout")
+            quit(EXIT_CODE_TIMEOUT)
+        logging.debug("test will timeout in %s seconds", timeout)
+        timeout_task = Tasklet.later(timeout, quit_test, name = 'unittest_timeout')()
+
     dispatch(unittest.main)
 
