@@ -24,10 +24,10 @@ class BufferedReader(object):
     def _read_more(self):
         #any partially read data will be put in front, otherwise normal clear:
         self.buffer.compact()
-        if not self.stream.read(self.buffer, -2): 
+        if not self.stream.read(self.buffer, -2):
             raise EOFError("while reading")
         self.buffer.flip() #prepare to read from buffer
-        
+
     def read_lines(self):
         """note that it cant read line accross buffer"""
         if self.buffer.remaining == 0:
@@ -37,7 +37,7 @@ class BufferedReader(object):
                 yield self.buffer.read_line()
             except BufferUnderflowError:
                 self._read_more()
-        
+
     def read_line(self):
         """note that it cant read line accross buffer"""
         if self.buffer.remaining == 0:
@@ -47,19 +47,24 @@ class BufferedReader(object):
                 return self.buffer.read_line()
             except BufferUnderflowError:
                 self._read_more()
-                
+
+    def read_bytes_available(self):
+        if self.buffer.remaining == 0:
+            self._read_more()
+        return self.buffer.read_bytes(-1)
+
     def read_bytes(self, n):
         """read exactly n bytes from stream"""
         buffer = self.buffer
         s = []
         while n > 0:
-            r = buffer.remaining 
+            r = buffer.remaining
             if r > 0:
                 s.append(buffer.read_bytes(min(n, r)))
-                n -= r 
+                n -= r
             else:
                 self._read_more()
-                
+
         return ''.join(s)
 
     def read_short(self):
@@ -70,13 +75,13 @@ class BufferedReader(object):
                 return self.buffer.read_short()
             except BufferUnderflowError:
                 self._read_more()
-                
+
 class BufferedWriter(object):
     def __init__(self, stream, buffer):
         assert stream is None or isinstance(stream, IOStream)
         self.stream = stream
-        self.buffer = buffer 
-    
+        self.buffer = buffer
+
     def file(self):
         return CompatibleFile(None, self)
 
@@ -93,8 +98,8 @@ class BufferedWriter(object):
                 r = self.buffer.remaining
                 part, s = s[:r], s[r:]
                 self.buffer.write_bytes(part)
-                self.flush()    
- 
+                self.flush()
+
     def write_byte(self, ch):
         assert type(ch) == int, "ch arg must be int"
         while True:
@@ -103,7 +108,7 @@ class BufferedWriter(object):
                 return
             except BufferOverflowError:
                 self.flush()
-       
+
     def write_short(self, i):
         while True:
             try:
@@ -111,16 +116,16 @@ class BufferedWriter(object):
                 return
             except BufferOverflowError:
                 self.flush()
-            
+
     def flush(self):
         self.buffer.flip()
         while self.buffer.remaining:
             if not self.stream.write(self.buffer, -2):
                 raise EOFError("while writing")
         self.buffer.clear()
-        
+
 class BufferedStream(object):
-    def __init__(self, stream, buffer_size = 1024 * 8, read_buffer_size = 0, write_buffer_size = 0):        
+    def __init__(self, stream, buffer_size = 1024 * 8, read_buffer_size = 0, write_buffer_size = 0):
         self.stream = stream
         self.reader = BufferedReader(stream, Buffer(read_buffer_size or buffer_size))
         self.writer = BufferedWriter(stream, Buffer(write_buffer_size or buffer_size))
@@ -138,7 +143,7 @@ class BufferedStream(object):
         del self.stream
         del self.reader
         del self.writer
-        
+
 
 class CompatibleFile(object):
     """A wrapper that implements python's file like object semantics on top
@@ -160,7 +165,7 @@ class CompatibleFile(object):
                 except EOFError:
                     buffer.flip()
                     yield buffer.read_bytes(-1)
-            
+
     def readline(self):
         return self.readlines().next()
 
@@ -178,16 +183,16 @@ class CompatibleFile(object):
                     break
         else:
             while n > 0: #read uptill n avaiable bytes or EOF
-                r = buffer.remaining 
+                r = buffer.remaining
                 if r > 0:
                     s.append(buffer.read_bytes(min(n, r)))
-                    n -= r 
+                    n -= r
                 else:
                     try:
                         reader._read_more()
                     except EOFError:
                         buffer.flip()
-                        break            
+                        break
         return ''.join(s)
 
     def write(self, s):
@@ -264,4 +269,4 @@ class BufferedStreamShared(object):
 
     def close(self):
         self._stream.close()
-        
+
