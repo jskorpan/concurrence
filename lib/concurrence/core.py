@@ -68,35 +68,41 @@ class FileDescriptorEvent(Event):
         else:
             assert False, "rw must be one of ['r', 'w']"
         self._event = _event.event(fd, event_type, self._on_event)
-        self._current_channel = None #this is where read/write ability is notified
+        self._channel = Channel() #this is were wait will block on
+        self._current_callback = None
 
     def _on_event(self, event_type):
-        if self._current_channel is None:
+        if self._current_callback is None:
             return #already closed
         if event_type & _event.EV_TIMEOUT:
-            self._current_channel.send_exception(TimeoutError, "timeout on fd event")
+            self._current_callback(True)
         else:
-            self._current_channel.send(self)
+            self._current_callback(False)
 
-    def notify(self, channel = None, timeout = -1):
-        if channel is None: channel = Channel()
-        self._current_channel = channel
+    def _channel_callback(self, has_timedout):
+        if has_timedout:
+            self._channel.send_exception(TimeoutError, "timeout on fd event")
+        else:
+            self._channel.send(self)
+
+    def notify(self, callback, timeout = -1):
+        self._current_callback = callback
         if timeout == -1:
             self._event.add() #no timeout
         elif timeout == -2:
-            current_task = Tasklet.current()
-            self._event.add(current_task.timeout) #tasklet defined timeout
+            self._event.add(Tasklet.get_current_timeout()) #tasklet defined timeout
         else:
             self._event.add(timeout)
 
-    def wait(self, channel = None, timeout = -1):
-        self.notify(channel, timeout)
-        return self._current_channel.receive()
+    def wait(self, timeout = -1):
+        self.notify(self._channel_callback, timeout)
+        return self._channel.receive()
 
     def close(self):
         self._event.delete()
         self._event = None
-        self._current_channel = None
+        self._channel = None
+        self._current_callback = None
 
 class SignalEvent(Event):
     def __init__(self, signo, callback, persist = True):
@@ -586,6 +592,10 @@ class Tasklet(stackless.tasklet):
     @classmethod
     def set_current_timeout(cls, timeout):
         cls.current().timeout = timeout
+
+    @classmethod
+    def get_current_timeout(cls):
+        return cls.current().timeout
 
     @classmethod
     def count(cls):
