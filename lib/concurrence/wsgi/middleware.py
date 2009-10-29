@@ -29,7 +29,7 @@ RESPONSE_NOT_FOUND = WSGISimpleResponse(httplib.NOT_FOUND)
 class WSGISimpleMessage(WSGISimpleResponse):
     def __init__(self, msg):
         WSGISimpleResponse.__init__(self, httplib.OK, msg)
-        
+
 class WSGISimpleStatic(WSGISimpleResponse):
     log = logging.getLogger('WSGISimpleStatic')
 
@@ -46,7 +46,7 @@ class WSGISimpleStatic(WSGISimpleResponse):
         elif os.path.isdir(root):
             for dirpath, dirnames, filenames in os.walk(root):
                 for filename in filenames:
-                    self._load_file(root, os.path.join(dirpath, filename))                    
+                    self._load_file(root, os.path.join(dirpath, filename))
         else:
             assert False, "unknown path type (not a file or dir)"
 
@@ -56,7 +56,9 @@ class WSGISimpleStatic(WSGISimpleResponse):
         f.close()
         content_type, _ = mimetypes.guess_type(path, False)
         if content_type is None:
-            assert False, "unknown content type"
+            content_type = 'binary/octet-stream'
+            self.log.debug("unknown content type for path %s", path)
+
         content_length = len(content)
         path = path[len(root):]
         self.log.debug("preloading %s => %d, %s", path, content_length, content_type)
@@ -68,23 +70,23 @@ class WSGISimpleStatic(WSGISimpleResponse):
             content, content_length, content_type = self._map[path_info]
             response_line = "%d %s" % (200, httplib.responses[200])
             start_response(response_line, [('Content-Type', content_type), ('Content-Length', content_length)])
-            return [content]            
-        else:     
-            return self._not_found(environ, start_response) 
+            return [content]
+        else:
+            return self._not_found(environ, start_response)
 
 class WSGISimpleRouter(object):
     """a simple router middleware to dispatch to applications based on uri-path"""
     def __init__(self):
         self._mapping = []
         self._not_found = RESPONSE_NOT_FOUND
-        
+
     def map(self, path, application):
         self._mapping.append((path, application))
-        
+
     def __call__(self, environ, start_response):
         path_info = environ['PATH_INFO']
         for path, application in self._mapping:
             if path_info.startswith(path):
                 return application(environ, start_response)
-        return self._not_found(environ, start_response)        
+        return self._not_found(environ, start_response)
 
