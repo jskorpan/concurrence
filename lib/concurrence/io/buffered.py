@@ -67,6 +67,15 @@ class BufferedReader(object):
 
         return ''.join(s)
 
+    def read_int(self):
+        if self.buffer.remaining == 0:
+            self._read_more()
+        while True:
+            try:
+                return self.buffer.read_int()
+            except BufferUnderflowError:
+                self._read_more()
+
     def read_short(self):
         if self.buffer.remaining == 0:
             self._read_more()
@@ -113,6 +122,14 @@ class BufferedWriter(object):
         while True:
             try:
                 self.buffer.write_short(i)
+                return
+            except BufferOverflowError:
+                self.flush()
+
+    def write_int(self, i):
+        while True:
+            try:
+                self.buffer.write_int(i)
                 return
             except BufferOverflowError:
                 self.flush()
@@ -232,6 +249,7 @@ class BufferedStreamShared(object):
 
         def __exit__(self, type, value, traceback):
             assert self._writer.buffer.position == 0, "todo implement this case?"
+            #TODO!!! handle exception case/exit
             writer_pool = self._stream._writer_pool.setdefault(self._stream._write_buffer_size, [])
             writer_pool.append(self._writer)
             self._stream._writer = None
@@ -254,6 +272,7 @@ class BufferedStreamShared(object):
             return self._reader
 
         def __exit__(self, type, value, traceback):
+            #TODO!!! handle exception case/exit
             if self._reader.buffer.remaining:
                 self._stream._reader = self._reader
             else:
