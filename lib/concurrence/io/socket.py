@@ -68,6 +68,14 @@ class Socket(IOStream):
         return cls(_socket.socket(_socket.AF_INET, _socket.SOCK_STREAM))
 
     @classmethod
+    def server(cls, addr, backlog = DEFAULT_BACKLOG):
+        s = cls.from_address(addr)
+        s.set_reuse_address(True)
+        s.bind(addr)
+        s.listen(backlog)
+        return s
+
+    @classmethod
     def connect(cls, addr, timeout = -1):
         """creates a new socket and connects it to the given address.
         returns the connected sockets"""
