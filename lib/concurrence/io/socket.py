@@ -3,9 +3,6 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-#TODO try wait read/write optimzation, e.g. don't wait, but try, if EAGAIN, then wait. 
-#if ok, then next time expect no wait, otherwise next time expect wait
-
 import logging
 import _socket
 import types
