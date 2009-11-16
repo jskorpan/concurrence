@@ -223,6 +223,8 @@ class BufferedStreamShared(object):
     _reader_pool = {} #buffer_size -> [list of readers]
     _writer_pool = {} #bufffer_size -> [list of writers]
 
+    __slots__ = ['_stream', '_writer', '_reader', '_read_buffer_size', '_write_buffer_size']
+
     def __init__(self, stream, buffer_size = 1024 * 8, read_buffer_size = 0, write_buffer_size = 0):
         self._stream = stream
         self._writer = None

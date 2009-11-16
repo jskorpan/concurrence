@@ -60,6 +60,8 @@ class Event(object):
     pass
 
 class FileDescriptorEvent(Event):
+    __slots__ = ['_event', '_channel', '_current_callback']
+
     def __init__(self, fd, rw):
         if rw == 'r':
             event_type = _event.EV_READ
@@ -616,6 +618,7 @@ class Channel(object):
     as a receiver arrives, the value of the sender is passed and execution continues with the receiver (The sender will become `runnable`
     again, but will be placed at the end of the scheduling queue).
     """
+    __slots__ = ['_channel']
 
     def __init__(self):
         self._channel = stackless.channel()

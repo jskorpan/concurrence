@@ -17,7 +17,7 @@ class Semaphore(object):
             self._count -= 1
             return True
         else:
-            if not blocking: 
+            if not blocking:
                 return False
             else:
                 return self._channel.receive(timeout)
@@ -31,7 +31,7 @@ class Semaphore(object):
     def __enter__(self):
         self.acquire()
         return self
-     
+
     def __exit__(self, type, value, traceback):
         self.release()
 
@@ -83,11 +83,13 @@ class TaskletPool(object):
 
 class DeferredQueue(object):
     log = logging.getLogger('DeferredQueue')
-    
+
+    __slots__ = ['_queue', '_working']
+
     def __init__(self):
         self._queue = deque()
         self._working = False
-        
+
     def _pump(self):
         try:
             while self._queue:
@@ -100,13 +102,13 @@ class DeferredQueue(object):
                     self.log.exception("in deferred queue")
         finally:
             self._working = False
-            
+
     def defer(self, f, *args, **kwargs):
         self._queue.append((f, args, kwargs))
         if not self._working:
             self._working = True
             Tasklet.defer(self._pump)
-    
+
 class TaskletExtra(object):
     _tasklet_pool = None
 
@@ -120,10 +122,10 @@ class TaskletExtra(object):
         cls.defer = cls._defer
         cls._tasklet_pool = TaskletPool()
         cls._tasklet_pool.defer(f, *args, **kwargs)
-        
+
 Tasklet.__bases__ += (TaskletExtra,)
 
 
 
-        
+
 
