@@ -7,6 +7,15 @@ class Codec(object):
     def encode(self, value):
         assert False, "implement"
 
+    @classmethod
+    def create(self, type_):
+        if type_ == "default":
+            return DefaultCodec()
+        elif type_ == "raw":
+            return RawCodec()
+        else:
+            assert False, "unknown codec"
+            
 class DefaultCodec(Codec):
     _FLAG_PICKLE = 1<<0
     _FLAG_INTEGER = 1<<1

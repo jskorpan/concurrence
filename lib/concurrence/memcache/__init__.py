@@ -25,7 +25,7 @@ MemcacheResultCode.NOT_FOUND = MemcacheResultCode("NOT_FOUND")
 MemcacheResultCode.DELETED = MemcacheResultCode("DELETED")
 MemcacheResultCode.ERROR = MemcacheResultCode("ERROR")
 
-from concurrence.memcache.client import Memcache
+from concurrence.memcache.client import Memcache, MemcacheTCPConnection
 
             
 

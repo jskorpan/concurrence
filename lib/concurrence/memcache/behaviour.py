@@ -1,6 +1,14 @@
 from concurrence.memcache import ketama
 
-class MemcacheModuloBehaviour(object):
+class MemcacheBehaviour(object):
+    @classmethod
+    def create(cls, type_):
+        if type_ == "modulo":
+            return MemcacheModuloBehaviour()
+        elif type_ == "ketama":
+            return MemcacheKetamaBehaviour()
+
+class MemcacheModuloBehaviour(MemcacheBehaviour):
     def __init__(self):
         pass
 
@@ -10,7 +18,7 @@ class MemcacheModuloBehaviour(object):
     def key_to_addr(self, key):
         return self._servers[hash(key) % len(self._servers)]
 
-class MemcacheKetamaBehaviour(object):
+class MemcacheKetamaBehaviour(MemcacheBehaviour):
     def __init__(self):
         self._continuum = None
 

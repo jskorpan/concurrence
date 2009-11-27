@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache
+from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -35,10 +35,7 @@ class TestMemcache(unittest.TestCase):
         self.log.debug(cmd)
         os.system(cmd)
     
-    def testBasic(self):
-        
-        mc = Memcache()
-        mc.set_servers([((MEMCACHE_IP, 11211), 100)])
+    def sharedTestBasic(self, mc):
 
         self.assertEquals(MemcacheResultCode.STORED, mc.set('test1', '12345'))
         self.assertEquals(MemcacheResultCode.STORED, mc.set('test2', '67890'))
@@ -97,6 +94,18 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(MemcacheResultCode.DELETED, mc.delete('replace1'))
         self.assertEquals(MemcacheResultCode.NOT_STORED, mc.replace('replace1', '11111'))
 
+    def testBasicSingle(self):
+        mc = MemcacheTCPConnection()
+        mc.connect((MEMCACHE_IP, 11211))
+
+        self.sharedTestBasic(mc)
+
+    def testBasic(self):
+        
+        mc = Memcache()
+        mc.set_servers([((MEMCACHE_IP, 11211), 100)])
+
+        self.sharedTestBasic(mc)
 
     def testMemcache(self):
         

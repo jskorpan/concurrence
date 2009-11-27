@@ -11,28 +11,29 @@ from concurrence.io.buffered import BufferedStreamShared
 from concurrence.containers.deque import Deque
 
 from concurrence.memcache import MemcacheResultCode
-from concurrence.memcache.codec import DefaultCodec, RawCodec
-from concurrence.memcache.behaviour import MemcacheKetamaBehaviour
+from concurrence.memcache.codec import Codec
+from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBehaviour
 
 import logging
 import cPickle as pickle
 from collections import deque
 
 #TODO:
-#proper buffer sizes
-#bundling of multiple requests in 1 flush (autoflush on/off)
-#statistics
-#not use pickle for string and unicode types (use flags to indicate this)
-#gzip support
+
 #timeout on commands (test tasklet based timeout)
-#plugable serialization support (and/or provide choise, default (py-serialized, utf-8 encoded json, etc)?
+#statistics
+#gzip support
+#close unused connections
+#proper buffer sizes
+#not use pickle for string and unicode types (use flags to indicate this)
+#support for cas command
+#append, prepend commands
+
+#bundling of multiple requests in 1 flush (autoflush on/off)
 #todo detect timeouts on write/read, and mark host as dead
 #keep some time before retrying host
-#replicated set
 #multiple connections to same host (with maximum)
-#append, prepend commands
 #close down node no recv ERROR?
-#support for cas command
 #UPD support
 #binary support
 #how to handle timouts in the pipelined case?
@@ -40,9 +41,20 @@ from collections import deque
 #CLAMP timestamps at 2**31-1
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
-class MemcacheTextProtocol(object):
+class MemcacheProtocol(object):
+    @classmethod
+    def create(cls, type_):
+        if type_ == 'text':
+            return MemcacheTextProtocol()
+        else:
+            assert False, "unknown protocol"
+
+class MemcacheTextProtocol(MemcacheProtocol):
     def __init__(self, codec = None):
         self._codec = codec
+
+    def set_codec(self, codec):
+        self._codec = Codec.create(codec)
 
     def _read_result(self, reader):
         response_line = reader.read_line()
@@ -98,22 +110,28 @@ class MemcacheTextProtocol(object):
     def read_replace(self, reader):
         return self._read_result(reader)
 
-class _MemcacheTCPConnection(object):
-    #_write_buffer_size = 1024
-    #_read_buffer_size = 1024 * 16
+class MemcacheTCPConnection(object):
+
     _read_timeout = 10
     _write_timeout = 10
 
-    def __init__(self, stream, protocol = None):
+    def __init__(self, protocol = "text", codec = "default"):
         self._read_queue = DeferredQueue()
         self._write_queue = DeferredQueue()
-        self._stream = BufferedStreamShared(stream)
-        self._protocol = protocol
+        self._stream = None
 
-    def set_protocol(self, protocol):
-        self._protocol = protocol
+        if isinstance(protocol, MemcacheProtocol):
+            self._protocol = protocol
+        else:
+            self._protocol = MemcacheProtocol.create(protocol)
 
-    def do_command(self, cmd, args, result_channel):
+        if self._protocol and codec:
+            self._protocol.set_codec(codec)
+
+    def connect(self, addr, timeout = -2):
+        self._stream = BufferedStreamShared(Socket.connect(addr, timeout))
+
+    def defer_command(self, cmd, args, result_channel):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
             with self._stream.get_reader() as reader:
@@ -129,67 +147,69 @@ class _MemcacheTCPConnection(object):
 
         self._write_queue.defer(_write_command)
 
-class _MemcacheTCPConnectionManager(object):
-    NUM_CONNECTIONS_PER_ADDRESS = 2
+    def do_command(self, cmd, args):
+        result_channel = Channel()
+        self.defer_command(cmd, args, result_channel)
+        return result_channel.receive()
 
-    def __init__(self, on_connect_callback):
-        self._connections = {} #addr -> deque([conns])
-        self._connecting = {} #addr -> count
-        self._on_connect_callback = on_connect_callback
+    def delete(self, key):
+        return self.do_command("delete", (key,))
 
-    def get_connection(self, addr):
-        if not addr in self._connections:
-            self._connections[addr] = deque()
-            self._connecting[addr] = 0
-        connections = self._connections[addr]
-        if (len(connections) + self._connecting[addr]) < self.NUM_CONNECTIONS_PER_ADDRESS:
-            #TODO try/finally for self._connecting
-            self._connecting[addr] += 1
-            connection = _MemcacheTCPConnection(Socket.connect(addr, -2))
-            self._on_connect_callback(connection)
-            connection.addr = addr
-            self._connections[addr].appendleft(connection)
-            self._connecting[addr] -= 1
-        connection = self._connections[addr][0]
-        self._connections[addr].rotate()
-        return connection
+    def set(self, key, data):
+        return self.do_command("set", (key, data))
+
+    def add(self, key, data):
+        return self.do_command("add", (key, data))
+
+    def replace(self, key, data):
+        return self.do_command("replace", (key, data))
+
+    def get(self, key):
+        result = self.do_command("get", ([key], ))
+        return result.get(key, None)
+
+    def get_multi(self, keys):
+        return self.do_command("get", (keys, ))
+
 
 class Memcache(object):
-    def __init__(self, servers = None):
+    def __init__(self, servers = None, codec = "default", behaviour = "ketama", protocol = "text"):
+        
         self.read_timeout = 10
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        self._protocol = MemcacheTextProtocol()
-        self._connection_manager = _MemcacheTCPConnectionManager(self._on_connect) #TODO make overridable singleton
+        self._connections = {} #addr -> conn
+        self._protocol = MemcacheProtocol.create(protocol)
 
-        self.set_codec(DefaultCodec())
-        self.set_behaviour(MemcacheKetamaBehaviour()) #default
+        self._protocol.set_codec(codec)
+
+        self._behaviour = MemcacheBehaviour.create(behaviour)
+        self._key_to_addr = self._behaviour.key_to_addr
 
         if servers is not None:
             self.set_servers(servers)
 
-    def _on_connect(self, connection):
-        connection.set_protocol(self._protocol)
-
-    def set_codec(self, codec):
-        self._codec = codec
-        self._protocol._codec = codec
-
-    def set_behaviour(self, behaviour):
-        self._behaviour = behaviour
-        self._key_to_addr = behaviour.key_to_addr
-
     def set_servers(self, servers):
         self._behaviour.set_servers(servers)
 
+    def _get_connection(self, addr):
+        if not addr in self._connections:
+            connection = MemcacheTCPConnection(self._protocol)
+            connection.connect(addr)
+            self._connections[addr] = connection
+        return self._connections[addr]
+
+    def _on_connect(self, connection):
+        connection.set_protocol(self._protocol)
+
     def _connect_by_addr(self, addr, keys, result_channel):
         Tasklet.set_current_timeout(self.connect_timeout)
-        connection = self._connection_manager.get_connection(addr)
+        connection = self._get_connection(addr)
         result_channel.send((connection, keys))
 
     def _connect_by_key(self, key):
-        return self._connection_manager.get_connection(self._key_to_addr(key))
+        return self._get_connection(self._key_to_addr(key))
 
     def _keys_to_addr(self, keys):
         addrs = {} #addr->[keys]
@@ -201,28 +221,22 @@ class Memcache(object):
                 addrs[addr] = [key]
         return addrs
 
-    def _do_command(self, cmd, *args):
-        result_channel = Channel()
-        connection = self._connect_by_key(args[0])
-        connection.do_command(cmd, args, result_channel)
-        return result_channel.receive()
-
     def delete(self, key):
-        return self._do_command("delete", key)
+        return self._connect_by_key(key).do_command("delete", (key,))
 
     def set(self, key, data):
-        return self._do_command("set", key, data)
+        return self._connect_by_key(key).do_command("set", (key, data))
 
     def add(self, key, data):
-        return self._do_command("add", key, data)
+        return self._connect_by_key(key).do_command("add", (key, data))
 
     def replace(self, key, data):
-        return self._do_command("replace", key, data)
+        return self._connect_by_key(key).do_command("replace", (key, data))
 
     def get(self, key):
         result_channel = Channel()
         connection = self._connect_by_key(key)
-        connection.do_command("get", [[key]], result_channel)
+        connection.defer_command("get", [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
@@ -233,7 +247,7 @@ class Memcache(object):
         for addr, _keys in grouped:
             Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
-            connection.do_command("get", [_keys], result_channel)
+            connection.defer_command("get", [_keys], result_channel)
         result = {}
         for _result in result_channel.receive_n(n):
             result.update(_result)
