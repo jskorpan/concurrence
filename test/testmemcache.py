@@ -187,7 +187,7 @@ class TestMemcache(unittest.TestCase):
         writer = stream.writer
         reader = stream.reader
         
-        protocol = MemcacheTextProtocol(RawCodec())
+        protocol = MemcacheTextProtocol("raw")
         
         protocol.write_set(writer, 'hello', 'world')
         writer.flush()

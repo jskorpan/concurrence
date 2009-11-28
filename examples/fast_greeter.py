@@ -1,9 +1,9 @@
-from concurrence import dispatch, Tasklet, defer
-from concurrence.io import BufferedStreamShared, Socket
+from concurrence import dispatch, Tasklet
+from concurrence.io import BufferedStream, Socket
 
 class Connection(object):
     def __init__(self, stream):
-        self.stream = BufferedStreamShared(stream, 1024)
+        self.stream = BufferedStream(stream, 1024)
         
     def handle(self):
         """writes the familiar greeting to client"""
@@ -18,14 +18,11 @@ class Connection(object):
 def server():
     """accepts connections on a socket, and dispatches
     new tasks for handling the incoming requests"""
-    server_socket = Socket.new()
-    server_socket.bind(('localhost', 8080))
-    server_socket.listen()
-
+    server_socket = Socket.server(('localhost', 8080))
     while True:
         client_socket = server_socket.accept()
         client_connection = Connection(client_socket)
-        defer(client_connection.handle)
+        Tasklet.defer(client_connection.handle)
 
 if __name__ == '__main__':
     import logging

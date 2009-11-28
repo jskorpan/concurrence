@@ -67,9 +67,9 @@ class Socket(IOStream):
         return cls(_socket.socket(_socket.AF_INET, _socket.SOCK_STREAM))
 
     @classmethod
-    def server(cls, addr, backlog = DEFAULT_BACKLOG):
+    def server(cls, addr, backlog = DEFAULT_BACKLOG, reuse_address = True):
         s = cls.from_address(addr)
-        s.set_reuse_address(True)
+        s.set_reuse_address(reuse_address)
         s.bind(addr)
         s.listen(backlog)
         return s

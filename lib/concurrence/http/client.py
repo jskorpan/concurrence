@@ -11,7 +11,7 @@ import logging
 
 from concurrence import Tasklet, Channel, Message, __version__
 from concurrence.timer import Timeout
-from concurrence.io import Connector, BufferedStreamShared
+from concurrence.io import Connector, BufferedStream
 from concurrence.http import HTTPError, HTTPRequest, HTTPResponse
 
 AGENT = 'Concurrence-Http-Client/' + __version__
@@ -48,7 +48,7 @@ class HTTPConnection(object):
                 self._host = endpoint[0]
             except: 
                 pass                
-        self._stream = BufferedStreamShared(Connector.connect(endpoint), read_buffer_size = 1024 * 8, write_buffer_size = 1024 * 4)
+        self._stream = BufferedStream(Connector.connect(endpoint), read_buffer_size = 1024 * 8, write_buffer_size = 1024 * 4)
 
     def receive(self):
         """Receive the next :class:`HTTPResponse` from the connection."""

@@ -1,11 +1,11 @@
 from concurrence import Tasklet, DeferredQueue
-from concurrence.io import BufferedStreamShared
+from concurrence.io import BufferedStream
 
 class Protocol(object):
     __slots__ = ['_stream', '_write_queue']
 
     def __init__(self, stream):
-        self._stream = BufferedStreamShared(stream)
+        self._stream = BufferedStream(stream)
         self._write_queue = DeferredQueue()
         self._notify_readable()
 

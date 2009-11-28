@@ -4,19 +4,13 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 from __future__ import with_statement
 
-from concurrence import Tasklet, Channel, Message, TaskletPool, DeferredQueue, TaskletError
-from concurrence.timer import Timeout
-from concurrence.io import Socket, Buffer
-from concurrence.io.buffered import BufferedStreamShared
+from concurrence import Tasklet, Channel, DeferredQueue
+from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
 
 from concurrence.memcache import MemcacheResultCode
 from concurrence.memcache.codec import Codec
 from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBehaviour
-
-import logging
-import cPickle as pickle
-from collections import deque
 
 #TODO:
 
@@ -28,6 +22,8 @@ from collections import deque
 #not use pickle for string and unicode types (use flags to indicate this)
 #support for cas command
 #append, prepend commands
+
+#what to do with partial multi get failure accross multiple servers?, e.g. return partial keys?
 
 #bundling of multiple requests in 1 flush (autoflush on/off)
 #todo detect timeouts on write/read, and mark host as dead
@@ -50,8 +46,8 @@ class MemcacheProtocol(object):
             assert False, "unknown protocol"
 
 class MemcacheTextProtocol(MemcacheProtocol):
-    def __init__(self, codec = None):
-        self._codec = codec
+    def __init__(self, codec = "default"):
+        self.set_codec(codec)
 
     def set_codec(self, codec):
         self._codec = Codec.create(codec)
@@ -129,7 +125,7 @@ class MemcacheTCPConnection(object):
             self._protocol.set_codec(codec)
 
     def connect(self, addr, timeout = -2):
-        self._stream = BufferedStreamShared(Socket.connect(addr, timeout))
+        self._stream = BufferedStream(Socket.connect(addr, timeout))
 
     def defer_command(self, cmd, args, result_channel):
         def _read_result():
