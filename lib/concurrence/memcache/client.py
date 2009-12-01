@@ -20,11 +20,8 @@ from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBeha
 #close unused connections
 #proper buffer sizes
 #not use pickle for string and unicode types (use flags to indicate this)
-#support for cas command
-#append, prepend commands
-#version cmd
-#norepy e.g. no server response to set commands
 #incr, decr
+#norepy e.g. no server response to set commands
 #stats cmd (+item + item size stats
 
 #what to do with partial multi get failure accross multiple servers?, e.g. return partial keys?
@@ -60,6 +57,16 @@ class MemcacheTextProtocol(MemcacheProtocol):
         result = MemcacheResultCode.get(response_line, None)
         assert result is not None, "protocol error"
         return result
+
+    def write_version(self, writer):
+        writer.write_bytes("version\r\n")
+
+    def read_version(self, reader):
+        response_line = reader.read_line()
+        if response_line.startswith('VERSION'):
+            return repr(response_line[8:].strip())
+        else:
+            assert False, "protocol error"
 
     def _write_storage(self, writer, cmd, key, value, cas_unique = None):
         encoded_value, flags = self._codec.encode(value)
@@ -131,6 +138,17 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def read_replace(self, reader):
         return self._read_result(reader)
 
+    def write_append(self, writer, key, value):
+        return self._write_storage(writer, "append", key, value)
+
+    def read_append(self, reader):
+        return self._read_result(reader)
+
+    def write_prepend(self, writer, key, value):
+        return self._write_storage(writer, "prepend", key, value)
+
+    def read_prepend(self, reader):
+        return self._read_result(reader)
 
 class MemcacheTCPConnection(object):
 
@@ -186,6 +204,12 @@ class MemcacheTCPConnection(object):
     def replace(self, key, data):
         return self.do_command("replace", (key, data))
 
+    def append(self, key, data):
+        return self.do_command("append", (key, data))
+
+    def prepend(self, key, data):
+        return self.do_command("prepend", (key, data))
+
     def cas(self, key, data, cas_unique):
         return self.do_command("cas", (key, data, cas_unique))
 
@@ -202,6 +226,9 @@ class MemcacheTCPConnection(object):
 
     def gets_multi(self, keys):
         return self.do_command("gets", (keys, ))
+
+    def version(self):
+        return self.do_command("version", ())
 
 class Memcache(object):
     def __init__(self, servers = None, codec = "default", behaviour = "ketama", protocol = "text"):
@@ -239,7 +266,7 @@ class Memcache(object):
         connection = self._get_connection(addr)
         result_channel.send((connection, keys))
 
-    def _connect_by_key(self, key):
+    def connection_for_key(self, key):
         return self._get_connection(self._key_to_addr(key))
 
     def _keys_to_addr(self, keys):
@@ -253,23 +280,29 @@ class Memcache(object):
         return addrs
 
     def delete(self, key):
-        return self._connect_by_key(key).do_command("delete", (key,))
+        return self.connection_for_key(key).do_command("delete", (key,))
 
     def set(self, key, data):
-        return self._connect_by_key(key).do_command("set", (key, data))
+        return self.connection_for_key(key).do_command("set", (key, data))
 
     def add(self, key, data):
-        return self._connect_by_key(key).do_command("add", (key, data))
+        return self.connection_for_key(key).do_command("add", (key, data))
 
     def replace(self, key, data):
-        return self._connect_by_key(key).do_command("replace", (key, data))
+        return self.connection_for_key(key).do_command("replace", (key, data))
+
+    def append(self, key, data):
+        return self.connection_for_key(key).do_command("append", (key, data))
+
+    def prepend(self, key, data):
+        return self.connection_for_key(key).do_command("prepend", (key, data))
 
     def cas(self, key, data, cas_unique):
-        return self._connect_by_key(key).do_command("cas", (key, data, cas_unique))
+        return self.connection_for_key(key).do_command("cas", (key, data, cas_unique))
 
     def _get(self, cmd, key):
         result_channel = Channel()
-        connection = self._connect_by_key(key)
+        connection = self.connection_for_key(key)
         connection.defer_command(cmd, [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)

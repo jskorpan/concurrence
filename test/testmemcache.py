@@ -119,11 +119,33 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('blaat3', result['cas_test1'][0])
         self.assertEquals('blaat4', result['cas_test2'][0])
 
+        #test append
+        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.append('append_test1', 'hello'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('append_test1', 'hello'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.append('append_test1', 'world'))
+        self.assertEquals('helloworld', mc.get('append_test1'))
+
+        #test prepend
+        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.prepend('prepend_test1', 'world'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('prepend_test1', 'world'))
+        self.assertEquals(MemcacheResultCode.STORED, mc.prepend('prepend_test1', 'hello'))
+        self.assertEquals('helloworld', mc.get('prepend_test1'))
+
     def testBasicSingle(self):
         mc = MemcacheTCPConnection()
         mc.connect((MEMCACHE_IP, 11211))
-
         self.sharedTestBasic(mc)
+
+    def testExtraSingle(self):
+        """test stuff that only makes sense on a single server connection"""
+        mc = MemcacheTCPConnection()
+        mc.connect((MEMCACHE_IP, 11211))
+        v1 = mc.version()
+        v2 = mc.version()
+        self.assertEquals(str, type(v1))
+        self.assertEquals(str, type(v2))
+        self.assertTrue(len(v1) > 1)
+        self.assertEquals(v1, v2)
 
     def testBasic(self):
 

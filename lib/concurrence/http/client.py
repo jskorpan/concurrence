@@ -20,22 +20,22 @@ CHUNK_SIZE = 1024 * 4
 
 class HTTPConnection(object):
     """A HTTP 1.1 Client.
-    
-    Usage:: 
-    
+
+    Usage::
+
         #create an instance of this class and connect to a webserver using the connect method:
-        cnn = HTTPConnection() 
+        cnn = HTTPConnection()
         cnn.connect(('www.google.com', 80))
-        
+
         #create a GET request using the get method:
         request = cnn.get('/index.html')
-        
+
         #finally perform the request to get a response:
         response = cnn.perform(request)
-        
+
         #do something with the response:
         print response.body
-    
+
     """
 
     log = logging.getLogger('HTTPConnection')
@@ -46,8 +46,8 @@ class HTTPConnection(object):
         if type(endpoint) == type(()):
             try:
                 self._host = endpoint[0]
-            except: 
-                pass                
+            except:
+                pass
         self._stream = BufferedStream(Connector.connect(endpoint), read_buffer_size = 1024 * 8, write_buffer_size = 1024 * 4)
 
     def receive(self):
@@ -61,18 +61,18 @@ class HTTPConnection(object):
         except Exception:
             self.log.exception('')
             raise HTTPError("Exception while reading response")
-        
+
     def _receive(self):
 
         response = HTTPResponse()
 
         with self._stream.get_reader() as reader:
-        
+
             lines = reader.read_lines()
-                    
+
             #parse status line
             response.status = lines.next()
-            
+
             #rest of response headers
             for line in lines:
                 if not line: break
@@ -81,13 +81,13 @@ class HTTPConnection(object):
 
             #read data
             transfer_encoding = response.get_header('Transfer-Encoding', None)
-            
+
             try:
                 content_length = int(response.get_header('Content-Length'))
             except:
                 content_length = None
 
-            #TODO better support large data        
+            #TODO better support large data, e.g. iterator instead of append all data to chunks
             chunks = []
 
             if transfer_encoding == 'chunked':
@@ -100,7 +100,7 @@ class HTTPConnection(object):
                         chunks.append(data)
                     else:
                         reader.read_line() #chunk is always followed by a single empty line
-                        break 
+                        break
             elif content_length is not None:
                 while content_length > 0:
                     n = min(CHUNK_SIZE, content_length)
@@ -153,7 +153,7 @@ class HTTPConnection(object):
         if request.host is None:
             assert False, "request host must be set"
 
-        with self._stream.get_writer() as writer:       
+        with self._stream.get_writer() as writer:
             writer.clear()
             writer.write_bytes("%s %s HTTP/1.1\r\n" % (request.method, request.path))
             writer.write_bytes("Host: %s\r\n" % request.host)
@@ -162,7 +162,7 @@ class HTTPConnection(object):
             writer.write_bytes("\r\n")
             if request.body is not None:
                writer.write_bytes(request.body)
-            writer.flush()        
+            writer.flush()
 
     def close(self):
         """Close this connection."""
