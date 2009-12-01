@@ -22,13 +22,16 @@ from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBeha
 #not use pickle for string and unicode types (use flags to indicate this)
 #support for cas command
 #append, prepend commands
+#version cmd
+#norepy e.g. no server response to set commands
+#incr, decr
+#stats cmd (+item + item size stats
 
 #what to do with partial multi get failure accross multiple servers?, e.g. return partial keys?
 
 #bundling of multiple requests in 1 flush (autoflush on/off)
 #todo detect timeouts on write/read, and mark host as dead
 #keep some time before retrying host
-#multiple connections to same host (with maximum)
 #close down node no recv ERROR?
 #UPD support
 #binary support
@@ -58,14 +61,26 @@ class MemcacheTextProtocol(MemcacheProtocol):
         assert result is not None, "protocol error"
         return result
 
-    def _write_storage(self, writer, cmd, key, value):
+    def _write_storage(self, writer, cmd, key, value, cas_unique = None):
         encoded_value, flags = self._codec.encode(value)
-        writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), encoded_value))
+        if cas_unique is not None:
+            writer.write_bytes("%s %s %d 0 %d %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), cas_unique, encoded_value))
+        else:
+            writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), encoded_value))
+
+    def write_cas(self, writer, key, value, cas_unique):
+        self._write_storage(writer, "cas", key, value, cas_unique)
+
+    def read_cas(self, reader):
+        return self._read_result(reader)
 
     def write_get(self, writer, keys):
         writer.write_bytes("get %s\r\n" % " ".join(keys))
 
-    def read_get(self, reader):
+    def write_gets(self, writer, keys):
+        writer.write_bytes("gets %s\r\n" % " ".join(keys))
+
+    def read_get(self, reader, with_cas_unique = False):
         result = {}
         while True:
             response_line = reader.read_line()
@@ -74,13 +89,23 @@ class MemcacheTextProtocol(MemcacheProtocol):
                 key = response_fields[1]
                 flags = int(response_fields[2])
                 n = int(response_fields[3])
+                if with_cas_unique:
+                    cas_unique = int(response_fields[4])
                 encoded_value = reader.read_bytes(n)
                 reader.read_line() #\r\n
-                result[key] = self._codec.decode(flags, encoded_value)
+                if with_cas_unique:
+                    result[key] = (self._codec.decode(flags, encoded_value), cas_unique)
+                else:
+                    result[key] = self._codec.decode(flags, encoded_value)
             elif response_line == 'END':
                 return result
+            elif response_line == 'ERROR':
+                assert False, "TODO"
             else:
                 assert False, "protocol error"
+
+    def read_gets(self, reader):
+        return self.read_get(reader, with_cas_unique = True)
 
     def write_delete(self, writer, key):
         writer.write_bytes("delete %s\r\n" % (key, ))
@@ -105,6 +130,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
 
     def read_replace(self, reader):
         return self._read_result(reader)
+
 
 class MemcacheTCPConnection(object):
 
@@ -160,6 +186,9 @@ class MemcacheTCPConnection(object):
     def replace(self, key, data):
         return self.do_command("replace", (key, data))
 
+    def cas(self, key, data, cas_unique):
+        return self.do_command("cas", (key, data, cas_unique))
+
     def get(self, key):
         result = self.do_command("get", ([key], ))
         return result.get(key, None)
@@ -167,10 +196,16 @@ class MemcacheTCPConnection(object):
     def get_multi(self, keys):
         return self.do_command("get", (keys, ))
 
+    def gets(self, key):
+        result = self.do_command("gets", ([key], ))
+        return result.get(key, None)
+
+    def gets_multi(self, keys):
+        return self.do_command("gets", (keys, ))
 
 class Memcache(object):
     def __init__(self, servers = None, codec = "default", behaviour = "ketama", protocol = "text"):
-        
+
         self.read_timeout = 10
         self.write_timeout = 10
         self.connect_timeout = 2
@@ -229,27 +264,40 @@ class Memcache(object):
     def replace(self, key, data):
         return self._connect_by_key(key).do_command("replace", (key, data))
 
-    def get(self, key):
+    def cas(self, key, data, cas_unique):
+        return self._connect_by_key(key).do_command("cas", (key, data, cas_unique))
+
+    def _get(self, cmd, key):
         result_channel = Channel()
         connection = self._connect_by_key(key)
-        connection.defer_command("get", [[key]], result_channel)
+        connection.defer_command(cmd, [[key]], result_channel)
         result = result_channel.receive()
         return result.get(key, None)
 
-    def get_multi(self, keys):
+    def get(self, key):
+        return self._get("get", key)
+
+    def gets(self, key):
+        return self._get("gets", key)
+
+    def _get_multi(self, cmd, keys):
         result_channel = Channel()
         grouped = self._keys_to_addr(keys).items()
         n = len(grouped)
         for addr, _keys in grouped:
             Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
-            connection.defer_command("get", [_keys], result_channel)
+            connection.defer_command(cmd, [_keys], result_channel)
         result = {}
         for _result in result_channel.receive_n(n):
             result.update(_result)
         return result
 
+    def get_multi(self, keys):
+        return self._get_multi("get", keys)
 
+    def gets_multi(self, keys):
+        return self._get_multi("gets", keys)
 
 
 

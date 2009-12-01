@@ -9,7 +9,8 @@ from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnec
 
 MEMCACHE_IP = '127.0.0.1'
 
-MEMCACHED_PATHS = ['/usr/bin/memcached',
+MEMCACHED_PATHS = ['/opt/memcached/bin/memcached',
+                   '/usr/bin/memcached',
                    '/opt/local/bin/memcached']
 
 MEMCACHED_BIN = None
@@ -19,22 +20,28 @@ for path in MEMCACHED_PATHS:
         break
 assert MEMCACHED_BIN is not None, "could not find memcached daemon binary"
 
+#TODO check for memcached version before testing cas/gets commands
+
 class TestMemcache(unittest.TestCase):
     log = logging.getLogger("TestMemcache")
-    
+
     def setUp(self):
         self.log.debug("using memcached daemon: %s", MEMCACHED_BIN)
-        
+
         for i in range(4):
             cmd = '%s -m 10 -p %d -u nobody -l 127.0.0.1&' % (MEMCACHED_BIN, 11211 + i)
             self.log.debug(cmd)
             os.system(cmd)
-    
+
+        Tasklet.sleep(1.0) #should be enough for memcached to get up and running
+
     def tearDown(self):
         cmd = 'killall %s' % MEMCACHED_BIN
         self.log.debug(cmd)
         os.system(cmd)
-    
+
+        Tasklet.sleep(1.0) #should be enough for memcached to go down
+
     def sharedTestBasic(self, mc):
 
         self.assertEquals(MemcacheResultCode.STORED, mc.set('test1', '12345'))
@@ -50,7 +57,7 @@ class TestMemcache(unittest.TestCase):
         mc.set('test2', 'hello world!')
 
         self.assertEquals({'test1': '12345', 'test2': 'hello world!'}, mc.get_multi(['test1', 'test2', 'test3']))
-       
+
         #update to int type
         mc.set('test2', 10)
         self.assertEquals(10, mc.get('test2'))
@@ -81,7 +88,7 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('hello', mc.get('test_del1'))
         self.assertEquals(MemcacheResultCode.DELETED, mc.delete('test_del1'))
         self.assertEquals(None, mc.get('test_del1'))
- 
+
         #test add command
         mc.delete('add1')
         self.assertEquals(MemcacheResultCode.STORED, mc.add('add1', '11111'))
@@ -94,6 +101,24 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(MemcacheResultCode.DELETED, mc.delete('replace1'))
         self.assertEquals(MemcacheResultCode.NOT_STORED, mc.replace('replace1', '11111'))
 
+        #test cas/gets
+        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('cas_test1', 'blaat'))
+        value, cas_unique = mc.gets('cas_test1')
+        self.assertEquals('blaat', value)
+        self.assertEquals(MemcacheResultCode.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
+        self.assertEquals(MemcacheResultCode.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
+        value, cas_unique = mc.gets('cas_test1')
+        self.assertEquals('blaat2', value)
+        self.assertEquals(MemcacheResultCode.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('cas_test2', 'blaat4'))
+
+        result = mc.gets_multi(['cas_test1', 'cas_test2'])
+        self.assertTrue('cas_test1' in result)
+        self.assertTrue('cas_test2' in result)
+        self.assertEquals('blaat3', result['cas_test1'][0])
+        self.assertEquals('blaat4', result['cas_test2'][0])
+
     def testBasicSingle(self):
         mc = MemcacheTCPConnection()
         mc.connect((MEMCACHE_IP, 11211))
@@ -101,14 +126,14 @@ class TestMemcache(unittest.TestCase):
         self.sharedTestBasic(mc)
 
     def testBasic(self):
-        
+
         mc = Memcache()
         mc.set_servers([((MEMCACHE_IP, 11211), 100)])
 
         self.sharedTestBasic(mc)
 
     def testMemcache(self):
-        
+
         mc = Memcache()
         mc.set_servers([((MEMCACHE_IP, 11211), 100)])
 
@@ -120,11 +145,11 @@ class TestMemcache(unittest.TestCase):
         print 'single server single set keys/sec', tmr.sec(N)
 
     def testMemcacheMultiServer(self):
-        
+
         mc = Memcache()
-        mc.set_servers([((MEMCACHE_IP, 11211), 100), 
-                        ((MEMCACHE_IP, 11212), 100), 
-                        ((MEMCACHE_IP, 11213), 100), 
+        mc.set_servers([((MEMCACHE_IP, 11211), 100),
+                        ((MEMCACHE_IP, 11212), 100),
+                        ((MEMCACHE_IP, 11213), 100),
                         ((MEMCACHE_IP, 11214), 100)])
 
         N = 10000
@@ -149,21 +174,21 @@ class TestMemcache(unittest.TestCase):
             print 'multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
     def testMultiClientMultiServer(self):
-        
+
         N = 40 * 100
         keys = ['test%d' % i for i in range(N)]
-        
+
         mc = Memcache()
-        mc.set_servers([((MEMCACHE_IP, 11211), 100), 
-                        ((MEMCACHE_IP, 11212), 100), 
-                        ((MEMCACHE_IP, 11213), 100), 
+        mc.set_servers([((MEMCACHE_IP, 11211), 100),
+                        ((MEMCACHE_IP, 11212), 100),
+                        ((MEMCACHE_IP, 11213), 100),
                         ((MEMCACHE_IP, 11214), 100)])
 
         with unittest.timer() as tmr:
             for i in range(N):
                 self.assertEquals(MemcacheResultCode.STORED, mc.set(keys[i], 'hello world %d' % i))
         print 'single client multi server single set keys/sec', tmr.sec(N)
-        
+
         stride = 40
         def fetcher():
             for i in range(0, N, stride):
@@ -181,18 +206,18 @@ class TestMemcache(unittest.TestCase):
         from concurrence.io import Socket, BufferedStream
         from concurrence.memcache.client import MemcacheTextProtocol
         from concurrence.memcache.codec import RawCodec
-        
+
         socket = Socket.connect((MEMCACHE_IP, 11211))
         stream = BufferedStream(socket)
         writer = stream.writer
         reader = stream.reader
-        
+
         protocol = MemcacheTextProtocol("raw")
-        
+
         protocol.write_set(writer, 'hello', 'world')
         writer.flush()
         self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
-        
+
         N = 100
         for i in range(N):
             protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i)
@@ -214,7 +239,7 @@ class TestMemcache(unittest.TestCase):
             result = protocol.read_get(reader)
             self.assertEquals(10, len(result))
             #self.assertEquals({'test%d' % i: 'hello world %d' % i}, result)
-            
+
         #multi get pipeline, e.g. write N gets, but don't read out the results yet
         for i in range(0, N, 10):
             keys = ['test%d' % x for x in range(i, i + 10)]
@@ -234,7 +259,7 @@ class TestMemcache(unittest.TestCase):
         result1 = protocol.read_get(reader)
         result2 = protocol.read_get(reader)
         self.assertEquals(result1, result2)
-        
+
 if __name__ == '__main__':
     unittest.main(timeout = 60)
-    
+
