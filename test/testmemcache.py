@@ -131,6 +131,23 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(MemcacheResultCode.STORED, mc.prepend('prepend_test1', 'hello'))
         self.assertEquals('helloworld', mc.get('prepend_test1'))
 
+        #test incr
+        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.incr('incr_test1', 1))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('incr_test1', '0'))
+        self.assertEquals(1, mc.incr('incr_test1', 1))
+        self.assertEquals(2, mc.incr('incr_test1', '1'))
+        self.assertEquals(12, mc.incr('incr_test1', 10))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('incr_test1', '18446744073709551615'))
+        self.assertEquals(0, mc.incr('incr_test1', 1))
+
+        #test decr
+        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.decr('decr_test1', 1))
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('decr_test1', '12'))
+        self.assertEquals(11, mc.decr('decr_test1', 1))
+        self.assertEquals(10, mc.decr('decr_test1', '1'))
+        self.assertEquals(0, mc.decr('decr_test1', 10))
+        self.assertEquals(0, mc.decr('decr_test1', 1))
+
     def testBasicSingle(self):
         mc = MemcacheTCPConnection()
         mc.connect((MEMCACHE_IP, 11211))

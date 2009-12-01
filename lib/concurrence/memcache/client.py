@@ -14,13 +14,14 @@ from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBeha
 
 #TODO:
 
+#be prepared for ERROR, CLIENT_ERROR, SERVER_ERROR on any command!
+
 #timeout on commands (test tasklet based timeout)
 #statistics
 #gzip support
 #close unused connections
 #proper buffer sizes
 #not use pickle for string and unicode types (use flags to indicate this)
-#incr, decr
 #norepy e.g. no server response to set commands
 #stats cmd (+item + item size stats
 
@@ -55,7 +56,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def _read_result(self, reader):
         response_line = reader.read_line()
         result = MemcacheResultCode.get(response_line, None)
-        assert result is not None, "protocol error"
+        assert result is not None, "protocol error, unexpected response: %s" % response_line
         return result
 
     def write_version(self, writer):
@@ -64,7 +65,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def read_version(self, reader):
         response_line = reader.read_line()
         if response_line.startswith('VERSION'):
-            return repr(response_line[8:].strip())
+            return response_line[8:].strip()
         else:
             assert False, "protocol error"
 
@@ -80,6 +81,30 @@ class MemcacheTextProtocol(MemcacheProtocol):
 
     def read_cas(self, reader):
         return self._read_result(reader)
+
+    def _write_incdec(self, writer, cmd, key, value):
+        writer.write_bytes("%s %s %s\r\n" % (cmd, key, value))
+
+    def _read_incdec(self, reader):
+        response_line = reader.read_line()
+        try:
+            return int(response_line)
+        except ValueError:
+            result = MemcacheResultCode.get(response_line, None)
+            assert result is not None, "protocol error, unexpected response: %s" % response_line
+            return result
+
+    def write_incr(self, writer, key, value):
+        self._write_incdec(writer, "incr", key, value)
+
+    def read_incr(self, reader):
+        return self._read_incdec(reader)
+
+    def write_decr(self, writer, key, value):
+        self._write_incdec(writer, "decr", key, value)
+
+    def read_decr(self, reader):
+        return self._read_incdec(reader)
 
     def write_get(self, writer, keys):
         writer.write_bytes("get %s\r\n" % " ".join(keys))
@@ -213,6 +238,12 @@ class MemcacheTCPConnection(object):
     def cas(self, key, data, cas_unique):
         return self.do_command("cas", (key, data, cas_unique))
 
+    def incr(self, key, value):
+        return self.do_command("incr", (key, value))
+
+    def decr(self, key, value):
+        return self.do_command("decr", (key, value))
+
     def get(self, key):
         result = self.do_command("get", ([key], ))
         return result.get(key, None)
@@ -299,6 +330,12 @@ class Memcache(object):
 
     def cas(self, key, data, cas_unique):
         return self.connection_for_key(key).do_command("cas", (key, data, cas_unique))
+
+    def incr(self, key, value):
+        return self.connection_for_key(key).do_command("incr", (key, value))
+
+    def decr(self, key, value):
+        return self.connection_for_key(key).do_command("decr", (key, value))
 
     def _get(self, cmd, key):
         result_channel = Channel()
