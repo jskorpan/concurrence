@@ -14,8 +14,6 @@ from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBeha
 
 #TODO:
 
-#be prepared for ERROR, CLIENT_ERROR, SERVER_ERROR on any command!
-
 #timeout on commands (test tasklet based timeout)
 #statistics
 #gzip support
@@ -55,9 +53,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
 
     def _read_result(self, reader):
         response_line = reader.read_line()
-        result = MemcacheResultCode.get(response_line, None)
-        assert result is not None, "protocol error, unexpected response: %s" % response_line
-        return result
+        return MemcacheResultCode.get(response_line)
 
     def write_version(self, writer):
         writer.write_bytes("version\r\n")
@@ -67,7 +63,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
         if response_line.startswith('VERSION'):
             return response_line[8:].strip()
         else:
-            assert False, "protocol error"
+            return MemcacheResultCode.get(response_line)
 
     def _write_storage(self, writer, cmd, key, value, cas_unique = None):
         encoded_value, flags = self._codec.encode(value)
@@ -90,9 +86,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
         try:
             return int(response_line)
         except ValueError:
-            result = MemcacheResultCode.get(response_line, None)
-            assert result is not None, "protocol error, unexpected response: %s" % response_line
-            return result
+            return MemcacheResultCode.get(response_line)
 
     def write_incr(self, writer, key, value):
         self._write_incdec(writer, "incr", key, value)
@@ -131,10 +125,8 @@ class MemcacheTextProtocol(MemcacheProtocol):
                     result[key] = self._codec.decode(flags, encoded_value)
             elif response_line == 'END':
                 return result
-            elif response_line == 'ERROR':
-                assert False, "TODO"
             else:
-                assert False, "protocol error"
+                return MemcacheResultCode.get(response_line)
 
     def read_gets(self, reader):
         return self.read_get(reader, with_cas_unique = True)

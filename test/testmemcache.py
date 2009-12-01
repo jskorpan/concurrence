@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection
+from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection, MemcacheError
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -41,6 +41,21 @@ class TestMemcache(unittest.TestCase):
         os.system(cmd)
 
         Tasklet.sleep(1.0) #should be enough for memcached to go down
+
+    def testResultCode(self):
+
+        self.assertTrue(MemcacheResultCode.get('STORED') == MemcacheResultCode.get('STORED'))
+
+        self.assertEquals('blaataap', MemcacheResultCode.get('CLIENT_ERROR blaataap').msg)
+        self.assertEquals('blaataap', MemcacheResultCode.get('SERVER_ERROR blaataap').msg)
+        
+        self.assertTrue(MemcacheResultCode.get('CLIENT_ERROR blaataap') == MemcacheResultCode.get('CLIENT_ERROR blaataap'))
+
+        try:
+            MemcacheResultCode.get('XXX')
+            self.fail()
+        except MemcacheError:
+            pass
 
     def sharedTestBasic(self, mc):
 
