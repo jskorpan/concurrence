@@ -8,7 +8,7 @@ from __future__ import with_statement
 import logging
 import time
 
-from concurrence import TimeoutError, Channel, Tasklet
+from concurrence import TimeoutError, Channel, Tasklet, TIMEOUT_CURRENT
 from concurrence.containers import Deque
 from concurrence.timer import Timeout
 from concurrence.statistic import Statistic, StatisticExtra
@@ -140,7 +140,7 @@ class Pool(BasePool):
 
     def _get_connection_from_pool(self):
         self.log.debug("get conn from pool")
-        return self._pool.pop(True, -2)
+        return self._pool.pop(True, TIMEOUT_CURRENT)
 
     def _return_connection_to_pool(self, connection):
         """when a connection becomes readable while in the idle pool,

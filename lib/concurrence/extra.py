@@ -1,3 +1,4 @@
+from concurrence import TIMEOUT_CURRENT, TIMEOUT_NEVER
 from concurrence.core import Tasklet, Channel, Deque
 
 import logging
@@ -12,7 +13,7 @@ class Semaphore(object):
     def count(self):
         return self._count
 
-    def acquire(self, blocking = True, timeout = -2):
+    def acquire(self, blocking = True, timeout = TIMEOUT_CURRENT):
         if self._count > 0:
             self._count -= 1
             return True
@@ -70,7 +71,7 @@ class TaskletPool(object):
     def _worker(self):
         while True:
             try:
-                f, args, kwargs = self._queue.popleft(True, -1)
+                f, args, kwargs = self._queue.popleft(True, TIMEOUT_NEVER)
                 f(*args, **kwargs)
             except TaskletExit:
                 raise

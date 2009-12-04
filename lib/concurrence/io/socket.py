@@ -12,7 +12,7 @@ from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHU
 
 import _io
 
-from concurrence import Tasklet, FileDescriptorEvent
+from concurrence import Tasklet, FileDescriptorEvent, TIMEOUT_CURRENT
 from concurrence.io import IOStream
 
 DEFAULT_BACKLOG = 512
@@ -75,7 +75,7 @@ class Socket(IOStream):
         return s
 
     @classmethod
-    def connect(cls, addr, timeout = -1):
+    def connect(cls, addr, timeout = TIMEOUT_CURRENT):
         """creates a new socket and connects it to the given address.
         returns the connected sockets"""
         socket = cls.from_address(addr)
@@ -146,7 +146,7 @@ class Socket(IOStream):
 
             return self.__class__(s, self.STATE_CONNECTED)
 
-    def _connect(self, addr, timeout = -1.0):
+    def _connect(self, addr, timeout = TIMEOUT_CURRENT):
         assert self.state == self.STATE_INIT, "make sure socket is not already connected or closed"
         try:
             err = self.socket.connect_ex(addr)
@@ -171,7 +171,7 @@ class Socket(IOStream):
             #unix domain socket that does not exist, Cannot assign requested address etc etc
             raise _io.error_from_errno(IOError)
 
-    def write(self, buffer, timeout = -1.0, assume_writable = True):
+    def write(self, buffer, timeout = TIMEOUT_CURRENT, assume_writable = True):
         """Writes as many bytes as possible from the given buffer to this socket.
         The buffer position is updated according to the number of bytes succesfully written to the socket.
         This method returns the total number of bytes written. This method could possible write 0 bytes"""
@@ -189,7 +189,7 @@ class Socket(IOStream):
                 assume_writable = False
             #else if error != EAGAIN, assume_writable will stay True, and we fall trough and raise error below
 
-        #if we cannot assume writability we will wait until data can be written again
+        #if we cannot assume write-ability we will wait until data can be written again
         if not assume_writable:
             self.writable.wait(timeout = timeout)
             bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
@@ -199,7 +199,7 @@ class Socket(IOStream):
         else:
             return bytes_written
 
-    def read(self, buffer, timeout = -1.0, assume_readable = True):
+    def read(self, buffer, timeout = TIMEOUT_CURRENT, assume_readable = True):
         """Reads as many bytes as possible the socket into the given buffer.
         The buffer position is updated according to the number of bytes read from the socket.
         This method could possible read 0 bytes. The method returns the total number of bytes read"""
@@ -227,12 +227,12 @@ class Socket(IOStream):
         else:
             return bytes_read
 
-    def write_socket(self, socket, timeout = -1):
+    def write_socket(self, socket, timeout = TIMEOUT_CURRENT):
         """writes a socket trough this socket"""
         self.writable.wait(timeout = timeout)
         _io.msgsendfd(self.fd, socket.fd)
 
-    def read_socket(self, socket_class = None, socket_family =  _socket.AF_INET, socket_type = _socket.SOCK_STREAM, socket_state = STATE_INIT, timeout = -1):
+    def read_socket(self, socket_class = None, socket_family =  _socket.AF_INET, socket_type = _socket.SOCK_STREAM, socket_state = STATE_INIT, timeout = TIMEOUT_CURRENT):
         """reads a socket from this socket"""
         self.readable.wait(timeout = timeout)
         fd = _io.msgrecvfd(self.fd)

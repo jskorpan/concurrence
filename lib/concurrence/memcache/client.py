@@ -4,7 +4,7 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 from __future__ import with_statement
 
-from concurrence import Tasklet, Channel, DeferredQueue
+from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT
 from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
 
@@ -53,7 +53,7 @@ class MemcacheTCPConnection(object):
         self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(MemcacheCodec.create(codec))
 
-    def connect(self, addr, timeout = -2):
+    def connect(self, addr, timeout = TIMEOUT_CURRENT):
         self._stream = BufferedStream(Socket.connect(addr, timeout))
 
     def defer_command(self, cmd, args, result_channel):
