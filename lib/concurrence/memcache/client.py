@@ -8,12 +8,13 @@ from concurrence import Tasklet, Channel, DeferredQueue
 from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
 
-from concurrence.memcache import MemcacheResultCode
+from concurrence.memcache import MemcacheResultCode, MemcacheError
 from concurrence.memcache.codec import Codec
 from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBehaviour
 
 #TODO:
 
+#how to communicate and handle errors (raise error for get/gets?)
 #timeout on commands (test tasklet based timeout)
 #statistics
 #gzip support
@@ -42,7 +43,7 @@ class MemcacheProtocol(object):
         if type_ == 'text':
             return MemcacheTextProtocol()
         else:
-            assert False, "unknown protocol"
+            raise MemcacheError("unknown protocol: %s" % type_)
 
 class MemcacheTextProtocol(MemcacheProtocol):
     def __init__(self, codec = "default"):
@@ -281,9 +282,6 @@ class Memcache(object):
             self._connections[addr] = connection
         return self._connections[addr]
 
-    def _on_connect(self, connection):
-        connection.set_protocol(self._protocol)
-
     def _connect_by_addr(self, addr, keys, result_channel):
         Tasklet.set_current_timeout(self.connect_timeout)
         connection = self._get_connection(addr)
@@ -291,16 +289,6 @@ class Memcache(object):
 
     def connection_for_key(self, key):
         return self._get_connection(self._key_to_addr(key))
-
-    def _keys_to_addr(self, keys):
-        addrs = {} #addr->[keys]
-        for key in keys:
-            addr = self._key_to_addr(key)
-            if addr in addrs:
-                addrs[addr].append(key)
-            else:
-                addrs[addr] = [key]
-        return addrs
 
     def delete(self, key):
         return self.connection_for_key(key).do_command("delete", (key,))
@@ -344,12 +332,20 @@ class Memcache(object):
 
     def _get_multi(self, cmd, keys):
         result_channel = Channel()
-        grouped = self._keys_to_addr(keys).items()
-        n = len(grouped)
-        for addr, _keys in grouped:
+
+        #group keys by address:
+        grouped_addrs = {} #addr->[keys]
+        for key in keys:
+            addr = self._key_to_addr(key)
+            grouped_addrs.setdefault(addr, []).append(key)
+
+        n = len(grouped_addrs)
+
+        for addr, _keys in grouped_addrs.iteritems():
             Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
         for connection, _keys in result_channel.receive_n(n):
             connection.defer_command(cmd, [_keys], result_channel)
+
         result = {}
         for _result in result_channel.receive_n(n):
             result.update(_result)
