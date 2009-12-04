@@ -1,12 +1,16 @@
-from concurrence.memcache import ketama
+from concurrence.memcache import MemcacheError, ketama
 
 class MemcacheBehaviour(object):
     @classmethod
     def create(cls, type_):
-        if type_ == "modulo":
+        if isinstance(type_, MemcacheBehaviour):
+            return type_
+        elif type_ == "modulo":
             return MemcacheModuloBehaviour()
         elif type_ == "ketama":
             return MemcacheKetamaBehaviour()
+        else:
+            raise MemcacheError("unknown behaviour: %s" % type_)
 
 class MemcacheModuloBehaviour(MemcacheBehaviour):
     def __init__(self):

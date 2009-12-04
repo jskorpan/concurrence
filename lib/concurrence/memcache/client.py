@@ -9,8 +9,9 @@ from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
 
 from concurrence.memcache import MemcacheResultCode, MemcacheError
-from concurrence.memcache.codec import Codec
-from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBehaviour
+from concurrence.memcache.codec import MemcacheCodec
+from concurrence.memcache.behaviour import MemcacheBehaviour
+from concurrence.memcache.protocol import MemcacheProtocol
 
 #TODO:
 
@@ -37,136 +38,6 @@ from concurrence.memcache.behaviour import MemcacheBehaviour, MemcacheKetamaBeha
 #CLAMP timestamps at 2**31-1
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
-class MemcacheProtocol(object):
-    @classmethod
-    def create(cls, type_):
-        if type_ == 'text':
-            return MemcacheTextProtocol()
-        else:
-            raise MemcacheError("unknown protocol: %s" % type_)
-
-class MemcacheTextProtocol(MemcacheProtocol):
-    def __init__(self, codec = "default"):
-        self.set_codec(codec)
-
-    def set_codec(self, codec):
-        self._codec = Codec.create(codec)
-
-    def _read_result(self, reader):
-        response_line = reader.read_line()
-        return MemcacheResultCode.get(response_line)
-
-    def write_version(self, writer):
-        writer.write_bytes("version\r\n")
-
-    def read_version(self, reader):
-        response_line = reader.read_line()
-        if response_line.startswith('VERSION'):
-            return response_line[8:].strip()
-        else:
-            return MemcacheResultCode.get(response_line)
-
-    def _write_storage(self, writer, cmd, key, value, cas_unique = None):
-        encoded_value, flags = self._codec.encode(value)
-        if cas_unique is not None:
-            writer.write_bytes("%s %s %d 0 %d %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), cas_unique, encoded_value))
-        else:
-            writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), encoded_value))
-
-    def write_cas(self, writer, key, value, cas_unique):
-        self._write_storage(writer, "cas", key, value, cas_unique)
-
-    def read_cas(self, reader):
-        return self._read_result(reader)
-
-    def _write_incdec(self, writer, cmd, key, value):
-        writer.write_bytes("%s %s %s\r\n" % (cmd, key, value))
-
-    def _read_incdec(self, reader):
-        response_line = reader.read_line()
-        try:
-            return int(response_line)
-        except ValueError:
-            return MemcacheResultCode.get(response_line)
-
-    def write_incr(self, writer, key, value):
-        self._write_incdec(writer, "incr", key, value)
-
-    def read_incr(self, reader):
-        return self._read_incdec(reader)
-
-    def write_decr(self, writer, key, value):
-        self._write_incdec(writer, "decr", key, value)
-
-    def read_decr(self, reader):
-        return self._read_incdec(reader)
-
-    def write_get(self, writer, keys):
-        writer.write_bytes("get %s\r\n" % " ".join(keys))
-
-    def write_gets(self, writer, keys):
-        writer.write_bytes("gets %s\r\n" % " ".join(keys))
-
-    def read_get(self, reader, with_cas_unique = False):
-        result = {}
-        while True:
-            response_line = reader.read_line()
-            if response_line.startswith('VALUE'):
-                response_fields = response_line.split(' ')
-                key = response_fields[1]
-                flags = int(response_fields[2])
-                n = int(response_fields[3])
-                if with_cas_unique:
-                    cas_unique = int(response_fields[4])
-                encoded_value = reader.read_bytes(n)
-                reader.read_line() #\r\n
-                if with_cas_unique:
-                    result[key] = (self._codec.decode(flags, encoded_value), cas_unique)
-                else:
-                    result[key] = self._codec.decode(flags, encoded_value)
-            elif response_line == 'END':
-                return result
-            else:
-                return MemcacheResultCode.get(response_line)
-
-    def read_gets(self, reader):
-        return self.read_get(reader, with_cas_unique = True)
-
-    def write_delete(self, writer, key):
-        writer.write_bytes("delete %s\r\n" % (key, ))
-
-    def read_delete(self, reader):
-        return self._read_result(reader)
-
-    def write_set(self, writer, key, value):
-        return self._write_storage(writer, "set", key, value)
-
-    def read_set(self, reader):
-        return self._read_result(reader)
-
-    def write_add(self, writer, key, value):
-        return self._write_storage(writer, "add", key, value)
-
-    def read_add(self, reader):
-        return self._read_result(reader)
-
-    def write_replace(self, writer, key, value):
-        return self._write_storage(writer, "replace", key, value)
-
-    def read_replace(self, reader):
-        return self._read_result(reader)
-
-    def write_append(self, writer, key, value):
-        return self._write_storage(writer, "append", key, value)
-
-    def read_append(self, reader):
-        return self._read_result(reader)
-
-    def write_prepend(self, writer, key, value):
-        return self._write_storage(writer, "prepend", key, value)
-
-    def read_prepend(self, reader):
-        return self._read_result(reader)
 
 class MemcacheTCPConnection(object):
 
@@ -176,15 +47,11 @@ class MemcacheTCPConnection(object):
     def __init__(self, protocol = "text", codec = "default"):
         self._read_queue = DeferredQueue()
         self._write_queue = DeferredQueue()
+
         self._stream = None
 
-        if isinstance(protocol, MemcacheProtocol):
-            self._protocol = protocol
-        else:
-            self._protocol = MemcacheProtocol.create(protocol)
-
-        if self._protocol and codec:
-            self._protocol.set_codec(codec)
+        self._protocol = MemcacheProtocol.create(protocol)
+        self._protocol.set_codec(MemcacheCodec.create(codec))
 
     def connect(self, addr, timeout = -2):
         self._stream = BufferedStream(Socket.connect(addr, timeout))
@@ -261,19 +128,19 @@ class Memcache(object):
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        self._connections = {} #addr -> conn
-        self._protocol = MemcacheProtocol.create(protocol)
+        self._connections = {} #address -> connection
 
+        self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(codec)
 
         self._behaviour = MemcacheBehaviour.create(behaviour)
         self._key_to_addr = self._behaviour.key_to_addr
 
-        if servers is not None:
-            self.set_servers(servers)
+        self.set_servers(servers)
 
-    def set_servers(self, servers):
-        self._behaviour.set_servers(servers)
+    def set_servers(self, servers = None):
+        if servers is not None:
+            self._behaviour.set_servers(servers)
 
     def _get_connection(self, addr):
         if not addr in self._connections:
@@ -333,19 +200,22 @@ class Memcache(object):
     def _get_multi(self, cmd, keys):
         result_channel = Channel()
 
-        #group keys by address:
-        grouped_addrs = {} #addr->[keys]
+        #group keys by address (address->[keys]):
+        grouped_addrs = {}
         for key in keys:
             addr = self._key_to_addr(key)
             grouped_addrs.setdefault(addr, []).append(key)
 
+        #n is the number of servers we need to 'get' from
         n = len(grouped_addrs)
 
+        #get connections to all servers asynchronously and in parallel, connections and corresponding keys are returned on return_channel
         for addr, _keys in grouped_addrs.iteritems():
             Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
+        #now asynchronously and in parallel fetch the values from each server
         for connection, _keys in result_channel.receive_n(n):
             connection.defer_command(cmd, [_keys], result_channel)
-
+        #loop over the results as they come in and aggregate the final result
         result = {}
         for _result in result_channel.receive_n(n):
             result.update(_result)

@@ -3,50 +3,54 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-class MemcacheError(Exception): 
+class MemcacheError(Exception):
     pass
 
 class MemcacheResultCode(object):
     """type safe enumeration of memcache result codes"""
-    _all = {}
+    _static = {}
 
     def __init__(self, name, msg = ''):
         self._name = name
-        self._all[name] = self
         self._msg = msg
 
-    @property    
+    @property
     def msg(self):
         return self._msg
 
     def __repr__(self):
         return "<MemcacheResultCode: %s>" % self._name
-        
+
     def __eq__(self, other):
         return isinstance(other, MemcacheResultCode) and other._name == self._name
 
     @classmethod
     def get(cls, line):
-        code = cls._all.get(line, None)
+        code = cls._static.get(line, None)
         if code is None:
             #try client or server error
             if line.startswith('CLIENT_ERROR'):
                 return MemcacheResultCode("CLIENT_ERROR", line[13:])
             elif line.startswith('SERVER_ERROR'):
-                return MemcacheResultCode("SERVER_ERROR", line[13:])    
+                return MemcacheResultCode("SERVER_ERROR", line[13:])
             else:
                 raise MemcacheError("unknown response: %s" % repr(line))
         else:
             return code
 
-MemcacheResultCode.STORED = MemcacheResultCode("STORED")
-MemcacheResultCode.NOT_STORED = MemcacheResultCode("NOT_STORED")
-MemcacheResultCode.EXISTS = MemcacheResultCode("EXISTS")
-MemcacheResultCode.NOT_FOUND = MemcacheResultCode("NOT_FOUND")
-MemcacheResultCode.DELETED = MemcacheResultCode("DELETED")
-MemcacheResultCode.ERROR = MemcacheResultCode("ERROR")
+    @classmethod
+    def _add_static(cls, name):
+        cls._static[name] = MemcacheResultCode(name)
+        return cls._static[name]
+
+MemcacheResultCode.STORED = MemcacheResultCode._add_static("STORED")
+MemcacheResultCode.NOT_STORED = MemcacheResultCode._add_static("NOT_STORED")
+MemcacheResultCode.EXISTS = MemcacheResultCode._add_static("EXISTS")
+MemcacheResultCode.NOT_FOUND = MemcacheResultCode._add_static("NOT_FOUND")
+MemcacheResultCode.DELETED = MemcacheResultCode._add_static("DELETED")
+MemcacheResultCode.ERROR = MemcacheResultCode._add_static("ERROR")
 
 from concurrence.memcache.client import Memcache, MemcacheTCPConnection
-
-            
-
+from concurrence.memcache.behaviour import MemcacheBehaviour
+from concurrence.memcache.protocol import MemcacheProtocol
+from concurrence.memcache.codec import MemcacheCodec

@@ -1,6 +1,8 @@
 import cPickle as pickle
 
-class Codec(object):
+from concurrence.memcache import MemcacheError
+
+class MemcacheCodec(object):
     def decode(self, flags, encoded_value):
         assert False, "implement"
 
@@ -9,14 +11,16 @@ class Codec(object):
 
     @classmethod
     def create(self, type_):
-        if type_ == "default":
-            return DefaultCodec()
+        if isinstance(type_, MemcacheCodec):
+            return type_
+        elif type_ == "default":
+            return MemcacheDefaultCodec()
         elif type_ == "raw":
-            return RawCodec()
+            return MemcacheRawCodec()
         else:
-            assert False, "unknown codec"
-            
-class DefaultCodec(Codec):
+            raise MemcacheError("unknown codec: %s" % type_)
+
+class MemcacheDefaultCodec(MemcacheCodec):
     _FLAG_PICKLE = 1<<0
     _FLAG_INTEGER = 1<<1
     _FLAG_LONG = 1<<2
@@ -48,11 +52,11 @@ class DefaultCodec(Codec):
             flags |= self._FLAG_UNICODE
             encoded_value = value.encode('utf-8')
         else:
-            flags |= self._FLAG_PICKLE            
+            flags |= self._FLAG_PICKLE
             encoded_value = pickle.dumps(value, -1)
         return encoded_value, flags
 
-class RawCodec(Codec):
+class MemcacheRawCodec(MemcacheCodec):
     def decode(self, flags, encoded_value):
         return encoded_value
 

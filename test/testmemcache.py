@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection, MemcacheError
+from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection, MemcacheError, MemcacheBehaviour
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -48,14 +48,35 @@ class TestMemcache(unittest.TestCase):
 
         self.assertEquals('blaataap', MemcacheResultCode.get('CLIENT_ERROR blaataap').msg)
         self.assertEquals('blaataap', MemcacheResultCode.get('SERVER_ERROR blaataap').msg)
-        
+
         self.assertTrue(MemcacheResultCode.get('CLIENT_ERROR blaataap') == MemcacheResultCode.get('CLIENT_ERROR blaataap'))
+
+        self.assertEquals("<MemcacheResultCode: STORED>", repr(MemcacheResultCode.STORED))
 
         try:
             MemcacheResultCode.get('XXX')
             self.fail()
         except MemcacheError:
             pass
+
+    def testModuloBehaviour(self):
+
+        try:
+            MemcacheBehaviour.create("blaataap")
+            self.fail("expected error")
+        except MemcacheError:
+            pass
+
+        b = MemcacheBehaviour.create("modulo")
+        self.assertTrue(b is MemcacheBehaviour.create(b))
+
+        b.set_servers([1,2,3,4])
+
+        s = set()
+        for i in range(100):
+            s.add(b.key_to_addr(i))
+
+        self.assertEquals(set([1,2,3,4]), s)
 
     def sharedTestBasic(self, mc):
 
@@ -249,7 +270,7 @@ class TestMemcache(unittest.TestCase):
                 result = mc.get_multi(keys[i:i+stride])
                 self.assertEquals(stride, len(result))
 
-        for nr_clients in [2,4,8,16,32,64,128]:
+        for nr_clients in [2,4,8,16]:#,32,64,128]:
             with unittest.timer() as tmr:
                 for i in range(nr_clients):
                     Tasklet.new(fetcher)()
@@ -258,15 +279,23 @@ class TestMemcache(unittest.TestCase):
 
     def testTextProtocol(self):
         from concurrence.io import Socket, BufferedStream
-        from concurrence.memcache.client import MemcacheTextProtocol
-        from concurrence.memcache.codec import RawCodec
+        from concurrence.memcache.protocol import MemcacheProtocol
 
         socket = Socket.connect((MEMCACHE_IP, 11211))
         stream = BufferedStream(socket)
         writer = stream.writer
         reader = stream.reader
 
-        protocol = MemcacheTextProtocol("raw")
+        try:
+            protocol = MemcacheProtocol.create("textblaat")
+            self.fail("expected error")
+        except MemcacheError:
+            pass
+
+        protocol = MemcacheProtocol.create("text")
+        self.assertTrue(protocol is MemcacheProtocol.create(protocol))
+
+        protocol.set_codec("raw")
 
         protocol.write_set(writer, 'hello', 'world')
         writer.flush()
@@ -313,6 +342,8 @@ class TestMemcache(unittest.TestCase):
         result1 = protocol.read_get(reader)
         result2 = protocol.read_get(reader)
         self.assertEquals(result1, result2)
+
+from concurrence.memcache.ketama import TestKetama
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)

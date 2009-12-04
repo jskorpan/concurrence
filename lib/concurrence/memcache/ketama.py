@@ -3,7 +3,7 @@
 # This module is part of the Concurrence Framework and is released under
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 
-#this is a pretty straightforward pure python implementation of 
+#this is a pretty straightforward pure python implementation of
 #libketama (a consistent hashing implementation used by many memcached clients)
 #    http://www.last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_hashing_algo_for_memcache_clients
 #    svn://svn.audioscrobbler.net/misc/ketama/
@@ -45,14 +45,14 @@ def build_continuum(servers):
     """
     continuum = {}
     memory = sum([s[1] for s in servers]) #total weight of servers (a.k.a. memory)
-    server_count = len(servers)     
+    server_count = len(servers)
     for server in servers:
         pct = float(server[1]) / memory #pct of memory of this server
         ks = int(math.floor(pct * 40.0 * server_count))
         for k in range(ks):
             # max 40 hashes, 4 numbers per hash = max 160 points per server */
             ss = "%s:%s-%d" % (server[0][0], server[0][1], k)
-            digest = key_to_digest(ss)            
+            digest = key_to_digest(ss)
             for h in range(4):
                 point = point_from_hex(digest[h * 8: h * 8 + 8])
                 if not point in continuum:
@@ -62,14 +62,14 @@ def build_continuum(servers):
     return sorted(continuum.items())
 
 
-class Test(unittest.TestCase):
-    test_servers = [(('10.0.1.1', 11211), 600), 
-                    (('10.0.1.2', 11211), 300), 
-                    (('10.0.1.3', 11211), 200), 
-                    (('10.0.1.4', 11211), 350), 
-                    (('10.0.1.5', 11211), 1000), 
-                    (('10.0.1.6', 11211), 800), 
-                    (('10.0.1.7', 11211), 950), 
+class TestKetama(unittest.TestCase):
+    test_servers = [(('10.0.1.1', 11211), 600),
+                    (('10.0.1.2', 11211), 300),
+                    (('10.0.1.3', 11211), 200),
+                    (('10.0.1.4', 11211), 350),
+                    (('10.0.1.5', 11211), 1000),
+                    (('10.0.1.6', 11211), 800),
+                    (('10.0.1.7', 11211), 950),
                     (('10.0.1.8', 11211), 100)]
 
     def testKetama(self):
@@ -82,7 +82,7 @@ class Test(unittest.TestCase):
         self.assertEquals((2954822664, ('10.0.1.1', 11211)), (hashi('50829'), get_server('50829', continuum)))
         self.assertEquals((1423001712, ('10.0.1.6', 11211)), (hashi('65422'), get_server('65422', continuum)))
         self.assertEquals((3809055594, ('10.0.1.6', 11211)), (hashi('74912'), get_server('74912', continuum)))
- 
+
 if __name__ == '__main__':
     unittest.main()
 
