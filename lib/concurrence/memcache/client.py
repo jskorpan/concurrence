@@ -6,7 +6,7 @@ from __future__ import with_statement
 
 import logging
 
-from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT, TimeoutError
+from concurrence import Tasklet, Channel, DeferredQueue, QueueChannel, TIMEOUT_CURRENT, TimeoutError
 from concurrence.io import Socket, BufferedStream
 
 from concurrence.memcache import MemcacheError, MemcacheResult
@@ -37,7 +37,6 @@ from concurrence.memcache.protocol import MemcacheProtocol
 #TODO validate keys!, they are 'txt' not random bins!, e.g. some chars not allowed, which ones?
 #CLAMP timestamps at 2**31-1
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
-
 
 class MemcacheConnection(object):
     log = logging.getLogger("MemcacheConnection")
@@ -103,7 +102,7 @@ class MemcacheConnection(object):
         self._write_queue.defer(_write_command)
 
     def _do_command(self, cmd, args, error_value = None):
-        result_channel = Channel()
+        result_channel = QueueChannel()
         self._defer_command(cmd, args, result_channel, error_value)
         try:
             return result_channel.receive()
@@ -219,7 +218,7 @@ class Memcache(object):
         return self._connection_manager.get_connection(addr, self._protocol)
 
     def _get(self, cmd, key, default):
-        result_channel = Channel()
+        result_channel = QueueChannel()
         connection = self.connection_for_key(key)
         connection._defer_command(cmd, [[key]], result_channel, {})
         result, values = result_channel.receive()
@@ -237,7 +236,7 @@ class Memcache(object):
         #n is the number of servers we need to 'get' from
         n = len(grouped_addrs)
 
-        result_channel = Channel()
+        result_channel = QueueChannel()
 
         for address, _keys in grouped_addrs.iteritems():
             connection = self._get_connection(address)

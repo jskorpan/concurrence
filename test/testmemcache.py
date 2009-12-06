@@ -22,6 +22,8 @@ assert MEMCACHED_BIN is not None, "could not find memcached daemon binary"
 
 #TODO check for memcached version before testing cas/gets commands
 
+TEST_EXT = True
+
 class TestMemcache(unittest.TestCase):
     log = logging.getLogger("TestMemcache")
 
@@ -153,68 +155,70 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(MemcacheResult.DELETED, mc.delete('replace1'))
         self.assertEquals(MemcacheResult.NOT_STORED, mc.replace('replace1', '11111'))
 
-        #test cas/gets
-        self.assertEquals(MemcacheResult.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
-        self.assertEquals(MemcacheResult.STORED, mc.set('cas_test1', 'blaat'))
-        result, value, cas_unique = mc.gets('cas_test1')
-        self.assertEquals(MemcacheResult.OK, result)
-        self.assertEquals('blaat', value)
-        self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
-        self.assertEquals(MemcacheResult.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
-
-        result, value, cas_unique = mc.gets('cas_test1_not_there')
-        self.assertEquals(MemcacheResult.OK, result)
-        self.assertEquals(None, value)
-        self.assertEquals(None, cas_unique)
-
-        result, value, cas_unique = mc.gets('cas_test1')
-        self.assertEquals(MemcacheResult.OK, result)
-        self.assertEquals('blaat2', value)
-        self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
-        self.assertEquals(MemcacheResult.STORED, mc.set('cas_test2', 'blaat4'))
-
-        result, values = mc.gets_multi(['cas_test1', 'cas_test2'])
-        self.assertEquals(MemcacheResult.OK, result)
-        self.assertTrue('cas_test1' in values)
-        self.assertTrue('cas_test2' in values)
-        self.assertEquals('blaat3', values['cas_test1'][0])
-        self.assertEquals('blaat4', values['cas_test2'][0])
-
-        #test append
-        self.assertEquals(MemcacheResult.NOT_STORED, mc.append('append_test1', 'hello'))
-        self.assertEquals(MemcacheResult.STORED, mc.set('append_test1', 'hello'))
-        self.assertEquals(MemcacheResult.STORED, mc.append('append_test1', 'world'))
-        self.assertEquals('helloworld', mc.get('append_test1'))
-
-        #test prepend
-        self.assertEquals(MemcacheResult.NOT_STORED, mc.prepend('prepend_test1', 'world'))
-        self.assertEquals(MemcacheResult.STORED, mc.set('prepend_test1', 'world'))
-        self.assertEquals(MemcacheResult.STORED, mc.prepend('prepend_test1', 'hello'))
-        self.assertEquals('helloworld', mc.get('prepend_test1'))
-
-        #test incr
-        self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.incr('incr_test1', 1)) #not found
-
-        self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '0'))
-        self.assertEquals((MemcacheResult.OK, 1), mc.incr('incr_test1', 1))
-        self.assertEquals((MemcacheResult.OK, 2), mc.incr('incr_test1', '1'))
-        self.assertEquals((MemcacheResult.OK, 12), mc.incr('incr_test1', 10))
-        self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '18446744073709551615'))
-        self.assertEquals((MemcacheResult.OK, 0), mc.incr('incr_test1', 1))
-
-        #test decr
-        self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.decr('decr_test1', 1)) #not found
-        self.assertEquals(MemcacheResult.STORED, mc.set('decr_test1', '12'))
-        self.assertEquals((MemcacheResult.OK, 11), mc.decr('decr_test1', 1))
-        self.assertEquals((MemcacheResult.OK, 10), mc.decr('decr_test1', '1'))
-        self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 10))
-        self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 1))
-
         #test expiration
         self.assertEquals(MemcacheResult.STORED, mc.set('exp_test', 'blaat', 2)) #expire 2 seconds from now
         self.assertEquals('blaat', mc.get('exp_test')) #should still find it
         Tasklet.sleep(4)
         self.assertEquals(None, mc.get('exp_test')) #should be gone
+
+        if TEST_EXT:
+            #test cas/gets
+            self.assertEquals(MemcacheResult.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
+            self.assertEquals(MemcacheResult.STORED, mc.set('cas_test1', 'blaat'))
+            result, value, cas_unique = mc.gets('cas_test1')
+            self.assertEquals(MemcacheResult.OK, result)
+            self.assertEquals('blaat', value)
+            self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
+            self.assertEquals(MemcacheResult.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
+
+            result, value, cas_unique = mc.gets('cas_test1_not_there')
+            self.assertEquals(MemcacheResult.OK, result)
+            self.assertEquals(None, value)
+            self.assertEquals(None, cas_unique)
+
+            result, value, cas_unique = mc.gets('cas_test1')
+            self.assertEquals(MemcacheResult.OK, result)
+            self.assertEquals('blaat2', value)
+            self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
+            self.assertEquals(MemcacheResult.STORED, mc.set('cas_test2', 'blaat4'))
+
+            result, values = mc.gets_multi(['cas_test1', 'cas_test2'])
+            self.assertEquals(MemcacheResult.OK, result)
+            self.assertTrue('cas_test1' in values)
+            self.assertTrue('cas_test2' in values)
+            self.assertEquals('blaat3', values['cas_test1'][0])
+            self.assertEquals('blaat4', values['cas_test2'][0])
+
+            #test append
+            self.assertEquals(MemcacheResult.NOT_STORED, mc.append('append_test1', 'hello'))
+            self.assertEquals(MemcacheResult.STORED, mc.set('append_test1', 'hello'))
+            self.assertEquals(MemcacheResult.STORED, mc.append('append_test1', 'world'))
+            self.assertEquals('helloworld', mc.get('append_test1'))
+
+            #test prepend
+            self.assertEquals(MemcacheResult.NOT_STORED, mc.prepend('prepend_test1', 'world'))
+            self.assertEquals(MemcacheResult.STORED, mc.set('prepend_test1', 'world'))
+            self.assertEquals(MemcacheResult.STORED, mc.prepend('prepend_test1', 'hello'))
+            self.assertEquals('helloworld', mc.get('prepend_test1'))
+
+            #test incr
+            self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.incr('incr_test1', 1)) #not found
+
+            self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '0'))
+            self.assertEquals((MemcacheResult.OK, 1), mc.incr('incr_test1', 1))
+            self.assertEquals((MemcacheResult.OK, 2), mc.incr('incr_test1', '1'))
+            self.assertEquals((MemcacheResult.OK, 12), mc.incr('incr_test1', 10))
+            self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '18446744073709551615'))
+            self.assertEquals((MemcacheResult.OK, 0), mc.incr('incr_test1', 1))
+
+            #test decr
+            self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.decr('decr_test1', 1)) #not found
+            self.assertEquals(MemcacheResult.STORED, mc.set('decr_test1', '12'))
+            self.assertEquals((MemcacheResult.OK, 11), mc.decr('decr_test1', 1))
+            self.assertEquals((MemcacheResult.OK, 10), mc.decr('decr_test1', '1'))
+            self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 10))
+            self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 1))
+
 
     def testBasicSingle(self):
         mc = MemcacheConnection((MEMCACHE_IP, 11211))
@@ -447,5 +451,5 @@ class TestMemcache(unittest.TestCase):
 from concurrence.memcache.ketama import TestKetama
 
 if __name__ == '__main__':
-    unittest.main(timeout = 60)
+    unittest.main(timeout = 100)
 
