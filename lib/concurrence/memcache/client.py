@@ -39,7 +39,7 @@ from concurrence.memcache.protocol import MemcacheProtocol
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
 
-class MemcacheTCPConnection(object):
+class MemcacheConnection(object):
 
     _read_timeout = 10
     _write_timeout = 10
@@ -56,19 +56,35 @@ class MemcacheTCPConnection(object):
     def connect(self, addr, timeout = TIMEOUT_CURRENT):
         self._stream = BufferedStream(Socket.connect(addr, timeout))
 
+    def close(self):
+        del self._read_queue
+        del self._write_queue
+        del self._protocol
+        self._stream.close()
+
     def defer_command(self, cmd, args, result_channel):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
-            with self._stream.get_reader() as reader:
-                result = getattr(self._protocol, 'read_' + cmd)(reader)
-            result_channel.send(result)
+            try:
+                with self._stream.get_reader() as reader:
+                    result = getattr(self._protocol, 'read_' + cmd)(reader)
+                result_channel.send(result)
+            except TaskletExit:
+                raise
+            except:
+                result_channel.send(MemcacheResultCode.ERROR)
 
         def _write_command():
             Tasklet.set_current_timeout(self._write_timeout)
-            with self._stream.get_writer() as writer:
-                getattr(self._protocol, 'write_' + cmd)(writer, *args)
-                writer.flush()
-                self._read_queue.defer(_read_result)
+            try:
+                with self._stream.get_writer() as writer:
+                    getattr(self._protocol, 'write_' + cmd)(writer, *args)
+                    writer.flush()
+                    self._read_queue.defer(_read_result)
+            except TaskletExit:
+                raise
+            except:
+                result_channel.send(MemcacheResultCode.ERROR)
 
         self._write_queue.defer(_write_command)
 
@@ -121,33 +137,59 @@ class MemcacheTCPConnection(object):
     def version(self):
         return self.do_command("version", ())
 
+class MemcacheConnectionManager(object):
+    _instance = None
+
+    def __init__(self):
+        self._connections = {} #address -> connection
+
+    def get_connection(self, addr, protocol):
+        #TODO add _connecting list, because connect is asynchronous
+        if not addr in self._connections:
+            connection = MemcacheConnection(protocol)
+            connection.connect(addr)
+            self._connections[addr] = connection
+        return self._connections[addr]
+
+    def close_all(self):
+        for connection in self._connections.values():
+            connection.close()
+        self._connections = {}
+
+    @classmethod
+    def create(cls, type_):
+        if isinstance(type_, MemcacheConnectionManager):
+            return type_
+        elif type_ == "default":
+            if cls._instance is None:
+                cls._instance = MemcacheConnectionManager()
+            return cls._instance
+        else:
+            raise MemcacheError("connection manager: %s" % type_)
+
 class Memcache(object):
-    def __init__(self, servers = None, codec = "default", behaviour = "ketama", protocol = "text"):
+    def __init__(self, servers = None, codec = "default", behaviour = "ketama", protocol = "text", connection_manager = "default"):
 
         self.read_timeout = 10
         self.write_timeout = 10
         self.connect_timeout = 2
 
-        self._connections = {} #address -> connection
-
         self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(codec)
+
+        self._connection_manager = MemcacheConnectionManager.create(connection_manager)
 
         self._behaviour = MemcacheBehaviour.create(behaviour)
         self._key_to_addr = self._behaviour.key_to_addr
 
         self.set_servers(servers)
 
+    def _get_connection(self, addr):
+        return self._connection_manager.get_connection(addr, self._protocol)
+
     def set_servers(self, servers = None):
         if servers is not None:
             self._behaviour.set_servers(servers)
-
-    def _get_connection(self, addr):
-        if not addr in self._connections:
-            connection = MemcacheTCPConnection(self._protocol)
-            connection.connect(addr)
-            self._connections[addr] = connection
-        return self._connections[addr]
 
     def _connect_by_addr(self, addr, keys, result_channel):
         Tasklet.set_current_timeout(self.connect_timeout)

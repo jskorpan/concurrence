@@ -49,8 +49,9 @@ MemcacheResultCode.EXISTS = MemcacheResultCode._add_static("EXISTS")
 MemcacheResultCode.NOT_FOUND = MemcacheResultCode._add_static("NOT_FOUND")
 MemcacheResultCode.DELETED = MemcacheResultCode._add_static("DELETED")
 MemcacheResultCode.ERROR = MemcacheResultCode._add_static("ERROR")
+MemcacheResultCode.TIMEOUT = MemcacheResultCode._add_static("TIMEOUT")
 
-from concurrence.memcache.client import Memcache, MemcacheTCPConnection
+from concurrence.memcache.client import Memcache, MemcacheConnection, MemcacheConnectionManager
 from concurrence.memcache.behaviour import MemcacheBehaviour
 from concurrence.memcache.protocol import MemcacheProtocol
 from concurrence.memcache.codec import MemcacheCodec

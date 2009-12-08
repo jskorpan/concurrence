@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheTCPConnection, MemcacheError, MemcacheBehaviour
+from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -36,6 +36,8 @@ class TestMemcache(unittest.TestCase):
         Tasklet.sleep(1.0) #should be enough for memcached to get up and running
 
     def tearDown(self):
+        MemcacheConnectionManager.create("default").close_all()
+
         cmd = 'killall %s' % MEMCACHED_BIN
         self.log.debug(cmd)
         os.system(cmd)
@@ -185,13 +187,13 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(0, mc.decr('decr_test1', 1))
 
     def testBasicSingle(self):
-        mc = MemcacheTCPConnection()
+        mc = MemcacheConnection()
         mc.connect((MEMCACHE_IP, 11211))
         self.sharedTestBasic(mc)
 
     def testExtraSingle(self):
         """test stuff that only makes sense on a single server connection"""
-        mc = MemcacheTCPConnection()
+        mc = MemcacheConnection()
         mc.connect((MEMCACHE_IP, 11211))
         v1 = mc.version()
         v2 = mc.version()
