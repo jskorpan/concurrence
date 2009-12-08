@@ -77,7 +77,7 @@ class Socket(IOStream):
     @classmethod
     def connect(cls, addr, timeout = TIMEOUT_CURRENT):
         """creates a new socket and connects it to the given address.
-        returns the connected sockets"""
+        returns the connected socket"""
         socket = cls.from_address(addr)
         socket._connect(addr, timeout)
         return socket

@@ -4,6 +4,8 @@
 # the New BSD License: http://www.opensource.org/licenses/bsd-license.php
 from __future__ import with_statement
 
+import logging
+
 from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT
 from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
@@ -40,6 +42,7 @@ from concurrence.memcache.protocol import MemcacheProtocol
 
 
 class MemcacheConnection(object):
+    log = logging.getLogger("MemcacheConnection")
 
     _read_timeout = 10
     _write_timeout = 10
@@ -72,7 +75,8 @@ class MemcacheConnection(object):
             except TaskletExit:
                 raise
             except:
-                result_channel.send(MemcacheResultCode.ERROR)
+                self.log.exception("read error in defer_command")
+                result_channel.send_exception(MemcacheError, "while reading result")
 
         def _write_command():
             Tasklet.set_current_timeout(self._write_timeout)
@@ -84,7 +88,8 @@ class MemcacheConnection(object):
             except TaskletExit:
                 raise
             except:
-                result_channel.send(MemcacheResultCode.ERROR)
+                self.log.exception("write error in defer_command")
+                result_channel.send_exception(MemcacheError, "while writing command")
 
         self._write_queue.defer(_write_command)
 
@@ -142,14 +147,32 @@ class MemcacheConnectionManager(object):
 
     def __init__(self):
         self._connections = {} #address -> connection
+        self._connecting = {} #address -> Channel
 
     def get_connection(self, addr, protocol):
-        #TODO add _connecting list, because connect is asynchronous
-        if not addr in self._connections:
-            connection = MemcacheConnection(protocol)
-            connection.connect(addr)
-            self._connections[addr] = connection
-        return self._connections[addr]
+        """gets a connection to memcached servers at given address using given protocol."""
+        #note that this method is complicated by the fact that the .connect method can potentially block
+        #allowing other tasklets to arrive here concurrently.
+        #only the first tasklet will be responsible for opening the connection, if another tasklet comes in at the
+        #same time, it put on hold on a channel and will wait for the first tasklet to return the connection
+        if addr in self._connections:
+            return self._connections[addr]
+        else:
+            if addr in self._connecting:
+                #somebody else is already connecting, it will inform us of the connection
+                return self._connecting[addr].receive()
+            else:
+                #i am the one who will open the connection
+                self._connecting[addr] = Channel()
+                connection = MemcacheConnection(protocol)
+                connection.connect(addr)
+                self._connections[addr] = connection
+                connect_channel = self._connecting[addr]
+                del self._connecting[addr]
+                #inform other waiting tasklets of the new connection
+                while connect_channel.has_receiver():
+                    connect_channel.send(connection)
+                return connection
 
     def close_all(self):
         for connection in self._connections.values():

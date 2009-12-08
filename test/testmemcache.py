@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
+from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -344,6 +344,33 @@ class TestMemcache(unittest.TestCase):
         result1 = protocol.read_get(reader)
         result2 = protocol.read_get(reader)
         self.assertEquals(result1, result2)
+
+    def testConnectionManager(self):
+
+        try:
+            cm = MemcacheConnectionManager()
+
+            protocol = MemcacheProtocol.create("text")
+
+            connections = []
+            def connector():
+                connections.append(cm.get_connection((MEMCACHE_IP, 11211), protocol))
+
+            Tasklet.new(connector)()
+            Tasklet.new(connector)()
+            Tasklet.new(connector)()
+
+            Tasklet.join_children()
+
+            Tasklet.new(connector)()
+
+            Tasklet.join_children()
+
+            self.assertEquals(4, len(connections))
+            self.assertEquals(1, len(cm._connections))
+            self.assertEquals(0, len(cm._connecting))
+        finally:
+            cm.close_all()
 
 from concurrence.memcache.ketama import TestKetama
 

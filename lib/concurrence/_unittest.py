@@ -7,10 +7,72 @@ import unittest
 import logging
 import time
 
-from concurrence import dispatch, Tasklet, quit
+from concurrence import dispatch, Tasklet, Channel, quit
 from concurrence.core import EXIT_CODE_TIMEOUT
 
-from concurrence.io import IOStream
+from concurrence.io import IOStream, Socket
+
+class TestSocket(object):
+    _old_socket_new = None
+    _callback_channel = None
+    _result_channel = None
+    _step_count = 0
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def _connect(self, *args, **kwargs):
+        self._address = args[0]
+        res = self._step("connect", args, kwargs)
+        return res
+
+    def close(self, *args, **kwargs):
+        return self._step("close", args, kwargs)
+
+    def write(self, *args, **kwargs):
+        res = self._step("write", args, kwargs)
+        if res is None: #by default read bytes
+            return len(args[0].read_bytes(-1))
+
+    def read(self, *args, **kwargs):
+        res = self._step("read", args, kwargs)
+        if res is None:
+            return 0 #0 bytes read by default
+
+    @classmethod
+    def install(cls):
+        cls._old_socket_new = Socket.__new__
+        Socket.__new__ = TestSocket
+
+    @classmethod
+    def uninstall(cls):
+        Socket.__new__ = Socket
+
+    def _step(self, name, args, kwargs):
+        class Step(object):
+            def match(self, address, name, count):
+                return self.address == address and self.name == name and self.count == count
+            def next(self, result = None):
+                TestSocket._result_channel.send(result)
+        TestSocket._step_count += 1
+        step = Step()
+        step.name = name
+        step.args = args
+        step.kwargs = kwargs
+        step.count = TestSocket._step_count
+        step.address = self._address
+        TestSocket._callback_channel.send(step)
+        res = TestSocket._result_channel.receive()
+        return res
+
+
+    @classmethod
+    def test(cls):
+        cls._callback_channel = Channel()
+        cls._result_channel = Channel()
+        cls._step_count = 0
+        while True:
+            yield cls._callback_channel.receive()
 
 
 class TestCase(unittest.TestCase):

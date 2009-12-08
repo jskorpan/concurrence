@@ -40,6 +40,8 @@ _test:
 test: _test 
 
 coverage:
-	cd test; coverage -e
-	cd test; PYTHON="coverage -x" make test
-	cd test; coverage -r
+	cd test; coverage erase
+	cd test; PYTHON="coverage run -a " make test
+	cd test; rm -rf htmlcov
+	cd test; coverage html -d htmlcov
+	firefox test/htmlcov/index.html 
