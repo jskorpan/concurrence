@@ -19,9 +19,9 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def set_codec(self, codec):
         self._codec = MemcacheCodec.create(codec)
 
-    def _read_result(self, reader):
+    def _read_result(self, reader, value = None):
         response_line = reader.read_line()
-        return MemcacheResult.get(response_line)
+        return MemcacheResult.get(response_line), value
 
     def write_version(self, writer):
         writer.write_bytes("version\r\n")
@@ -29,9 +29,9 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def read_version(self, reader):
         response_line = reader.read_line()
         if response_line.startswith('VERSION'):
-            return response_line[8:].strip()
+            return MemcacheResult.OK, response_line[8:].strip()
         else:
-            return MemcacheResult.get(response_line)
+            return MemcacheResult.get(response_line), None
 
     def _write_storage(self, writer, cmd, key, value, expiration, flags, cas_unique = None):
         encoded_value, flags = self._codec.encode(value, flags)
@@ -52,9 +52,9 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def _read_incdec(self, reader):
         response_line = reader.read_line()
         try:
-            return int(response_line)
+            return MemcacheResult.OK, int(response_line)
         except ValueError:
-            return MemcacheResult.get(response_line)
+            return MemcacheResult.get(response_line), None
 
     def write_incr(self, writer, key, value):
         self._write_incdec(writer, "incr", key, value)
@@ -92,9 +92,9 @@ class MemcacheTextProtocol(MemcacheProtocol):
                 else:
                     result[key] = self._codec.decode(flags, encoded_value)
             elif response_line == 'END':
-                return result
+                return MemcacheResult.OK, result
             else:
-                return MemcacheResult.get(response_line)
+                return MemcacheResult.get(response_line), {}
 
     def read_gets(self, reader):
         return self.read_get(reader, with_cas_unique = True)

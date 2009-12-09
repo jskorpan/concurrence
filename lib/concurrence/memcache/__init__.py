@@ -20,7 +20,7 @@ class MemcacheResult(object):
         return self._msg
 
     def __repr__(self):
-        return "<MemcacheResult: %s>" % self._name
+        return "MemcacheResult.%s" % self._name
 
     def __eq__(self, other):
         return isinstance(other, MemcacheResult) and other._name == self._name
@@ -44,6 +44,7 @@ class MemcacheResult(object):
         cls._interned[name] = MemcacheResult(name)
         return cls._interned[name]
 
+MemcacheResult.OK = MemcacheResult._intern("OK")
 MemcacheResult.STORED = MemcacheResult._intern("STORED")
 MemcacheResult.NOT_STORED = MemcacheResult._intern("NOT_STORED")
 MemcacheResult.EXISTS = MemcacheResult._intern("EXISTS")

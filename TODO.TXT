@@ -1,0 +1,16 @@
+0.3.2:
+
+./lib/concurrence/io/buffered.py:            #TODO!!! handle exception case/exit
+./lib/concurrence/timer.py:#TODO make sure to update tasklet _timeout_time !!
+- finish memcache client
+- check and finish timeout stuff (rethink global constant, check that all constants are used properly e.g. TIMEOUT_CURRENT vs TIMEOUT_NEVER
+- increase test coverage
+- update documentation (check examples)
+
+0.4:
+    - deprecate SocketServer (Socket.server is better (less magical))
+    - rethink Message, allow everything as message?
+    - check all clients/servers for use of bufferedstream, can they use shared buffers?
+    - remove dummy threading stuff
+    - deprecate/remove xmpp stuff, not good enough, maybe later
+    - deprecate/remove Connector and Server classes?

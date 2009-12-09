@@ -53,7 +53,7 @@ class TestMemcache(unittest.TestCase):
 
         self.assertTrue(MemcacheResult.get('CLIENT_ERROR blaataap') == MemcacheResult.get('CLIENT_ERROR blaataap'))
 
-        self.assertEquals("<MemcacheResult: STORED>", repr(MemcacheResult.STORED))
+        self.assertEquals("MemcacheResult.STORED", repr(MemcacheResult.STORED))
 
         try:
             MemcacheResult.get('XXX')
@@ -88,15 +88,19 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('12345', mc.get('test1'))
         self.assertEquals('67890', mc.get('test2'))
 
+        #get with result:
+        self.assertEquals((MemcacheResult.OK, '12345'), mc.getr('test1'))
+        self.assertEquals((MemcacheResult.OK, '67890'), mc.getr('test2'))
+
         self.assertEquals(None, mc.get('test3')) #if not found by default returns None
         self.assertEquals('blaat', mc.get('test3', 'blaat')) #but you can make it return some other
 
-        self.assertEquals({'test1': '12345', 'test2': '67890'}, mc.get_multi(['test1', 'test2', 'test3']))
+        self.assertEquals((MemcacheResult.OK, {'test1': '12345', 'test2': '67890'}), mc.get_multi(['test1', 'test2', 'test3']))
 
         #update test2
         mc.set('test2', 'hello world!')
 
-        self.assertEquals({'test1': '12345', 'test2': 'hello world!'}, mc.get_multi(['test1', 'test2', 'test3']))
+        self.assertEquals((MemcacheResult.OK, {'test1': '12345', 'test2': 'hello world!'}), mc.get_multi(['test1', 'test2', 'test3']))
 
         #update to int type
         mc.set('test2', 10)
@@ -144,20 +148,29 @@ class TestMemcache(unittest.TestCase):
         #test cas/gets
         self.assertEquals(MemcacheResult.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
         self.assertEquals(MemcacheResult.STORED, mc.set('cas_test1', 'blaat'))
-        value, cas_unique = mc.gets('cas_test1')
+        result, value, cas_unique = mc.gets('cas_test1')
+        self.assertEquals(MemcacheResult.OK, result)
         self.assertEquals('blaat', value)
         self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
         self.assertEquals(MemcacheResult.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
-        value, cas_unique = mc.gets('cas_test1')
+
+        result, value, cas_unique = mc.gets('cas_test1_not_there')
+        self.assertEquals(MemcacheResult.OK, result)
+        self.assertEquals(None, value)
+        self.assertEquals(None, cas_unique)
+
+        result, value, cas_unique = mc.gets('cas_test1')
+        self.assertEquals(MemcacheResult.OK, result)
         self.assertEquals('blaat2', value)
         self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
         self.assertEquals(MemcacheResult.STORED, mc.set('cas_test2', 'blaat4'))
 
-        result = mc.gets_multi(['cas_test1', 'cas_test2'])
-        self.assertTrue('cas_test1' in result)
-        self.assertTrue('cas_test2' in result)
-        self.assertEquals('blaat3', result['cas_test1'][0])
-        self.assertEquals('blaat4', result['cas_test2'][0])
+        result, values = mc.gets_multi(['cas_test1', 'cas_test2'])
+        self.assertEquals(MemcacheResult.OK, result)
+        self.assertTrue('cas_test1' in values)
+        self.assertTrue('cas_test2' in values)
+        self.assertEquals('blaat3', values['cas_test1'][0])
+        self.assertEquals('blaat4', values['cas_test2'][0])
 
         #test append
         self.assertEquals(MemcacheResult.NOT_STORED, mc.append('append_test1', 'hello'))
@@ -172,21 +185,22 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('helloworld', mc.get('prepend_test1'))
 
         #test incr
-        self.assertEquals(MemcacheResult.NOT_FOUND, mc.incr('incr_test1', 1))
+        self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.incr('incr_test1', 1)) #not found
+
         self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '0'))
-        self.assertEquals(1, mc.incr('incr_test1', 1))
-        self.assertEquals(2, mc.incr('incr_test1', '1'))
-        self.assertEquals(12, mc.incr('incr_test1', 10))
+        self.assertEquals((MemcacheResult.OK, 1), mc.incr('incr_test1', 1))
+        self.assertEquals((MemcacheResult.OK, 2), mc.incr('incr_test1', '1'))
+        self.assertEquals((MemcacheResult.OK, 12), mc.incr('incr_test1', 10))
         self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '18446744073709551615'))
-        self.assertEquals(0, mc.incr('incr_test1', 1))
+        self.assertEquals((MemcacheResult.OK, 0), mc.incr('incr_test1', 1))
 
         #test decr
-        self.assertEquals(MemcacheResult.NOT_FOUND, mc.decr('decr_test1', 1))
+        self.assertEquals((MemcacheResult.NOT_FOUND, None), mc.decr('decr_test1', 1)) #not found
         self.assertEquals(MemcacheResult.STORED, mc.set('decr_test1', '12'))
-        self.assertEquals(11, mc.decr('decr_test1', 1))
-        self.assertEquals(10, mc.decr('decr_test1', '1'))
-        self.assertEquals(0, mc.decr('decr_test1', 10))
-        self.assertEquals(0, mc.decr('decr_test1', 1))
+        self.assertEquals((MemcacheResult.OK, 11), mc.decr('decr_test1', 1))
+        self.assertEquals((MemcacheResult.OK, 10), mc.decr('decr_test1', '1'))
+        self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 10))
+        self.assertEquals((MemcacheResult.OK, 0), mc.decr('decr_test1', 1))
 
         #test expiration
         self.assertEquals(MemcacheResult.STORED, mc.set('exp_test', 'blaat', 2)) #expire 2 seconds from now
@@ -203,8 +217,10 @@ class TestMemcache(unittest.TestCase):
         """test stuff that only makes sense on a single server connection"""
         mc = MemcacheConnection()
         mc.connect((MEMCACHE_IP, 11211))
-        v1 = mc.version()
-        v2 = mc.version()
+        res1, v1 = mc.version()
+        res2, v2 = mc.version()
+        self.assertEquals(MemcacheResult.OK, res1)
+        self.assertEquals(MemcacheResult.OK, res2)
         self.assertEquals(str, type(v1))
         self.assertEquals(str, type(v2))
         self.assertTrue(len(v1) > 1)
@@ -254,8 +270,9 @@ class TestMemcache(unittest.TestCase):
         for stride in [10,20,40]:
             with unittest.timer() as tmr:
                 for i in range(0, N, stride):
-                    result = mc.get_multi(keys[i:i+stride])
-                    self.assertEquals(stride, len(result))
+                    result, values = mc.get_multi(keys[i:i+stride])
+                    self.assertEquals(MemcacheResult.OK, result)
+                    self.assertEquals(stride, len(values))
             print 'multi server multi get (%d) keys/sec' % stride, tmr.sec(N)
 
     def testMultiClientMultiServer(self):
@@ -277,8 +294,9 @@ class TestMemcache(unittest.TestCase):
         stride = 40
         def fetcher():
             for i in range(0, N, stride):
-                result = mc.get_multi(keys[i:i+stride])
-                self.assertEquals(stride, len(result))
+                result, values = mc.get_multi(keys[i:i+stride])
+                self.assertEquals(MemcacheResult.OK, result)
+                self.assertEquals(stride, len(values))
 
         for nr_clients in [2,4,8,16]:#,32,64,128]:
             with unittest.timer() as tmr:
@@ -309,29 +327,29 @@ class TestMemcache(unittest.TestCase):
 
         protocol.write_set(writer, 'hello', 'world', 0, 0)
         writer.flush()
-        self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+        self.assertEquals((MemcacheResult.STORED, None), protocol.read_set(reader))
 
         N = 100
         for i in range(N):
             protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i, 0, 0)
             writer.flush()
-            self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
+            self.assertEquals((MemcacheResult.STORED, None), protocol.read_set(reader))
 
         #single get
         for i in range(N):
             protocol.write_get(writer, ['test%d' % i])
             writer.flush()
             result = protocol.read_get(reader)
-            self.assertEquals({'test%d' % i: 'hello world %d' % i}, result)
+            self.assertEquals((MemcacheResult.OK, {'test%d' % i: 'hello world %d' % i}), result)
 
         #multi get
         for i in range(0, N, 10):
             keys = ['test%d' % x for x in range(i, i + 10)]
             protocol.write_get(writer, keys)
             writer.flush()
-            result = protocol.read_get(reader)
-            self.assertEquals(10, len(result))
-            #self.assertEquals({'test%d' % i: 'hello world %d' % i}, result)
+            result, values = protocol.read_get(reader)
+            self.assertEquals(MemcacheResult.OK, result)
+            self.assertEquals(10, len(values))
 
         #multi get pipeline, e.g. write N gets, but don't read out the results yet
         for i in range(0, N, 10):
@@ -341,9 +359,9 @@ class TestMemcache(unittest.TestCase):
 
         #now read the results
         for i in range(0, N, 10):
-            result = protocol.read_get(reader)
-            self.assertEquals(10, len(result))
-            self.assertTrue(('test%d' % i) in result)
+            result, values = protocol.read_get(reader)
+            self.assertEquals(10, len(values))
+            self.assertTrue(('test%d' % i) in values)
 
         #pipelined multiget with same set of keys
         protocol.write_get(writer, ['test2', 'test8', 'test9', 'test11', 'test23', 'test24', 'test29', 'test31', 'test34'])
