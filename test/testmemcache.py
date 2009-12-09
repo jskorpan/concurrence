@@ -88,7 +88,9 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('12345', mc.get('test1'))
         self.assertEquals('67890', mc.get('test2'))
 
-        self.assertEquals(None, mc.get('test3'))
+        self.assertEquals(None, mc.get('test3')) #if not found by default returns None
+        self.assertEquals('blaat', mc.get('test3', 'blaat')) #but you can make it return some other
+
         self.assertEquals({'test1': '12345', 'test2': '67890'}, mc.get_multi(['test1', 'test2', 'test3']))
 
         #update test2
@@ -185,6 +187,12 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(10, mc.decr('decr_test1', '1'))
         self.assertEquals(0, mc.decr('decr_test1', 10))
         self.assertEquals(0, mc.decr('decr_test1', 1))
+
+        #test expiration
+        self.assertEquals(MemcacheResultCode.STORED, mc.set('exp_test', 'blaat', 2)) #expire 2 seconds from now
+        self.assertEquals('blaat', mc.get('exp_test')) #should still find it
+        Tasklet.sleep(4)
+        self.assertEquals(None, mc.get('exp_test')) #should be gone
 
     def testBasicSingle(self):
         mc = MemcacheConnection()
@@ -299,13 +307,13 @@ class TestMemcache(unittest.TestCase):
 
         protocol.set_codec("raw")
 
-        protocol.write_set(writer, 'hello', 'world')
+        protocol.write_set(writer, 'hello', 'world', 0, 0)
         writer.flush()
         self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
 
         N = 100
         for i in range(N):
-            protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i)
+            protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i, 0, 0)
             writer.flush()
             self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
 
@@ -330,6 +338,7 @@ class TestMemcache(unittest.TestCase):
             keys = ['test%d' % x for x in range(i, i + 10)]
             protocol.write_get(writer, keys)
             writer.flush()
+
         #now read the results
         for i in range(0, N, 10):
             result = protocol.read_get(reader)

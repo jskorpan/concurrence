@@ -6,7 +6,7 @@ class MemcacheCodec(object):
     def decode(self, flags, encoded_value):
         assert False, "implement"
 
-    def encode(self, value):
+    def encode(self, value, flags):
         assert False, "implement"
 
     @classmethod
@@ -38,8 +38,7 @@ class MemcacheDefaultCodec(MemcacheCodec):
         else:
             return encoded_value
 
-    def encode(self, value):
-        flags = 0
+    def encode(self, value, flags):
         if isinstance(value, str):
             encoded_value = value
         elif isinstance(value, int):
@@ -60,6 +59,6 @@ class MemcacheRawCodec(MemcacheCodec):
     def decode(self, flags, encoded_value):
         return encoded_value
 
-    def encode(self, value):
-        return str(value), 0
+    def encode(self, value, flags):
+        return str(value), flags
 

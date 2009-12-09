@@ -56,16 +56,7 @@ class MemcacheConnection(object):
         self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(MemcacheCodec.create(codec))
 
-    def connect(self, addr, timeout = TIMEOUT_CURRENT):
-        self._stream = BufferedStream(Socket.connect(addr, timeout))
-
-    def close(self):
-        del self._read_queue
-        del self._write_queue
-        del self._protocol
-        self._stream.close()
-
-    def defer_command(self, cmd, args, result_channel):
+    def _defer_command(self, cmd, args, result_channel):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
             try:
@@ -93,57 +84,67 @@ class MemcacheConnection(object):
 
         self._write_queue.defer(_write_command)
 
-    def do_command(self, cmd, args):
+    def _do_command(self, cmd, args):
         result_channel = Channel()
-        self.defer_command(cmd, args, result_channel)
+        self._defer_command(cmd, args, result_channel)
         return result_channel.receive()
 
-    def delete(self, key):
-        return self.do_command("delete", (key,))
+    def connect(self, addr, timeout = TIMEOUT_CURRENT):
+        self._stream = BufferedStream(Socket.connect(addr, timeout))
 
-    def set(self, key, data):
-        return self.do_command("set", (key, data))
+    def close(self):
+        del self._read_queue
+        del self._write_queue
+        del self._protocol
+        self._stream.close()
 
-    def add(self, key, data):
-        return self.do_command("add", (key, data))
+    def delete(self, key, expiration = 0):
+        return self._do_command("delete", (key, expiration))
 
-    def replace(self, key, data):
-        return self.do_command("replace", (key, data))
+    def set(self, key, data, expiration = 0, flags = 0):
+        return self._do_command("set", (key, data, expiration, flags))
 
-    def append(self, key, data):
-        return self.do_command("append", (key, data))
+    def add(self, key, data, expiration = 0, flags = 0):
+        return self._do_command("add", (key, data, expiration, flags))
 
-    def prepend(self, key, data):
-        return self.do_command("prepend", (key, data))
+    def replace(self, key, data, expiration = 0, flags = 0):
+        return self._do_command("replace", (key, data, expiration, flags))
 
-    def cas(self, key, data, cas_unique):
-        return self.do_command("cas", (key, data, cas_unique))
+    def append(self, key, data, expiration = 0, flags = 0):
+        return self._do_command("append", (key, data, expiration, flags))
+
+    def prepend(self, key, data, expiration = 0, flags = 0):
+        return self._do_command("prepend", (key, data, expiration, flags))
+
+    def cas(self, key, data, cas_unique, expiration = 0, flags = 0):
+        return self._do_command("cas", (key, data, expiration, flags, cas_unique))
 
     def incr(self, key, value):
-        return self.do_command("incr", (key, value))
+        return self._do_command("incr", (key, value))
 
     def decr(self, key, value):
-        return self.do_command("decr", (key, value))
+        return self._do_command("decr", (key, value))
 
-    def get(self, key):
-        result = self.do_command("get", ([key], ))
-        return result.get(key, None)
+    def get(self, key, default = None):
+        #TODO how to return flags?, also for multi and gets
+        result = self._do_command("get", ([key], ))
+        return result.get(key, default)
+
+    def gets(self, key, default = None):
+        result = self._do_command("gets", ([key], ))
+        return result.get(key, default)
 
     def get_multi(self, keys):
-        return self.do_command("get", (keys, ))
-
-    def gets(self, key):
-        result = self.do_command("gets", ([key], ))
-        return result.get(key, None)
+        return self._do_command("get", (keys, ))
 
     def gets_multi(self, keys):
-        return self.do_command("gets", (keys, ))
+        return self._do_command("gets", (keys, ))
 
     def version(self):
-        return self.do_command("version", ())
+        return self._do_command("version", ())
 
 class MemcacheConnectionManager(object):
-    _instance = None
+    _instance = None #TODO when we support multiple protocols, we need to have 1 instance per protocol
 
     def __init__(self):
         self._connections = {} #address -> connection
@@ -210,57 +211,17 @@ class Memcache(object):
     def _get_connection(self, addr):
         return self._connection_manager.get_connection(addr, self._protocol)
 
-    def set_servers(self, servers = None):
-        if servers is not None:
-            self._behaviour.set_servers(servers)
-
     def _connect_by_addr(self, addr, keys, result_channel):
         Tasklet.set_current_timeout(self.connect_timeout)
         connection = self._get_connection(addr)
         result_channel.send((connection, keys))
 
-    def connection_for_key(self, key):
-        return self._get_connection(self._key_to_addr(key))
-
-    def delete(self, key):
-        return self.connection_for_key(key).do_command("delete", (key,))
-
-    def set(self, key, data):
-        return self.connection_for_key(key).do_command("set", (key, data))
-
-    def add(self, key, data):
-        return self.connection_for_key(key).do_command("add", (key, data))
-
-    def replace(self, key, data):
-        return self.connection_for_key(key).do_command("replace", (key, data))
-
-    def append(self, key, data):
-        return self.connection_for_key(key).do_command("append", (key, data))
-
-    def prepend(self, key, data):
-        return self.connection_for_key(key).do_command("prepend", (key, data))
-
-    def cas(self, key, data, cas_unique):
-        return self.connection_for_key(key).do_command("cas", (key, data, cas_unique))
-
-    def incr(self, key, value):
-        return self.connection_for_key(key).do_command("incr", (key, value))
-
-    def decr(self, key, value):
-        return self.connection_for_key(key).do_command("decr", (key, value))
-
-    def _get(self, cmd, key):
+    def _get(self, cmd, key, default):
         result_channel = Channel()
         connection = self.connection_for_key(key)
-        connection.defer_command(cmd, [[key]], result_channel)
+        connection._defer_command(cmd, [[key]], result_channel)
         result = result_channel.receive()
-        return result.get(key, None)
-
-    def get(self, key):
-        return self._get("get", key)
-
-    def gets(self, key):
-        return self._get("gets", key)
+        return result.get(key, default)
 
     def _get_multi(self, cmd, keys):
         result_channel = Channel()
@@ -279,22 +240,56 @@ class Memcache(object):
             Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
         #now asynchronously and in parallel fetch the values from each server
         for connection, _keys in result_channel.receive_n(n):
-            connection.defer_command(cmd, [_keys], result_channel)
+            connection._defer_command(cmd, [_keys], result_channel)
         #loop over the results as they come in and aggregate the final result
         result = {}
         for _result in result_channel.receive_n(n):
             result.update(_result)
         return result
 
+    def set_servers(self, servers = None):
+        if servers is not None:
+            self._behaviour.set_servers(servers)
+
+    def connection_for_key(self, key):
+        return self._get_connection(self._key_to_addr(key))
+
+    def delete(self, key, expiration = 0):
+        return self.connection_for_key(key)._do_command("delete", (key, expiration))
+
+    def set(self, key, data, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("set", (key, data, expiration, flags))
+
+    def add(self, key, data, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("add", (key, data, expiration, flags))
+
+    def replace(self, key, data, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("replace", (key, data, expiration, flags))
+
+    def append(self, key, data, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("append", (key, data, expiration, flags))
+
+    def prepend(self, key, data, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("prepend", (key, data, expiration, flags))
+
+    def cas(self, key, data, cas_unique, expiration = 0, flags = 0):
+        return self.connection_for_key(key)._do_command("cas", (key, data, expiration, flags, cas_unique))
+
+    def incr(self, key, value):
+        return self.connection_for_key(key)._do_command("incr", (key, value))
+
+    def decr(self, key, value):
+        return self.connection_for_key(key)._do_command("decr", (key, value))
+
+    def get(self, key, default = None):
+        return self._get("get", key, default)
+
+    def gets(self, key, default = None):
+        return self._get("gets", key, default)
+
     def get_multi(self, keys):
         return self._get_multi("get", keys)
 
     def gets_multi(self, keys):
         return self._get_multi("gets", keys)
-
-
-
-
-
-
 

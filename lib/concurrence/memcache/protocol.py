@@ -33,15 +33,15 @@ class MemcacheTextProtocol(MemcacheProtocol):
         else:
             return MemcacheResultCode.get(response_line)
 
-    def _write_storage(self, writer, cmd, key, value, cas_unique = None):
-        encoded_value, flags = self._codec.encode(value)
+    def _write_storage(self, writer, cmd, key, value, expiration, flags, cas_unique = None):
+        encoded_value, flags = self._codec.encode(value, flags)
         if cas_unique is not None:
-            writer.write_bytes("%s %s %d 0 %d %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), cas_unique, encoded_value))
+            writer.write_bytes("%s %s %d %d %d %d\r\n%s\r\n" % (cmd, key, flags, expiration, len(encoded_value), cas_unique, encoded_value))
         else:
-            writer.write_bytes("%s %s %d 0 %d\r\n%s\r\n" % (cmd, key, flags, len(encoded_value), encoded_value))
+            writer.write_bytes("%s %s %d %d %d\r\n%s\r\n" % (cmd, key, flags, expiration, len(encoded_value), encoded_value))
 
-    def write_cas(self, writer, key, value, cas_unique):
-        self._write_storage(writer, "cas", key, value, cas_unique)
+    def write_cas(self, writer, key, value, expiration, flags, cas_unique):
+        self._write_storage(writer, "cas", key, value, expiration, flags, cas_unique)
 
     def read_cas(self, reader):
         return self._read_result(reader)
@@ -99,38 +99,38 @@ class MemcacheTextProtocol(MemcacheProtocol):
     def read_gets(self, reader):
         return self.read_get(reader, with_cas_unique = True)
 
-    def write_delete(self, writer, key):
-        writer.write_bytes("delete %s\r\n" % (key, ))
+    def write_delete(self, writer, key, expiration):
+        writer.write_bytes("delete %s %d\r\n" % (key, expiration))
 
     def read_delete(self, reader):
         return self._read_result(reader)
 
-    def write_set(self, writer, key, value):
-        return self._write_storage(writer, "set", key, value)
+    def write_set(self, writer, key, value, expiration, flags):
+        return self._write_storage(writer, "set", key, value, expiration, flags)
 
     def read_set(self, reader):
         return self._read_result(reader)
 
-    def write_add(self, writer, key, value):
-        return self._write_storage(writer, "add", key, value)
+    def write_add(self, writer, key, value, expiration, flags):
+        return self._write_storage(writer, "add", key, value, expiration, flags)
 
     def read_add(self, reader):
         return self._read_result(reader)
 
-    def write_replace(self, writer, key, value):
-        return self._write_storage(writer, "replace", key, value)
+    def write_replace(self, writer, key, value, expiration, flags):
+        return self._write_storage(writer, "replace", key, value, expiration, flags)
 
     def read_replace(self, reader):
         return self._read_result(reader)
 
-    def write_append(self, writer, key, value):
-        return self._write_storage(writer, "append", key, value)
+    def write_append(self, writer, key, value, expiration, flags):
+        return self._write_storage(writer, "append", key, value, expiration, flags)
 
     def read_append(self, reader):
         return self._read_result(reader)
 
-    def write_prepend(self, writer, key, value):
-        return self._write_storage(writer, "prepend", key, value)
+    def write_prepend(self, writer, key, value, expiration, flags):
+        return self._write_storage(writer, "prepend", key, value, expiration, flags)
 
     def read_prepend(self, reader):
         return self._read_result(reader)
