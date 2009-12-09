@@ -10,7 +10,7 @@ from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT
 from concurrence.io import Socket, BufferedStream
 from concurrence.containers.deque import Deque
 
-from concurrence.memcache import MemcacheResultCode, MemcacheError
+from concurrence.memcache import MemcacheError
 from concurrence.memcache.codec import MemcacheCodec
 from concurrence.memcache.behaviour import MemcacheBehaviour
 from concurrence.memcache.protocol import MemcacheProtocol

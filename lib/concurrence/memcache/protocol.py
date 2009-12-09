@@ -1,4 +1,4 @@
-from concurrence.memcache import MemcacheError, MemcacheResultCode
+from concurrence.memcache import MemcacheError, MemcacheResult
 from concurrence.memcache.codec import MemcacheCodec
 
 class MemcacheProtocol(object):
@@ -21,7 +21,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
 
     def _read_result(self, reader):
         response_line = reader.read_line()
-        return MemcacheResultCode.get(response_line)
+        return MemcacheResult.get(response_line)
 
     def write_version(self, writer):
         writer.write_bytes("version\r\n")
@@ -31,7 +31,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
         if response_line.startswith('VERSION'):
             return response_line[8:].strip()
         else:
-            return MemcacheResultCode.get(response_line)
+            return MemcacheResult.get(response_line)
 
     def _write_storage(self, writer, cmd, key, value, expiration, flags, cas_unique = None):
         encoded_value, flags = self._codec.encode(value, flags)
@@ -54,7 +54,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
         try:
             return int(response_line)
         except ValueError:
-            return MemcacheResultCode.get(response_line)
+            return MemcacheResult.get(response_line)
 
     def write_incr(self, writer, key, value):
         self._write_incdec(writer, "incr", key, value)
@@ -94,7 +94,7 @@ class MemcacheTextProtocol(MemcacheProtocol):
             elif response_line == 'END':
                 return result
             else:
-                return MemcacheResultCode.get(response_line)
+                return MemcacheResult.get(response_line)
 
     def read_gets(self, reader):
         return self.read_get(reader, with_cas_unique = True)

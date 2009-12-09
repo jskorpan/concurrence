@@ -6,9 +6,10 @@
 class MemcacheError(Exception):
     pass
 
-class MemcacheResultCode(object):
-    """type safe enumeration of memcache result codes"""
-    _static = {}
+class MemcacheResult(object):
+    """representation of memcache result (codes)"""
+
+    _interned = {}
 
     def __init__(self, name, msg = ''):
         self._name = name
@@ -19,37 +20,37 @@ class MemcacheResultCode(object):
         return self._msg
 
     def __repr__(self):
-        return "<MemcacheResultCode: %s>" % self._name
+        return "<MemcacheResult: %s>" % self._name
 
     def __eq__(self, other):
-        return isinstance(other, MemcacheResultCode) and other._name == self._name
+        return isinstance(other, MemcacheResult) and other._name == self._name
 
     @classmethod
     def get(cls, line):
-        code = cls._static.get(line, None)
+        code = cls._interned.get(line, None)
         if code is None:
             #try client or server error
             if line.startswith('CLIENT_ERROR'):
-                return MemcacheResultCode("CLIENT_ERROR", line[13:])
+                return MemcacheResult("CLIENT_ERROR", line[13:])
             elif line.startswith('SERVER_ERROR'):
-                return MemcacheResultCode("SERVER_ERROR", line[13:])
+                return MemcacheResult("SERVER_ERROR", line[13:])
             else:
                 raise MemcacheError("unknown response: %s" % repr(line))
         else:
             return code
 
     @classmethod
-    def _add_static(cls, name):
-        cls._static[name] = MemcacheResultCode(name)
-        return cls._static[name]
+    def _intern(cls, name):
+        cls._interned[name] = MemcacheResult(name)
+        return cls._interned[name]
 
-MemcacheResultCode.STORED = MemcacheResultCode._add_static("STORED")
-MemcacheResultCode.NOT_STORED = MemcacheResultCode._add_static("NOT_STORED")
-MemcacheResultCode.EXISTS = MemcacheResultCode._add_static("EXISTS")
-MemcacheResultCode.NOT_FOUND = MemcacheResultCode._add_static("NOT_FOUND")
-MemcacheResultCode.DELETED = MemcacheResultCode._add_static("DELETED")
-MemcacheResultCode.ERROR = MemcacheResultCode._add_static("ERROR")
-MemcacheResultCode.TIMEOUT = MemcacheResultCode._add_static("TIMEOUT")
+MemcacheResult.STORED = MemcacheResult._intern("STORED")
+MemcacheResult.NOT_STORED = MemcacheResult._intern("NOT_STORED")
+MemcacheResult.EXISTS = MemcacheResult._intern("EXISTS")
+MemcacheResult.NOT_FOUND = MemcacheResult._intern("NOT_FOUND")
+MemcacheResult.DELETED = MemcacheResult._intern("DELETED")
+MemcacheResult.ERROR = MemcacheResult._intern("ERROR")
+MemcacheResult.TIMEOUT = MemcacheResult._intern("TIMEOUT")
 
 from concurrence.memcache.client import Memcache, MemcacheConnection, MemcacheConnectionManager
 from concurrence.memcache.behaviour import MemcacheBehaviour

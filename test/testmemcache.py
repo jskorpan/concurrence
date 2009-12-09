@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet
-from concurrence.memcache import MemcacheResultCode, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
+from concurrence.memcache import MemcacheResult, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -46,17 +46,17 @@ class TestMemcache(unittest.TestCase):
 
     def testResultCode(self):
 
-        self.assertTrue(MemcacheResultCode.get('STORED') == MemcacheResultCode.get('STORED'))
+        self.assertTrue(MemcacheResult.get('STORED') == MemcacheResult.get('STORED'))
 
-        self.assertEquals('blaataap', MemcacheResultCode.get('CLIENT_ERROR blaataap').msg)
-        self.assertEquals('blaataap', MemcacheResultCode.get('SERVER_ERROR blaataap').msg)
+        self.assertEquals('blaataap', MemcacheResult.get('CLIENT_ERROR blaataap').msg)
+        self.assertEquals('blaataap', MemcacheResult.get('SERVER_ERROR blaataap').msg)
 
-        self.assertTrue(MemcacheResultCode.get('CLIENT_ERROR blaataap') == MemcacheResultCode.get('CLIENT_ERROR blaataap'))
+        self.assertTrue(MemcacheResult.get('CLIENT_ERROR blaataap') == MemcacheResult.get('CLIENT_ERROR blaataap'))
 
-        self.assertEquals("<MemcacheResultCode: STORED>", repr(MemcacheResultCode.STORED))
+        self.assertEquals("<MemcacheResult: STORED>", repr(MemcacheResult.STORED))
 
         try:
-            MemcacheResultCode.get('XXX')
+            MemcacheResult.get('XXX')
             self.fail()
         except MemcacheError:
             pass
@@ -82,8 +82,8 @@ class TestMemcache(unittest.TestCase):
 
     def sharedTestBasic(self, mc):
 
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('test1', '12345'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('test2', '67890'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('test1', '12345'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('test2', '67890'))
 
         self.assertEquals('12345', mc.get('test1'))
         self.assertEquals('67890', mc.get('test2'))
@@ -123,35 +123,35 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals({'piet': 'blaat', 10: 20}, mc.get('test2'))
 
         #test delete
-        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.delete('test_del1'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('test_del1', 'hello'))
+        self.assertEquals(MemcacheResult.NOT_FOUND, mc.delete('test_del1'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('test_del1', 'hello'))
         self.assertEquals('hello', mc.get('test_del1'))
-        self.assertEquals(MemcacheResultCode.DELETED, mc.delete('test_del1'))
+        self.assertEquals(MemcacheResult.DELETED, mc.delete('test_del1'))
         self.assertEquals(None, mc.get('test_del1'))
 
         #test add command
         mc.delete('add1')
-        self.assertEquals(MemcacheResultCode.STORED, mc.add('add1', '11111'))
-        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.add('add1', '22222'))
+        self.assertEquals(MemcacheResult.STORED, mc.add('add1', '11111'))
+        self.assertEquals(MemcacheResult.NOT_STORED, mc.add('add1', '22222'))
 
         #test replace
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('replace1', '11111'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.replace('replace1', '11111'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.replace('replace1', '11111'))
-        self.assertEquals(MemcacheResultCode.DELETED, mc.delete('replace1'))
-        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('replace1', '11111'))
+        self.assertEquals(MemcacheResult.STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResult.STORED, mc.replace('replace1', '11111'))
+        self.assertEquals(MemcacheResult.DELETED, mc.delete('replace1'))
+        self.assertEquals(MemcacheResult.NOT_STORED, mc.replace('replace1', '11111'))
 
         #test cas/gets
-        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('cas_test1', 'blaat'))
+        self.assertEquals(MemcacheResult.NOT_FOUND, mc.cas('cas_test1', 'blaat', 12345))
+        self.assertEquals(MemcacheResult.STORED, mc.set('cas_test1', 'blaat'))
         value, cas_unique = mc.gets('cas_test1')
         self.assertEquals('blaat', value)
-        self.assertEquals(MemcacheResultCode.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
-        self.assertEquals(MemcacheResultCode.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
+        self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat2', cas_unique))
+        self.assertEquals(MemcacheResult.EXISTS, mc.cas('cas_test1', 'blaat2', cas_unique))
         value, cas_unique = mc.gets('cas_test1')
         self.assertEquals('blaat2', value)
-        self.assertEquals(MemcacheResultCode.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('cas_test2', 'blaat4'))
+        self.assertEquals(MemcacheResult.STORED, mc.cas('cas_test1', 'blaat3', cas_unique))
+        self.assertEquals(MemcacheResult.STORED, mc.set('cas_test2', 'blaat4'))
 
         result = mc.gets_multi(['cas_test1', 'cas_test2'])
         self.assertTrue('cas_test1' in result)
@@ -160,36 +160,36 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('blaat4', result['cas_test2'][0])
 
         #test append
-        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.append('append_test1', 'hello'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('append_test1', 'hello'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.append('append_test1', 'world'))
+        self.assertEquals(MemcacheResult.NOT_STORED, mc.append('append_test1', 'hello'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('append_test1', 'hello'))
+        self.assertEquals(MemcacheResult.STORED, mc.append('append_test1', 'world'))
         self.assertEquals('helloworld', mc.get('append_test1'))
 
         #test prepend
-        self.assertEquals(MemcacheResultCode.NOT_STORED, mc.prepend('prepend_test1', 'world'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('prepend_test1', 'world'))
-        self.assertEquals(MemcacheResultCode.STORED, mc.prepend('prepend_test1', 'hello'))
+        self.assertEquals(MemcacheResult.NOT_STORED, mc.prepend('prepend_test1', 'world'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('prepend_test1', 'world'))
+        self.assertEquals(MemcacheResult.STORED, mc.prepend('prepend_test1', 'hello'))
         self.assertEquals('helloworld', mc.get('prepend_test1'))
 
         #test incr
-        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.incr('incr_test1', 1))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('incr_test1', '0'))
+        self.assertEquals(MemcacheResult.NOT_FOUND, mc.incr('incr_test1', 1))
+        self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '0'))
         self.assertEquals(1, mc.incr('incr_test1', 1))
         self.assertEquals(2, mc.incr('incr_test1', '1'))
         self.assertEquals(12, mc.incr('incr_test1', 10))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('incr_test1', '18446744073709551615'))
+        self.assertEquals(MemcacheResult.STORED, mc.set('incr_test1', '18446744073709551615'))
         self.assertEquals(0, mc.incr('incr_test1', 1))
 
         #test decr
-        self.assertEquals(MemcacheResultCode.NOT_FOUND, mc.decr('decr_test1', 1))
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('decr_test1', '12'))
+        self.assertEquals(MemcacheResult.NOT_FOUND, mc.decr('decr_test1', 1))
+        self.assertEquals(MemcacheResult.STORED, mc.set('decr_test1', '12'))
         self.assertEquals(11, mc.decr('decr_test1', 1))
         self.assertEquals(10, mc.decr('decr_test1', '1'))
         self.assertEquals(0, mc.decr('decr_test1', 10))
         self.assertEquals(0, mc.decr('decr_test1', 1))
 
         #test expiration
-        self.assertEquals(MemcacheResultCode.STORED, mc.set('exp_test', 'blaat', 2)) #expire 2 seconds from now
+        self.assertEquals(MemcacheResult.STORED, mc.set('exp_test', 'blaat', 2)) #expire 2 seconds from now
         self.assertEquals('blaat', mc.get('exp_test')) #should still find it
         Tasklet.sleep(4)
         self.assertEquals(None, mc.get('exp_test')) #should be gone
@@ -242,7 +242,7 @@ class TestMemcache(unittest.TestCase):
 
         with unittest.timer() as tmr:
             for i in range(N):
-                self.assertEquals(MemcacheResultCode.STORED, mc.set(keys[i], 'hello world %d' % i))
+                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
         print 'multi server single set keys/sec', tmr.sec(N)
 
         with unittest.timer() as tmr:
@@ -271,7 +271,7 @@ class TestMemcache(unittest.TestCase):
 
         with unittest.timer() as tmr:
             for i in range(N):
-                self.assertEquals(MemcacheResultCode.STORED, mc.set(keys[i], 'hello world %d' % i))
+                self.assertEquals(MemcacheResult.STORED, mc.set(keys[i], 'hello world %d' % i))
         print 'single client multi server single set keys/sec', tmr.sec(N)
 
         stride = 40
@@ -309,13 +309,13 @@ class TestMemcache(unittest.TestCase):
 
         protocol.write_set(writer, 'hello', 'world', 0, 0)
         writer.flush()
-        self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
+        self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
 
         N = 100
         for i in range(N):
             protocol.write_set(writer, 'test%d' % i, 'hello world %d' % i, 0, 0)
             writer.flush()
-            self.assertEquals(MemcacheResultCode.STORED, protocol.read_set(reader))
+            self.assertEquals(MemcacheResult.STORED, protocol.read_set(reader))
 
         #single get
         for i in range(N):
