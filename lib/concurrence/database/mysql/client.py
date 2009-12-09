@@ -140,15 +140,14 @@ class Connection(object):
         else:
             assert False, "<4.1 auth not supported"
 
-        client_caps = server_caps
+        client_caps = CAPS.LONG_FLAG | CAPS.PROTOCOL_41 | CAPS.SECURE_CONNECTION | CAPS.TRANSACTIONS
 
-        #always turn off compression
-        client_caps &= ~CAPS.COMPRESS
-
-        if not server_caps & CAPS.CONNECT_WITH_DB and database:
-            assert False, "initial db given but not supported by server"
-        if server_caps & CAPS.CONNECT_WITH_DB and not database:
-            client_caps &= ~CAPS.CONNECT_WITH_DB
+        if database:
+            if not server_caps & CAPS.CONNECT_WITH_DB:
+                assert False, "initial db given but not supported by server"
+            else:
+                #tell the server that we will supply initial database
+                client_caps |= CAPS.CONNECT_WITH_DB
 
         #build and write our answer to the initial handshake packet
         self.writer.clear()

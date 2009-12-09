@@ -8,7 +8,6 @@ import logging
 
 from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT
 from concurrence.io import Socket, BufferedStream
-from concurrence.containers.deque import Deque
 
 from concurrence.memcache import MemcacheError
 from concurrence.memcache.codec import MemcacheCodec
@@ -17,14 +16,13 @@ from concurrence.memcache.protocol import MemcacheProtocol
 
 #TODO:
 
-#how to communicate and handle errors (raise error for get/gets?)
+#how to communicate and handle errors (raise error for get/gets?) and or extra stuff like flags?
 #timeout on commands (test tasklet based timeout)
 #statistics
 #gzip support
 #close unused connections
 #proper buffer sizes
-#not use pickle for string and unicode types (use flags to indicate this)
-#norepy e.g. no server response to set commands
+#norepy e.g. no server response to set commands, what is the fastest fill rate agains a single memcached server?
 #stats cmd (+item + item size stats
 
 #what to do with partial multi get failure accross multiple servers?, e.g. return partial keys?
