@@ -45,14 +45,22 @@ class MemcacheConnection(object):
     _read_timeout = 10
     _write_timeout = 10
 
-    def __init__(self, protocol = "text", codec = "default"):
+    def __init__(self, address, protocol = "text", codec = "default"):
+
+        self._address = address
+
+        self._stream = None
         self._read_queue = DeferredQueue()
         self._write_queue = DeferredQueue()
 
-        self._stream = None
-
         self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(MemcacheCodec.create(codec))
+
+    def connect(self):
+        self._stream = BufferedStream(Socket.connect(self._address))
+
+    def is_connected(self):
+        return self._stream is not None
 
     def _defer_command(self, cmd, args, result_channel):
         def _read_result():
@@ -70,10 +78,12 @@ class MemcacheConnection(object):
         def _write_command():
             Tasklet.set_current_timeout(self._write_timeout)
             try:
+                if not self.is_connected():
+                    self.connect()
                 with self._stream.get_writer() as writer:
                     getattr(self._protocol, 'write_' + cmd)(writer, *args)
                     writer.flush()
-                    self._read_queue.defer(_read_result)
+                self._read_queue.defer(_read_result)
             except TaskletExit:
                 raise
             except:
@@ -87,14 +97,10 @@ class MemcacheConnection(object):
         self._defer_command(cmd, args, result_channel)
         return result_channel.receive()
 
-    def connect(self, addr, timeout = TIMEOUT_CURRENT):
-        self._stream = BufferedStream(Socket.connect(addr, timeout))
-
     def close(self):
-        del self._read_queue
-        del self._write_queue
-        del self._protocol
-        self._stream.close()
+        if self.is_connected():
+            self._stream.close()
+            self._stream = None
 
     def delete(self, key, expiration = 0):
         return self._do_command("delete", (key, expiration))[0]
@@ -150,32 +156,12 @@ class MemcacheConnectionManager(object):
 
     def __init__(self):
         self._connections = {} #address -> connection
-        self._connecting = {} #address -> Channel
 
-    def get_connection(self, addr, protocol):
+    def get_connection(self, address, protocol):
         """gets a connection to memcached servers at given address using given protocol."""
-        #note that this method is complicated by the fact that the .connect method can potentially block
-        #allowing other tasklets to arrive here concurrently.
-        #only the first tasklet will be responsible for opening the connection, if another tasklet comes in at the
-        #same time, it put on hold on a channel and will wait for the first tasklet to return the connection
-        if addr in self._connections:
-            return self._connections[addr]
-        else:
-            if addr in self._connecting:
-                #somebody else is already connecting, it will inform us of the connection
-                return self._connecting[addr].receive()
-            else:
-                #i am the one who will open the connection
-                self._connecting[addr] = Channel()
-                connection = MemcacheConnection(protocol)
-                connection.connect(addr)
-                self._connections[addr] = connection
-                connect_channel = self._connecting[addr]
-                del self._connecting[addr]
-                #inform other waiting tasklets of the new connection
-                while connect_channel.has_receiver():
-                    connect_channel.send(connection)
-                return connection
+        if not address in self._connections:
+            self._connections[address] = MemcacheConnection(address, protocol)
+        return self._connections[address]
 
     def close_all(self):
         for connection in self._connections.values():
@@ -213,11 +199,6 @@ class Memcache(object):
     def _get_connection(self, addr):
         return self._connection_manager.get_connection(addr, self._protocol)
 
-    def _connect_by_addr(self, addr, keys, result_channel):
-        Tasklet.set_current_timeout(self.connect_timeout)
-        connection = self._get_connection(addr)
-        result_channel.send((connection, keys))
-
     def _get(self, cmd, key, default):
         result_channel = Channel()
         connection = self.connection_for_key(key)
@@ -237,12 +218,10 @@ class Memcache(object):
         #n is the number of servers we need to 'get' from
         n = len(grouped_addrs)
 
-        #get connections to all servers asynchronously and in parallel, connections and corresponding keys are returned on return_channel
-        for addr, _keys in grouped_addrs.iteritems():
-            Tasklet.defer(self._connect_by_addr, addr, _keys, result_channel)
-        #now asynchronously and in parallel fetch the values from each server
-        for connection, _keys in result_channel.receive_n(n):
+        for address, _keys in grouped_addrs.iteritems():
+            connection = self._get_connection(address)
             connection._defer_command(cmd, [_keys], result_channel)
+
         #loop over the results as they come in and aggregate the final result
         values = {}
         result = MemcacheResult.OK

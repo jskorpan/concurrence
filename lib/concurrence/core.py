@@ -45,6 +45,7 @@ EXIT_CODE_TIMEOUT = 128
 
 class TimeoutError(Exception):
     """This exception can be raised by various methods that accept *timeout* parameters."""
+    pass
 
 class TaskletError(Exception):
     def __init__(self, cause, tasklet):

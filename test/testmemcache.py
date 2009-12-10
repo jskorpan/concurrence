@@ -209,14 +209,12 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals(None, mc.get('exp_test')) #should be gone
 
     def testBasicSingle(self):
-        mc = MemcacheConnection()
-        mc.connect((MEMCACHE_IP, 11211))
+        mc = MemcacheConnection((MEMCACHE_IP, 11211))
         self.sharedTestBasic(mc)
 
     def testExtraSingle(self):
         """test stuff that only makes sense on a single server connection"""
-        mc = MemcacheConnection()
-        mc.connect((MEMCACHE_IP, 11211))
+        mc = MemcacheConnection((MEMCACHE_IP, 11211))
         res1, v1 = mc.version()
         res2, v2 = mc.version()
         self.assertEquals(MemcacheResult.OK, res1)
@@ -395,7 +393,6 @@ class TestMemcache(unittest.TestCase):
 
             self.assertEquals(4, len(connections))
             self.assertEquals(1, len(cm._connections))
-            self.assertEquals(0, len(cm._connecting))
         finally:
             cm.close_all()
 
