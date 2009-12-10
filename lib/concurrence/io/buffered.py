@@ -156,6 +156,10 @@ class BufferedStream(object):
         self._read_buffer_size = read_buffer_size or buffer_size
         self._write_buffer_size = write_buffer_size or buffer_size
 
+    def flush(self):
+        if self._writer:
+            self._writer.flush()
+
     @property
     def reader(self):
         if self._reader is None:
@@ -186,11 +190,13 @@ class BufferedStream(object):
             return self._writer
 
         def __exit__(self, type, value, traceback):
-            assert self._writer.buffer.position == 0, "todo implement this case?"
             #TODO!!! handle exception case/exit
-            writer_pool = self._stream._writer_pool.setdefault(self._stream._write_buffer_size, [])
-            writer_pool.append(self._writer)
-            self._stream._writer = None
+            if self._writer.buffer.position != 0:
+                self._stream._writer = self._writer
+            else:
+                writer_pool = self._stream._writer_pool.setdefault(self._stream._write_buffer_size, [])
+                writer_pool.append(self._writer)
+                self._stream._writer = None
 
     class _borrowed_reader(object):
         def __init__(self, stream):

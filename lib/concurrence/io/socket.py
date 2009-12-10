@@ -32,6 +32,8 @@ class Socket(IOStream):
 
     _x = 0
 
+    _interceptor = None
+
     def __init__(self, socket, state = STATE_INIT):
         """don't call directly pls use one of the provided classmethod to create a socket"""
         self.socket = socket
@@ -54,10 +56,16 @@ class Socket(IOStream):
         self.state = state
 
     @classmethod
+    def set_interceptor(cls, interceptor):
+        cls._interceptor = interceptor
+
+    @classmethod
     def from_address(cls, addr):
         """Creates a new socket from the given address. If the addr is a tuple (host, port)
         a normal tcp socket is assumed. if addr is a string, a UNIX Domain socket is assumed"""
-        if type(addr) == types.StringType:
+        if cls._interceptor is not None:
+            return cls._interceptor(addr)
+        elif type(addr) == types.StringType:
             return cls(_socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM))
         else:
             return cls(_socket.socket(_socket.AF_INET, _socket.SOCK_STREAM))

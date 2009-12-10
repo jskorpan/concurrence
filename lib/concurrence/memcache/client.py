@@ -62,13 +62,24 @@ class MemcacheConnection(object):
     def is_connected(self):
         return self._stream is not None
 
+    def flush(self):
+        self._stream.flush()
+
+    def _write_command(self, cmd, args, flush = True):
+        with self._stream.get_writer() as writer:
+            getattr(self._protocol, 'write_' + cmd)(writer, *args)
+            if flush:
+                writer.flush()
+
+    def _read_result(self, cmd):
+        with self._stream.get_reader() as reader:
+            return getattr(self._protocol, 'read_' + cmd)(reader)
+
     def _defer_command(self, cmd, args, result_channel, error_value = None):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
             try:
-                with self._stream.get_reader() as reader:
-                    result, value = getattr(self._protocol, 'read_' + cmd)(reader)
-                result_channel.send((result, value))
+                result_channel.send(self._read_result(cmd))
             except TaskletExit:
                 raise
             except:
@@ -80,9 +91,7 @@ class MemcacheConnection(object):
             try:
                 if not self.is_connected():
                     self.connect()
-                with self._stream.get_writer() as writer:
-                    getattr(self._protocol, 'write_' + cmd)(writer, *args)
-                    writer.flush()
+                self._write_command(cmd, args, True)
                 self._read_queue.defer(_read_result)
             except TaskletExit:
                 raise
