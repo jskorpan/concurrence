@@ -88,6 +88,14 @@ class TestMemcache(unittest.TestCase):
         self.assertEquals('12345', mc.get('test1'))
         self.assertEquals('67890', mc.get('test2'))
 
+        #__setitem__
+        mc['test1_gsi'] = '12345'
+        mc['test2_gsi'] = '67890'
+
+        #__getitem__
+        self.assertEquals('12345', mc['test1_gsi'])
+        self.assertEquals('67890', mc['test2_gsi'])
+
         #get with result:
         self.assertEquals((MemcacheResult.OK, '12345'), mc.getr('test1'))
         self.assertEquals((MemcacheResult.OK, '67890'), mc.getr('test2'))

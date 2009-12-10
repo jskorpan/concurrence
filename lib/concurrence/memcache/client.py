@@ -62,7 +62,7 @@ class MemcacheConnection(object):
     def is_connected(self):
         return self._stream is not None
 
-    def _defer_command(self, cmd, args, result_channel):
+    def _defer_command(self, cmd, args, result_channel, error_value = None):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
             try:
@@ -73,7 +73,7 @@ class MemcacheConnection(object):
                 raise
             except:
                 self.log.exception("read error in defer_command")
-                result_channel.send_exception(MemcacheError, "while reading result")
+                result_channel.send((MemcacheResult.ERROR, error_value))
 
         def _write_command():
             Tasklet.set_current_timeout(self._write_timeout)
@@ -88,13 +88,13 @@ class MemcacheConnection(object):
                 raise
             except:
                 self.log.exception("write error in defer_command")
-                result_channel.send_exception(MemcacheError, "while writing command")
+                result_channel.send((MemcacheResult.ERROR, error_value))
 
         self._write_queue.defer(_write_command)
 
-    def _do_command(self, cmd, args):
+    def _do_command(self, cmd, args, error_value = None):
         result_channel = Channel()
-        self._defer_command(cmd, args, result_channel)
+        self._defer_command(cmd, args, result_channel, error_value)
         return result_channel.receive()
 
     def close(self):
@@ -107,6 +107,9 @@ class MemcacheConnection(object):
 
     def set(self, key, data, expiration = 0, flags = 0):
         return self._do_command("set", (key, data, expiration, flags))[0]
+
+    def __setitem__(self, key, data):
+        self.set(key, data)
 
     def add(self, key, data, expiration = 0, flags = 0):
         return self._do_command("add", (key, data, expiration, flags))[0]
@@ -130,15 +133,18 @@ class MemcacheConnection(object):
         return self._do_command("decr", (key, increment))
 
     def get(self, key, default = None):
-        _, values = self._do_command("get", ([key], ))
+        _, values = self._do_command("get", ([key], ), {})
         return values.get(key, default)
 
+    def __getitem__(self, key):
+        return self.get(key)
+
     def getr(self, key, default = None):
-        result, values = self._do_command("get", ([key], ))
+        result, values = self._do_command("get", ([key], ), {})
         return result, values.get(key, default)
 
     def gets(self, key, default = None):
-        result, values = self._do_command("gets", ([key], ))
+        result, values = self._do_command("gets", ([key], ), {})
         value, cas_unique = values.get(key, (default, None))
         return result, value, cas_unique
 
@@ -202,12 +208,12 @@ class Memcache(object):
     def _get(self, cmd, key, default):
         result_channel = Channel()
         connection = self.connection_for_key(key)
-        connection._defer_command(cmd, [[key]], result_channel)
+        connection._defer_command(cmd, [[key]], result_channel, {})
         result, values = result_channel.receive()
         return result, values.get(key, default)
 
     def _get_multi(self, cmd, keys):
-        result_channel = Channel()
+
 
         #group keys by address (address->[keys]):
         grouped_addrs = {}
@@ -218,9 +224,11 @@ class Memcache(object):
         #n is the number of servers we need to 'get' from
         n = len(grouped_addrs)
 
+        result_channel = Channel()
+
         for address, _keys in grouped_addrs.iteritems():
             connection = self._get_connection(address)
-            connection._defer_command(cmd, [_keys], result_channel)
+            connection._defer_command(cmd, [_keys], result_channel, {})
 
         #loop over the results as they come in and aggregate the final result
         values = {}
@@ -245,6 +253,9 @@ class Memcache(object):
     def set(self, key, data, expiration = 0, flags = 0):
         return self.connection_for_key(key)._do_command("set", (key, data, expiration, flags))[0]
 
+    def __setitem__(self, key, data):
+        self.set(key, data)
+
     def add(self, key, data, expiration = 0, flags = 0):
         return self.connection_for_key(key)._do_command("add", (key, data, expiration, flags))[0]
 
@@ -268,6 +279,9 @@ class Memcache(object):
 
     def get(self, key, default = None):
         return self._get("get", key, default)[1]
+
+    def __getitem__(self, key):
+        return self.get(key)
 
     def getr(self, key, default = None):
         return self._get("get", key, default)
