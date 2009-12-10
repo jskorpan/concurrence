@@ -146,6 +146,13 @@ class Socket(IOStream):
 
             return self.__class__(s, self.STATE_CONNECTED)
 
+    def accept_iter(self):
+        while True:
+            try:
+                yield self.accept()
+            except Exception:
+                self.log.exception("in accept_iter")
+
     def _connect(self, addr, timeout = TIMEOUT_CURRENT):
         assert self.state == self.STATE_INIT, "make sure socket is not already connected or closed"
         try:
