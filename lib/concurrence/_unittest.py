@@ -13,13 +13,18 @@ from concurrence.core import EXIT_CODE_TIMEOUT
 from concurrence.io import IOStream, Socket
 
 class TestSocket(object):
-    _old_socket_new = None
-    _callback_channel = None
-    _result_channel = None
-    _step_count = 0
 
-    def __init__(self, *args, **kwargs):
-        pass
+    _installed = {}
+
+    def __init__(self, callback):
+        self._step_count = 0
+        self._address = None
+        self._callback = callback
+
+    def _step(self, event, args, kwargs):
+        res = self._callback(self, self._step_count, event, args, kwargs)
+        self._step_count += 1
+        return res
 
     def _connect(self, *args, **kwargs):
         self._address = args[0]
@@ -38,41 +43,16 @@ class TestSocket(object):
         res = self._step("read", args, kwargs)
         if res is None:
             return 0 #0 bytes read by default
+        else:
+            args[0].write_bytes(res)
+            return len(res)
 
     @classmethod
-    def install(cls):
-        cls._old_socket_new = Socket.__new__
-        Socket.__new__ = TestSocket
-
-    @classmethod
-    def uninstall(cls):
-        Socket.__new__ = Socket
-
-    def _step(self, name, args, kwargs):
-        class Step(object):
-            def match(self, address, name, count):
-                return self.address == address and self.name == name and self.count == count
-            def next(self, result = None):
-                TestSocket._result_channel.send(result)
-        TestSocket._step_count += 1
-        step = Step()
-        step.name = name
-        step.args = args
-        step.kwargs = kwargs
-        step.count = TestSocket._step_count
-        step.address = self._address
-        TestSocket._callback_channel.send(step)
-        res = TestSocket._result_channel.receive()
-        return res
-
-
-    @classmethod
-    def test(cls):
-        cls._callback_channel = Channel()
-        cls._result_channel = Channel()
-        cls._step_count = 0
-        while True:
-            yield cls._callback_channel.receive()
+    def install(cls, addr, callback):
+        cls._installed[addr] = TestSocket(callback)
+        def interceptor(addr):
+            return cls._installed[addr]
+        Socket.set_interceptor(interceptor)
 
 
 class TestCase(unittest.TestCase):

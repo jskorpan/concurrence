@@ -13,6 +13,7 @@ from concurrence.core import Channel, Tasklet, Message, Deque, FileDescriptorEve
 from concurrence.core import TimeoutError, TaskletError, JoinError
 from concurrence.extra import TaskletPool, DeferredQueue, Lock, Semaphore
 from concurrence.local import TaskLocal, TaskInstance
+from concurrence.timer import Timeout
 
 import concurrence._unittest as unittest
 

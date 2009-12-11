@@ -6,7 +6,7 @@ from __future__ import with_statement
 
 import logging
 
-from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT
+from concurrence import Tasklet, Channel, DeferredQueue, TIMEOUT_CURRENT, TimeoutError
 from concurrence.io import Socket, BufferedStream
 
 from concurrence.memcache import MemcacheError, MemcacheResult
@@ -42,8 +42,8 @@ from concurrence.memcache.protocol import MemcacheProtocol
 class MemcacheConnection(object):
     log = logging.getLogger("MemcacheConnection")
 
-    _read_timeout = 10
-    _write_timeout = 10
+    _read_timeout = 2
+    _write_timeout = 2
 
     def __init__(self, address, protocol = "text", codec = "default"):
 
@@ -79,7 +79,8 @@ class MemcacheConnection(object):
         def _read_result():
             Tasklet.set_current_timeout(self._read_timeout)
             try:
-                result_channel.send(self._read_result(cmd))
+                result = self._read_result(cmd)
+                result_channel.send(result)
             except TaskletExit:
                 raise
             except:
@@ -104,7 +105,10 @@ class MemcacheConnection(object):
     def _do_command(self, cmd, args, error_value = None):
         result_channel = Channel()
         self._defer_command(cmd, args, result_channel, error_value)
-        return result_channel.receive()
+        try:
+            return result_channel.receive()
+        except TimeoutError:
+            return MemcacheResult.TIMEOUT, error_value
 
     def close(self):
         if self.is_connected():

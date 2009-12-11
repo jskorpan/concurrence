@@ -18,6 +18,8 @@ from concurrence.io import IOStream
 DEFAULT_BACKLOG = 512
 XMOD = 8
 
+_interceptor = None
+
 class Socket(IOStream):
     log = logging.getLogger('Socket')
 
@@ -31,8 +33,6 @@ class Socket(IOStream):
     STATE_CLOSED = 5
 
     _x = 0
-
-    _interceptor = None
 
     def __init__(self, socket, state = STATE_INIT):
         """don't call directly pls use one of the provided classmethod to create a socket"""
@@ -57,14 +57,15 @@ class Socket(IOStream):
 
     @classmethod
     def set_interceptor(cls, interceptor):
-        cls._interceptor = interceptor
+        global _interceptor
+        _interceptor = interceptor
 
     @classmethod
     def from_address(cls, addr):
         """Creates a new socket from the given address. If the addr is a tuple (host, port)
         a normal tcp socket is assumed. if addr is a string, a UNIX Domain socket is assumed"""
-        if cls._interceptor is not None:
-            return cls._interceptor(addr)
+        if _interceptor is not None:
+            return _interceptor(addr)
         elif type(addr) == types.StringType:
             return cls(_socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM))
         else:

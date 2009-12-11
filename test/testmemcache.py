@@ -4,7 +4,7 @@ import os
 import time
 import logging
 
-from concurrence import unittest, Tasklet, Channel
+from concurrence import unittest, Tasklet, Channel, Timeout
 from concurrence.memcache import MemcacheResult, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
 
 MEMCACHE_IP = '127.0.0.1'
@@ -270,6 +270,26 @@ class TestMemcache(unittest.TestCase):
             for i in range(N):
                 mc.set('test2', 'hello world!')
         print 'single server single set keys/sec', tmr.sec(N)
+
+    def testTimeout(self):
+
+        mc = Memcache()
+        mc.set_servers([((MEMCACHE_IP, 11211), 100)])
+
+        def callback(socket, count, event, args, kwargs):
+            print count, event, Tasklet.current()
+            if (count, event) == (1, "write"):
+                pass
+            elif (count, event) == (2, "read"):
+                Tasklet.sleep(1.0)
+                return "OK\r\n"
+
+        unittest.TestSocket.install((MEMCACHE_IP, 11211), callback)
+        with Timeout.push(0.5):
+            self.assertEquals(MemcacheResult.TIMEOUT, mc.set('blaat', 'aap'))
+            print 'done (timeout)'
+
+        Tasklet.sleep(4.0)
 
     def testMemcacheMultiServer(self):
 
