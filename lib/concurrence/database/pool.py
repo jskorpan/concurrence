@@ -89,7 +89,7 @@ class BasePool(object):
 class Pool(BasePool):
     log = logging.getLogger('Pool')
 
-    def __init__(self, connector, dbargs, max_connections = 10, connect_timeout = -1, max_connection_age = None,
+    def __init__(self, connector, dbargs, max_connections = 10, connect_timeout = TIMEOUT_CURRENT, max_connection_age = None,
                  max_connection_age_reaper_interval = 60):
         super(Pool, self).__init__(connector, dbargs, connect_timeout)
 

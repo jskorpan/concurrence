@@ -1,9 +1,9 @@
 0.3.2:
 
 ./lib/concurrence/io/buffered.py:            #TODO!!! handle exception case/exit
-./lib/concurrence/timer.py:#TODO make sure to update tasklet _timeout_time !!
 - finish memcache client
 - implement channel preference and see if this helps for memcache http://www.stackless.com/pipermail/stackless/2009-March/003970.html
+- try to improve 'fill-rate' of memcache comms, e.g. less flushing, maybe client API must be changed to provide highest rate, check bandwith vs latency
 - check and finish timeout stuff (rethink global constant, check that all constants are used properly e.g. TIMEOUT_CURRENT vs TIMEOUT_NEVER
 - increase test coverage
 - update documentation (check examples)

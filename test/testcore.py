@@ -3,7 +3,7 @@ import logging
 import time
 import sys
 
-from concurrence import unittest, Tasklet, Channel, TimeoutError, TaskletError, JoinError, Message, Lock
+from concurrence import unittest, Tasklet, Channel, TimeoutError, TaskletError, JoinError, Message, TIMEOUT_NEVER
 
 class TestTasklet(unittest.TestCase):
     def testSleep(self):
@@ -312,6 +312,25 @@ class TestTasklet(unittest.TestCase):
         except TimeoutError:
             pass #expected
         child.kill()
+
+    def testTimeout(self):
+
+        self.assertEquals(TIMEOUT_NEVER, Tasklet.get_current_timeout())
+        Tasklet.set_current_timeout(10)
+        self.assertAlmostEqual(10.0, Tasklet.get_current_timeout(), places = 1)
+        Tasklet.sleep(1.0)
+        self.assertAlmostEqual(9.0, Tasklet.get_current_timeout(), places = 1)
+        Tasklet.sleep(1.0)
+        self.assertAlmostEqual(8.0, Tasklet.get_current_timeout(), places = 1)
+
+        current = Tasklet.current()
+        current.timeout = 10.0
+        self.assertAlmostEqual(10.0, current.timeout, places = 1)
+        Tasklet.sleep(1.0)
+        self.assertAlmostEqual(9.0, current.timeout, places = 1)
+
+        current.timeout = TIMEOUT_NEVER
+        self.assertEquals(TIMEOUT_NEVER, current.timeout)
 
 class TestChannel(unittest.TestCase):
 

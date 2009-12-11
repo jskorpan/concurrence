@@ -2,10 +2,10 @@ from __future__ import with_statement
 
 import time
 
-from concurrence import unittest, Tasklet, Channel, TimeoutError, TIMEOUT_NEVER
+from concurrence import unittest, Tasklet, Channel, TimeoutError, TIMEOUT_NEVER, TIMEOUT_CURRENT
 from concurrence.timer import Timeout
 
-class TimerTest(unittest.TestCase):
+class TestTimer(unittest.TestCase):
     def testPushPop(self):
 
         self.assertEquals(TIMEOUT_NEVER, Timeout.current())
@@ -49,6 +49,30 @@ class TimerTest(unittest.TestCase):
         self.assertAlmostEqual(10, Timeout.current(), places = 1)
         Timeout.pop()
         self.assertEquals(TIMEOUT_NEVER, Timeout.current())
+
+    def testPushPop3(self):
+        self.assertEquals(TIMEOUT_NEVER, Timeout.current())
+        Tasklet.set_current_timeout(10.0)
+        Timeout.push(5.0)
+        self.assertAlmostEqual(5.0, Timeout.current(), places = 1)
+        Timeout.pop()
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        Timeout.push(15.0)
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        Timeout.pop()
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        self.assertAlmostEqual(10.0, Tasklet.get_current_timeout(), places = 1)
+        Tasklet.set_current_timeout(TIMEOUT_NEVER)
+
+    def testPushPop4(self):
+        self.assertEquals(TIMEOUT_NEVER, Timeout.current())
+        Tasklet.set_current_timeout(10.0)
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        Timeout.push(TIMEOUT_CURRENT)
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        Timeout.pop()
+        self.assertAlmostEqual(10.0, Timeout.current(), places = 1)
+        Tasklet.set_current_timeout(TIMEOUT_NEVER)
 
     def testTimer(self):
 

@@ -86,20 +86,24 @@ class FileDescriptorEvent(Event):
         if has_timedout:
             self._channel.send_exception(TimeoutError, "timeout on fd event")
         else:
-            self._channel.send(self)
+            self._channel.send(self, TIMEOUT_NEVER)
 
     def notify(self, callback, timeout = TIMEOUT_CURRENT):
         self._current_callback = callback
         if timeout == TIMEOUT_NEVER:
             self._event.add() #no timeout
         elif timeout == TIMEOUT_CURRENT:
-            self._event.add(Tasklet.get_current_timeout()) #tasklet defined timeout
+            timeout = Tasklet.get_current_timeout() #tasklet defined timeout
+            if timeout == TIMEOUT_NEVER:
+                self._event.add() #no timeout
+            else:
+                self._event.add(timeout)
         else:
-            self._event.add(timeout)
+            self._event.add(timeout) #specific timeout
 
     def wait(self, timeout = TIMEOUT_CURRENT):
         self.notify(self._channel_callback, timeout)
-        return self._channel.receive()
+        return self._channel.receive(TIMEOUT_NEVER) #note that we always return from notify based on timeout
 
     def close(self):
         self._event.delete()
@@ -245,7 +249,7 @@ class Tasklet(stackless.tasklet):
         self._children = None
         self._join_channel = None
         self._mailbox = None
-        self._timeout_time = TIMEOUT_NEVER
+        self._timeout_time = TIMEOUT_NEVER #the timeout time (unix timestamp) at which this task will timeout
         self.all.add(self)
 
     def __exec__(self, f, *args, **kwargs):
@@ -334,7 +338,7 @@ class Tasklet(stackless.tasklet):
         return msg.wait(timeout)
 
     @classmethod
-    def receive(cls, timeout = TIMEOUT_NEVER):
+    def receive(cls, timeout = TIMEOUT_CURRENT):
         """A generator that yields the next pending :class:`Message` in the :attr:`mailbox` of the current task. This
         method returns a tuple (msg, args, kwargs) for each message received. If no message is available the task blocks
         and waits for a message to arrive."""
@@ -367,7 +371,7 @@ class Tasklet(stackless.tasklet):
             assert False, 'Cannot get result of a task that has not finished'
 
     @classmethod
-    def join(cls, t, timeout = TIMEOUT_NEVER):
+    def join(cls, t, timeout = TIMEOUT_CURRENT):
         """The current task will block and wait for the given task *t* to complete. When *t* is finished, this method will return
         its result value. If *t* finishes with an exception this method will raise a :class:`JoinError`. Optionally a *timeout* in seconds may
         be specified. If *task* does not finish within *timeout* a :class:`TimeoutError` will be raised."""
@@ -383,7 +387,7 @@ class Tasklet(stackless.tasklet):
             t._join_channel = None
 
     @classmethod
-    def join_all(cls, tasks, timeout = TIMEOUT_NEVER):
+    def join_all(cls, tasks, timeout = TIMEOUT_CURRENT):
         """The current task will block and wait for the given *tasks* to complete. When all *tasks* have finished a list of
         results is returned. If a task finishes with an exception the result value for that task will be an instance of :class:`JoinError`.
         Optionally a *timeout* for the wait can be specified. If all *tasks* do not finish within *timeout* a :class:`TimeoutError` will be
@@ -413,7 +417,7 @@ class Tasklet(stackless.tasklet):
         return [results[t] for t in tasks]
 
     @classmethod
-    def join_children(cls, timeout = TIMEOUT_NEVER):
+    def join_children(cls, timeout = TIMEOUT_CURRENT):
         """A convenience method for joining all children of the current task. Behaves as :func:`join_all` where *tasks* is the list
         of children."""
         return cls.join_all(list(cls.current().children()), timeout = timeout)
@@ -577,14 +581,16 @@ class Tasklet(stackless.tasklet):
         stackless.tasklet.kill(self)
 
     def get_timeout(self):
+        """Returns the time in seconds left before this task will timeout."""
         if self._timeout_time < 0:
-            return -1
+            return TIMEOUT_NEVER
         else:
             timeout = self._timeout_time - time.time()
             if timeout < 0: timeout = 0.0 #expire immediately
             return timeout
 
     def set_timeout(self, timeout):
+        """Sets the time at which this task will timeout to *timeout* seconds in the future."""
         assert timeout != TIMEOUT_CURRENT
         if timeout < 0:
             self._timeout_time = TIMEOUT_NEVER
@@ -594,12 +600,14 @@ class Tasklet(stackless.tasklet):
     timeout = property(get_timeout, set_timeout)
 
     @classmethod
-    def set_current_timeout(cls, timeout):
-        cls.current().timeout = timeout
+    def get_current_timeout(cls):
+        """Returns the time in seconds left before the current task will timeout."""
+        return cls.current().timeout
 
     @classmethod
-    def get_current_timeout(cls):
-        return cls.current().timeout
+    def set_current_timeout(cls, timeout):
+        """Sets the time at which the current task will timeout to *timeout* seconds in the future."""
+        cls.current().timeout = timeout
 
     @classmethod
     def count(cls):
@@ -641,24 +649,32 @@ class Channel(object):
         """Send an exception trough the channel instead of some value. This will immediatly raise the exception in the receiver."""
         self._channel.send_exception(*args, **kwargs)
 
-    def receive(self, timeout = TIMEOUT_NEVER):
+    def receive(self, timeout = TIMEOUT_CURRENT):
         """Receive from the channel. If there is no sender, the caller will block until there is one.
         Optionally you can specify a *timeout*. If a sender does not show up within the *timeout* period a
         :class:`TimeoutError` is raised. The method returns the value given by the sender."""
         if timeout == TIMEOUT_NEVER:
-            #most common without timeout
+            #no timeout
             return self._channel.receive()
         else:
+            #either tasklet defined or specific timeout
             current_task = Tasklet.current()
             if timeout == TIMEOUT_CURRENT:
+                #tasklet defines the timeout
                 timeout = current_task.timeout
-            def on_timeout():
-                current_task.raise_exception(TimeoutError)
-            event_timeout = TimeoutEvent(timeout, on_timeout)
-            try:
+            #
+            if timeout == TIMEOUT_NEVER:
+                #still no timeout
                 return self._channel.receive()
-            finally:
-                event_timeout.close()
+            else:
+                #with timeout
+                def on_timeout():
+                    current_task.raise_exception(TimeoutError)
+                event_timeout = TimeoutEvent(timeout, on_timeout)
+                try:
+                    return self._channel.receive()
+                finally:
+                    event_timeout.close()
 
     def receive_n(self, n):
         for i in range(n):
@@ -668,27 +684,33 @@ class Channel(object):
         while True:
             yield self.receive(TIMEOUT_CURRENT)
 
-    def send(self, value, timeout = TIMEOUT_NEVER):
+    def send(self, value, timeout = TIMEOUT_CURRENT):
         """Sends to the channel. If there is no receiver, the caller will block until there is one.
         If a receiver is present, the *value* will be passed to the receiver and execution will continue in the
         receiver.
         Optionally you can specify a *timeout*. If a receiver does not show up within the *timeout* period a
         :class:`TimeoutError` is raised."""
         if timeout == TIMEOUT_NEVER:
-            #most common without timeout
+            #no timeout
             self._channel.send(value)
         else:
             #setup timeout event
             current_task = Tasklet.current()
             if timeout == TIMEOUT_CURRENT:
                 timeout = current_task.timeout
-            def on_timeout():
-                current_task.raise_exception(TimeoutError)
-            event_timeout = TimeoutEvent(timeout, on_timeout)
-            try:
+            #
+            if timeout == TIMEOUT_NEVER:
+                #still no timeout
                 self._channel.send(value)
-            finally:
-                event_timeout.close()
+            else:
+                #with timeout
+                def on_timeout():
+                    current_task.raise_exception(TimeoutError)
+                event_timeout = TimeoutEvent(timeout, on_timeout)
+                try:
+                    self._channel.send(value)
+                finally:
+                    event_timeout.close()
 
 _running = False #whether we are currently in dispatch, used stop the dispatch (use quit method)
 _exitcode = EXIT_CODE_OK

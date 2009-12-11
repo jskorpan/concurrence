@@ -5,40 +5,41 @@
 
 import time
 
-from concurrence import Tasklet, TaskLocal
-
-#TODO make sure to update tasklet _timeout_time !!
+from concurrence import Tasklet, TaskLocal, TIMEOUT_NEVER, TIMEOUT_CURRENT
 
 class _Timeout(object):
     def __init__(self):
-        self._timeout_time = [-1]
+        self._timeout_stack = [Tasklet.current()._timeout_time]
 
-    def push(self, timeout = -1):
-        current_timeout = self._timeout_time[-1]
-        if timeout < 0 and current_timeout < 0:
-            self._timeout_time.append(timeout)
-        elif timeout < 0 and current_timeout >= 0:
-            self._timeout_time.append(current_timeout)
+    def push(self, timeout):
+        current_timeout = self._timeout_stack[-1]
+        assert current_timeout != TIMEOUT_CURRENT
+        if timeout == TIMEOUT_CURRENT:
+            self._timeout_stack.append(current_timeout)
+        elif timeout == TIMEOUT_NEVER and current_timeout == TIMEOUT_NEVER:
+            self._timeout_stack.append(timeout)
+        elif timeout == TIMEOUT_NEVER and current_timeout != TIMEOUT_NEVER:
+            self._timeout_stack.append(current_timeout)
         else:
             _timeout_time = time.time() + timeout
-            if current_timeout < 0:
-                self._timeout_time.append(_timeout_time)
+            if current_timeout == TIMEOUT_NEVER:
+                self._timeout_stack.append(_timeout_time)
             else:
-                self._timeout_time.append(min(_timeout_time, current_timeout))
+                self._timeout_stack.append(min(_timeout_time, current_timeout))
 
-        Tasklet.current()._timeout_time = self._timeout_time[-1]
+        Tasklet.current()._timeout_time = self._timeout_stack[-1]
 
     def pop(self):
-        assert len(self._timeout_time) > 1, "unmatched pop, did you forget to push?"
-        self._timeout_time.pop()
-
-        Tasklet.current()._timeout_time = self._timeout_time[-1]
+        assert len(self._timeout_stack) > 1, "unmatched pop, did you forget to push?"
+        self._timeout_stack.pop()
+        Tasklet.current()._timeout_time = self._timeout_stack[-1]
+        return len(self._timeout_stack) > 1
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.pop()
+        Timeout.pop()
 
 
 class Timeout:
@@ -79,14 +80,15 @@ class Timeout:
         """Pops the current timeout for the current task."""
         try:
             t = cls._local.t
-            t.pop()
+            if not t.pop():
+                del cls._local.t
         except AttributeError:
             assert False, "no timeout was pushed for the current task"
 
     @classmethod
     def current(cls):
         """Gets the current timeout for the current task in seconds. That is the number of seconds before the current task
-        will timeout by raising a :class:`~concurrence.core.TimeoutError`. A timeout of -1 indicates that there is no timeout for the
+        will timeout by raising a :class:`~concurrence.core.TimeoutError`. A timeout of TIMEOUT_NEVER indicates that there is no timeout for the
         current task."""
-        return Tasklet.current().timeout
+        return Tasklet.get_current_timeout()
 
