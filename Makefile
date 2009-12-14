@@ -45,4 +45,4 @@ coverage:
 	cd test; PYTHON="coverage run -a " make test
 	cd test; rm -rf htmlcov
 	cd test; coverage html -d htmlcov
-	firefox test/htmlcov/index.html 
+	firefox test/htmlcov/index.html& 

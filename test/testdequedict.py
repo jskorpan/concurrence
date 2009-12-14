@@ -3,7 +3,7 @@ import unittest
 from concurrence.containers.dequedict import DequeDict
 
 class DequeDictTest(unittest.TestCase):
-    def testDequeDict(self):        
+    def testDequeDict(self):
         m = DequeDict()
         m.appendleft("piet", 10)
         self.assertEquals(1, len(m))
@@ -20,7 +20,7 @@ class DequeDictTest(unittest.TestCase):
         i = m.iteritemsright()
         self.assertEquals(("klaas", 20), i.next())
         self.assertEquals(("piet", 10), i.next())
-        try: 
+        try:
             i.next()
             self.fail("expected end of iter")
         except:
@@ -28,10 +28,48 @@ class DequeDictTest(unittest.TestCase):
         self.assertEquals(m["piet"], 10)
         del m["piet"]
         self.assertEquals(1, len(m))
+        self.assertTrue(bool(m))
         self.assertTrue("piet" not in m)
         self.assertEquals(("klaas", 20), m.pop())
         self.assertEquals(0, len(m))
-        
+        self.assertFalse(bool(m))
+
+        m.append("a", 10)
+        m.append("b", 20)
+        m.append("c", 30)
+
+        x = []
+        for key in m.iterkeys():
+            x.append(key)
+        self.assertEquals(['a', 'b', 'c'], x)
+
+        x = []
+        for key in m.iterkeysright():
+            x.append(key)
+        self.assertEquals(['c', 'b', 'a'], x)
+
+        x = []
+        for key in m.itervalues():
+            x.append(key)
+        self.assertEquals([10, 20, 30], x)
+
+        self.assertEquals(['a', 'b', 'c'], m.keys())
+        self.assertEquals([10, 20, 30], m.values())
+        self.assertEquals([('a', 10), ('b', 20), ('c', 30)], m.items())
+
+        x = []
+        for key in m:
+            x.append(key)
+        self.assertEquals(['a', 'b', 'c'], x)
+
+        self.assertEquals("dequedict([('a', 10),('b', 20),('c', 30)])", repr(m))
+
+        self.assertEquals(('a', 10), m.popleft())
+        m.removeall('b')
+        self.assertFalse('b' in m)
+        self.assertEquals(('c', 30), m.popleft())
+
+
     def testPickle(self):
         m = DequeDict()
         N = 10
@@ -47,4 +85,5 @@ class DequeDictTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 
