@@ -11,7 +11,7 @@ TIMEOUT_CURRENT = -2
 from concurrence.core import dispatch, quit, disable_threading, get_version_info
 from concurrence.core import Channel, Tasklet, Message, Deque, FileDescriptorEvent, SignalEvent, TimeoutEvent
 from concurrence.core import TimeoutError, TaskletError, JoinError
-from concurrence.extra import TaskletPool, DeferredQueue, Lock, Semaphore
+from concurrence.extra import TaskletPool, DeferredQueue, Lock, Semaphore, QueueChannel
 from concurrence.local import TaskLocal, TaskInstance
 from concurrence.timer import Timeout
 

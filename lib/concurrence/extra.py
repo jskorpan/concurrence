@@ -126,6 +126,18 @@ class TaskletExtra(object):
 
 Tasklet.__bases__ += (TaskletExtra,)
 
+class QueueChannel(Deque):
+    def send(self, value):
+        self.append(value)
+
+    def receive(self, timeout = TIMEOUT_CURRENT):
+        return self.popleft(True, timeout)
+
+    def receive_n(self, n):
+        for i in range(n):
+            yield self.popleft(True, TIMEOUT_CURRENT)
+
+
 
 
 
