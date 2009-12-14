@@ -425,5 +425,57 @@ class TestChannel(unittest.TestCase):
 
         self.assertEquals(False, test_channel.has_receiver())
 
+    def testHasSender(self):
+
+        test_channel = Channel()
+
+        def sender():
+            test_channel.send(True)
+
+        self.assertEquals(False, test_channel.has_sender())
+
+        r = Tasklet.new(sender)()
+
+        Tasklet.sleep(1.0)
+
+        self.assertEquals(True, test_channel.has_sender())
+
+        r.kill()
+
+        Tasklet.sleep(1.0)
+
+        self.assertEquals(False, test_channel.has_sender())
+
+    def testReceiveIter(self):
+
+        test_channel = Channel()
+
+        def sender():
+            for i in range(10):
+                test_channel.send(i)
+
+        t = Tasklet.new(sender)()
+        x = []
+        for i in test_channel.receive_n(10):
+            x.append(i)
+
+        self.assertEquals(range(10), x)
+
+        t = Tasklet.new(sender)()
+
+
+
+        try:
+            Tasklet.set_current_timeout(1.0)
+            x = []
+            for i in test_channel:
+                x.append(i)
+        except TimeoutError:
+            pass
+        finally:
+            Tasklet.set_current_timeout(TIMEOUT_NEVER)
+
+        self.assertEquals(range(10), x)
+
 if __name__ == '__main__':
     unittest.main(timeout = 100.0)
