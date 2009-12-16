@@ -148,6 +148,40 @@ class TestStackless(unittest.TestCase):
 
         self.assertEquals(1, stackless.getruncount()) #main
 
+
+    def testChannelPreference(self):
+
+
+        c = stackless.channel()
+
+        N = 8
+
+        def ch1(result):
+            for i in range(N):
+                result.append('r%d' % i)
+                c.receive()
+
+        def ch2(result):
+            for i in range(N):
+                result.append('s%d' % i)
+                c.send(True)
+
+        def doit():
+            result = []
+            child1 = stackless.tasklet(ch1)(result)
+            child2 = stackless.tasklet(ch2)(result)
+            self.assertEquals(3, stackless.getruncount())
+            while stackless.getruncount() > 1:
+                stackless.schedule()
+            return result
+
+        c.preference = -1
+        self.assertEquals(['r0', 's0', 'r1', 's1', 'r2', 's2', 'r3', 's3', 'r4', 's4', 'r5', 's5', 'r6', 's6', 'r7', 's7'], doit())
+        c.preference = 0
+        self.assertEquals(['r0', 's0', 's1', 'r1', 'r2', 's2', 's3', 'r3', 'r4', 's4', 's5', 'r5', 'r6', 's6', 's7', 'r7'], doit())
+        c.preference = 1
+        self.assertEquals(['r0', 's0', 's1', 'r1', 's2', 'r2', 's3', 'r3', 's4', 'r4', 's5', 'r5', 's6', 'r6', 's7', 'r7'], doit())
+
     def testKillOnChannel(self):
 
         c = stackless.channel()

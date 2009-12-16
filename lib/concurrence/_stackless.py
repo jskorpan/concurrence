@@ -12,7 +12,7 @@ Note that this does not aim to be a complete implementation of stackless on top 
 just enough of the stackless API to make concurrence run.
 This code was inspired by:
 http://aigamedev.com/programming-tips/round-robin-multi-tasking and
-also by the pypy implementation of the same thing (buggy, not being maintained?) at 
+also by the pypy implementation of the same thing (buggy, not being maintained?) at
 https://codespeak.net/viewvc/pypy/dist/pypy/lib/stackless.py?view=markup
 """
 
@@ -43,13 +43,14 @@ class channel(object):
     """implementation of stackless's channel object"""
     def __init__(self):
         self.balance = 0
+        self.preference = -1
         self.queue = deque()
 
     def receive(self):
-        return _scheduler._receive(self)
+        return _scheduler._receive(self, self.preference)
 
     def send(self, data):
-        return _scheduler._send(self, data)
+        return _scheduler._send(self, data, self.preference)
 
     def send_exception(self, exp_type, *args):
         self.send(bomb(exp_type, exp_type(*args)))
@@ -57,19 +58,19 @@ class channel(object):
     def send_sequence(self, iterable):
         for item in iterable:
             self.send(item)
-        
 
-            
+
+
 class tasklet(object):
     """implementation of stackless's tasklet object"""
-    
+
     def __init__(self, f = None, greenlet = None, alive = False):
         self.greenlet = greenlet
         self.func = f
         self.alive = alive
         self.blocked = False
         self.data = None
-        
+
     def bind(self, func):
         if not callable(func):
             raise TypeError('tasklet function must be a callable')
@@ -96,7 +97,7 @@ class tasklet(object):
                 if _scheduler._runnable: #there are more tasklets scheduled to run next
                     #this make sure that flow will continue in the correct greenlet, e.g. the next in the schedule
                     self.greenlet.parent = _scheduler._runnable[0].greenlet
-                self.alive = False            
+                self.alive = False
                 del self.greenlet
                 del self.func
                 del self.data
@@ -124,18 +125,18 @@ class tasklet(object):
 
 class scheduler(object):
     def __init__(self):
-        self._main_task = tasklet(greenlet = greenlet.getcurrent(), alive = True) 
+        self._main_task = tasklet(greenlet = greenlet.getcurrent(), alive = True)
         #all non blocked tast are in this queue
         #all tasks are only onces in this queue
         #the current task is the first item in the queue
         self._runnable = deque([self._main_task])
-    
+
     def schedule(self):
         """schedules the next tasks and puts the current task back at the queue of runnables"""
         self._runnable.rotate(-1)
         next_task = self._runnable[0]
         next_task.greenlet.switch()
-        
+
     def schedule_block(self):
         """blocks the current task and schedules next"""
         self._runnable.popleft()
@@ -144,7 +145,7 @@ class scheduler(object):
 
     def throw(self, task, *args):
         if not task.alive: return #this is what stackless does
-        
+
         assert task.blocked or task in self._runnable
 
         task.greenlet.parent = self._runnable[0].greenlet
@@ -154,10 +155,10 @@ class scheduler(object):
             self._runnable.remove(task)
             self._runnable.appendleft(task)
 
-        task.greenlet.throw(*args) 
+        task.greenlet.throw(*args)
 
 
-    def _receive(self, channel):
+    def _receive(self, channel, preference):
         #Receiving 1):
         #A tasklet wants to receive and there is
         #a queued sending tasklet. The receiver takes
@@ -169,19 +170,27 @@ class scheduler(object):
         #no queued sending tasklet.
         #The receiver will become blocked and inserted
         #into the queue. The next sender will
-        #handle the rest through "Sending 1)".        
+        #handle the rest through "Sending 1)".
         if channel.balance > 0: #some sender
             channel.balance -= 1
             sender = channel.queue.popleft()
             sender.blocked = False
-            self._runnable.append(sender)
             data, sender.data = sender.data, None
+            if preference == 1:
+                #sender preference
+                self._runnable.rotate(-1)
+                self._runnable.appendleft(sender)
+                self._runnable.rotate(1)
+                self.schedule()
+            else:
+                #receiver preference
+                self._runnable.append(sender)
         else: #no sender
             current = self._runnable[0]
             channel.queue.append(current)
             channel.balance -= 1
             current.blocked = True
-            try:    
+            try:
                 self.schedule_block()
             except:
                 channel.queue.remove(current)
@@ -196,7 +205,7 @@ class scheduler(object):
         else:
             return data
 
-    def _send(self, channel, data):
+    def _send(self, channel, data, preference):
         #  Sending 1):
         #    A tasklet wants to send and there is
         #    a queued receiving tasklet. The sender puts
@@ -208,17 +217,21 @@ class scheduler(object):
         #    no queued receiving tasklet.
         #    The sender will become blocked and inserted
         #    into the queue. The next receiver will
-        #    handle the rest through "Receiving 1)".     
-        #print 'send q', channel.queue   
-        if channel.balance < 0: #some receiver   
+        #    handle the rest through "Receiving 1)".
+        #print 'send q', channel.queue
+        if channel.balance < 0: #some receiver
             channel.balance += 1
             receiver = channel.queue.popleft()
             receiver.data = data
             receiver.blocked = False
-            self._runnable.rotate(-1)
-            self._runnable.appendleft(receiver)
-            self._runnable.rotate(1)
-            self.schedule()
+            #put receiver just after current task in runnable and schedule (which will pick it up)
+            if preference == -1: #receiver pref
+                self._runnable.rotate(-1)
+                self._runnable.appendleft(receiver)
+                self._runnable.rotate(1)
+                self.schedule()
+            else: #sender pref
+                self._runnable.append(receiver)
         else: #no receiver
             current = self.current
             channel.queue.append(current)
@@ -233,19 +246,19 @@ class scheduler(object):
                 current.data = None
                 current.blocked = False
                 raise
-        
+
     def remove(self, task):
         assert task.blocked or task in self._runnable
         if task in self._runnable:
             self._runnable.remove(task)
-    
+
     def append(self, task):
         assert task not in self._runnable
         self._runnable.append(task)
-        
+
     @property
     def runcount(self):
-        return len(self._runnable) 
+        return len(self._runnable)
 
     @property
     def current(self):
