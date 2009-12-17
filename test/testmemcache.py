@@ -5,7 +5,7 @@ import time
 import logging
 
 from concurrence import unittest, Tasklet, Channel, Timeout
-from concurrence.memcache import MemcacheResult, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour
+from concurrence.memcache import MemcacheResult, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour, MemcacheCodec
 
 MEMCACHE_IP = '127.0.0.1'
 
@@ -421,6 +421,18 @@ class TestMemcache(unittest.TestCase):
         result1 = protocol.read_get(reader)
         result2 = protocol.read_get(reader)
         self.assertEquals(result1, result2)
+
+    def testCodec(self):
+
+        try:
+            MemcacheCodec.create("bla")
+            self.fail("expected error")
+        except MemcacheError:
+            pass
+
+        codec = MemcacheCodec.create("raw")
+        self.assertEquals(('bla', 10), codec.encode('bla', 10))
+        self.assertEquals('bla', codec.decode(10, 'bla'))
 
     def testConnectionManager(self):
 

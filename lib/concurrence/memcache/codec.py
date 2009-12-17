@@ -4,10 +4,10 @@ from concurrence.memcache import MemcacheError
 
 class MemcacheCodec(object):
     def decode(self, flags, encoded_value):
-        assert False, "implement"
+        assert False, "implement" #pragma: no cover
 
     def encode(self, value, flags):
-        assert False, "implement"
+        assert False, "implement" #pragma: no cover
 
     @classmethod
     def create(self, type_):
