@@ -127,6 +127,9 @@ class TaskletExtra(object):
 Tasklet.__bases__ += (TaskletExtra,)
 
 class QueueChannel(Deque):
+    def __init__(self, iterable = [], preference = -1):
+        super(QueueChannel, self).__init__(iterable, preference)
+
     def send(self, value):
         self.append(value)
 

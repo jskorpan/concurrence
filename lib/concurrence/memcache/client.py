@@ -38,6 +38,10 @@ from concurrence.memcache.protocol import MemcacheProtocol
 #CLAMP timestamps at 2**31-1
 #CHECK KEY MAX LEN, VAL MAX VALUE LEN, VALID KEY
 
+class ResultChannel(QueueChannel):
+    def __init__(self):
+        super(ResultChannel, self).__init__(preference = 1)
+
 class MemcacheConnection(object):
     log = logging.getLogger("MemcacheConnection")
 
@@ -102,7 +106,7 @@ class MemcacheConnection(object):
         self._write_queue.defer(_write_command)
 
     def _do_command(self, cmd, args, error_value = None):
-        result_channel = QueueChannel()
+        result_channel = ResultChannel()
         self._defer_command(cmd, args, result_channel, error_value)
         try:
             return result_channel.receive()
@@ -218,7 +222,7 @@ class Memcache(object):
         return self._connection_manager.get_connection(addr, self._protocol)
 
     def _get(self, cmd, key, default):
-        result_channel = QueueChannel()
+        result_channel = ResultChannel()
         connection = self.connection_for_key(key)
         connection._defer_command(cmd, [[key]], result_channel, {})
         result, values = result_channel.receive()
@@ -236,7 +240,7 @@ class Memcache(object):
         #n is the number of servers we need to 'get' from
         n = len(grouped_addrs)
 
-        result_channel = QueueChannel()
+        result_channel = ResultChannel()
 
         for address, _keys in grouped_addrs.iteritems():
             connection = self._get_connection(address)
