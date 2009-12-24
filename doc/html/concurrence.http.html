@@ -1,0 +1,274 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>concurrence.http – The concurrence http module &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="concurrence.database.mysql.client – The concurrence mysql driver module" href="concurrence.database.mysql.client.html" />
+    <link rel="prev" title="concurrence.timer – A timer module" href="concurrence.timer.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.database.mysql.client.html" title="concurrence.database.mysql.client – The concurrence mysql driver module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.timer.html" title="concurrence.timer – A timer module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-concurrence.http">
+<h1><tt class="xref docutils literal"><span class="pre">concurrence.http</span></tt> &#8211; The concurrence http module<a class="headerlink" href="#module-concurrence.http" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix</p>
+<dl class="class">
+<dt id="concurrence.http.WSGIServer">
+<em class="property">class </em><tt class="descclassname">concurrence.http.</tt><tt class="descname">WSGIServer</tt><big>(</big><em>application</em>, <em>request_log_level=10</em><big>)</big><a class="headerlink" href="#concurrence.http.WSGIServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>A HTTP/1.1 Web server with WSGI application interface.</p>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">hello_world</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s">&quot;200 OK&quot;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s">&quot;&lt;html&gt;Hello, world!&lt;/html&gt;&quot;</span><span class="p">]</span>
+
+<span class="n">server</span> <span class="o">=</span> <span class="n">WSGIServer</span><span class="p">(</span><span class="n">hello_world</span><span class="p">)</span>
+<span class="n">server</span><span class="o">.</span><span class="n">serve</span><span class="p">((</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Create a new WSGIServer serving the given <em>application</em>. Optionally
+the <em>request_log_level</em> can be given. This loglevel is used for logging the requests.</p>
+<dl class="method">
+<dt id="concurrence.http.WSGIServer.handle_connection">
+<tt class="descname">handle_connection</tt><big>(</big><em>socket</em><big>)</big><a class="headerlink" href="#concurrence.http.WSGIServer.handle_connection" title="Permalink to this definition">¶</a></dt>
+<dd>All HTTP connections pass trough this method.
+This method provides a hook for logging, statistics and or further processing w.r.t. the connection.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.WSGIServer.handle_request">
+<tt class="descname">handle_request</tt><big>(</big><em>request</em>, <em>application</em><big>)</big><a class="headerlink" href="#concurrence.http.WSGIServer.handle_request" title="Permalink to this definition">¶</a></dt>
+<dd>All HTTP requests pass trough this method. 
+This method provides a hook for logging, statistics and or further processing w.r.t. the <em>request</em>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.WSGIServer.internal_server_error">
+<tt class="descname">internal_server_error</tt><big>(</big><em>environ</em>, <em>start_response</em><big>)</big><a class="headerlink" href="#concurrence.http.WSGIServer.internal_server_error" title="Permalink to this definition">¶</a></dt>
+<dd>Default WSGI application for creating a default <cite>500 Internal Server Error</cite> response on any
+unhandled exception.
+The default response will render a traceback with a text/plain content-type.
+Can be overridden to provide a custom response.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.WSGIServer.serve">
+<tt class="descname">serve</tt><big>(</big><em>endpoint</em><big>)</big><a class="headerlink" href="#concurrence.http.WSGIServer.serve" title="Permalink to this definition">¶</a></dt>
+<dd>Serves the application at the given <em>endpoint</em>. The <em>endpoint</em> must be a tuple (&lt;host&gt;, &lt;port&gt;).</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.http.HTTPConnection">
+<em class="property">class </em><tt class="descclassname">concurrence.http.</tt><tt class="descname">HTTPConnection</tt><a class="headerlink" href="#concurrence.http.HTTPConnection" title="Permalink to this definition">¶</a></dt>
+<dd><p>A HTTP 1.1 Client.</p>
+<p>Usage:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#create an instance of this class and connect to a webserver using the connect method:</span>
+<span class="n">cnn</span> <span class="o">=</span> <span class="n">HTTPConnection</span><span class="p">()</span> 
+<span class="n">cnn</span><span class="o">.</span><span class="n">connect</span><span class="p">((</span><span class="s">&#39;www.google.com&#39;</span><span class="p">,</span> <span class="mi">80</span><span class="p">))</span>
+
+<span class="c">#create a GET request using the get method:</span>
+<span class="n">request</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/index.html&#39;</span><span class="p">)</span>
+
+<span class="c">#finally perform the request to get a response:</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">perform</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+
+<span class="c">#do something with the response:</span>
+<span class="k">print</span> <span class="n">response</span><span class="o">.</span><span class="n">body</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.close">
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.close" title="Permalink to this definition">¶</a></dt>
+<dd>Close this connection.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.connect">
+<tt class="descname">connect</tt><big>(</big><em>endpoint</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.connect" title="Permalink to this definition">¶</a></dt>
+<dd>Connect to the webserver at <em>endpoint</em>. <em>endpoint</em> is a tuple (&lt;host&gt;, &lt;port&gt;).</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.get">
+<tt class="descname">get</tt><big>(</big><em>path</em>, <em>host=None</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.get" title="Permalink to this definition">¶</a></dt>
+<dd>Returns a new <a title="concurrence.http.HTTPRequest" class="reference internal" href="#concurrence.http.HTTPRequest"><tt class="xref docutils literal"><span class="pre">HTTPRequest</span></tt></a> with request.method = &#8216;GET&#8217; and request.path = <em>path</em>.
+request.host will be set to the host used in <a title="concurrence.http.HTTPConnection.connect" class="reference internal" href="#concurrence.http.HTTPConnection.connect"><tt class="xref docutils literal"><span class="pre">connect()</span></tt></a>, or optionally you can specify a
+specific <em>host</em> just for this request.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.perform">
+<tt class="descname">perform</tt><big>(</big><em>request</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.perform" title="Permalink to this definition">¶</a></dt>
+<dd>Sends the <em>request</em> and waits for and returns the <tt class="xref docutils literal"><span class="pre">HTTPResult</span></tt>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.post">
+<tt class="descname">post</tt><big>(</big><em>path</em>, <em>body=None</em>, <em>host=None</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.post" title="Permalink to this definition">¶</a></dt>
+<dd>Returns a new <a title="concurrence.http.HTTPRequest" class="reference internal" href="#concurrence.http.HTTPRequest"><tt class="xref docutils literal"><span class="pre">HTTPRequest</span></tt></a> with request.method = &#8216;POST&#8217; and request.path = <em>path</em>.
+request.host will be set to the host used in <a title="concurrence.http.HTTPConnection.connect" class="reference internal" href="#concurrence.http.HTTPConnection.connect"><tt class="xref docutils literal"><span class="pre">connect()</span></tt></a>, or optionally you can specify a
+specific <em>host</em> just for this request.
+<em>body</em> is an optional string containing the data to post to the server.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.receive">
+<tt class="descname">receive</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.receive" title="Permalink to this definition">¶</a></dt>
+<dd>Receive the next <a title="concurrence.http.HTTPResponse" class="reference internal" href="#concurrence.http.HTTPResponse"><tt class="xref docutils literal"><span class="pre">HTTPResponse</span></tt></a> from the connection.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPConnection.send">
+<tt class="descname">send</tt><big>(</big><em>request</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPConnection.send" title="Permalink to this definition">¶</a></dt>
+<dd>Sends the <em>request</em> on this connection.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.http.HTTPRequest">
+<em class="property">class </em><tt class="descclassname">concurrence.http.</tt><tt class="descname">HTTPRequest</tt><big>(</big><em>path=None</em>, <em>method=None</em>, <em>host=None</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>A class representing a HTTP request.</p>
+<p>Create a new http request for <em>path</em> using <em>method</em> to <em>host</em>.</p>
+<dl class="method">
+<dt id="concurrence.http.HTTPRequest.add_header">
+<tt class="descname">add_header</tt><big>(</big><em>key</em>, <em>value</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPRequest.add_header" title="Permalink to this definition">¶</a></dt>
+<dd>Adds a new header to the request with name <em>key</em> and given <em>value</em>.</dd></dl>
+
+<dl class="attribute">
+<dt id="concurrence.http.HTTPRequest.body">
+<tt class="descname">body</tt><a class="headerlink" href="#concurrence.http.HTTPRequest.body" title="Permalink to this definition">¶</a></dt>
+<dd>sets <em>body</em> data for the request</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.http.HTTPResponse">
+<em class="property">class </em><tt class="descclassname">concurrence.http.</tt><tt class="descname">HTTPResponse</tt><a class="headerlink" href="#concurrence.http.HTTPResponse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a HTTP Response.</p>
+<dl class="method">
+<dt id="concurrence.http.HTTPResponse.add_header">
+<tt class="descname">add_header</tt><big>(</big><em>key</em>, <em>value</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPResponse.add_header" title="Permalink to this definition">¶</a></dt>
+<dd>Adds a new header to the response with name <em>key</em> and given <em>value</em>.</dd></dl>
+
+<dl class="attribute">
+<dt id="concurrence.http.HTTPResponse.body">
+<tt class="descname">body</tt><a class="headerlink" href="#concurrence.http.HTTPResponse.body" title="Permalink to this definition">¶</a></dt>
+<dd>Returns the body of the response as a string.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.http.HTTPResponse.get_header">
+<tt class="descname">get_header</tt><big>(</big><em>key</em>, <em>default=None</em><big>)</big><a class="headerlink" href="#concurrence.http.HTTPResponse.get_header" title="Permalink to this definition">¶</a></dt>
+<dd>Gets the HTTP response header with the given case-insensitive <em>key</em>. Returns <em>default</em>
+if the header is not found.</dd></dl>
+
+<dl class="attribute">
+<dt id="concurrence.http.HTTPResponse.status_code">
+<tt class="descname">status_code</tt><a class="headerlink" href="#concurrence.http.HTTPResponse.status_code" title="Permalink to this definition">¶</a></dt>
+<dd>Returns the HTTP response code as an integer.</dd></dl>
+
+<dl class="attribute">
+<dt id="concurrence.http.HTTPResponse.status_reason">
+<tt class="descname">status_reason</tt><a class="headerlink" href="#concurrence.http.HTTPResponse.status_reason" title="Permalink to this definition">¶</a></dt>
+<dd>Returns the reason part of the HTTP response line as a string.</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="concurrence.timer.html"
+                                  title="previous chapter"><tt class="docutils literal"><span class="pre">concurrence.timer</span></tt> &#8211; A timer module</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="concurrence.database.mysql.client.html"
+                                  title="next chapter"><tt class="docutils literal docutils literal"><span class="pre">concurrence.database.mysql.client</span></tt> &#8211; The concurrence mysql driver module</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/concurrence.http.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.database.mysql.client.html" title="concurrence.database.mysql.client – The concurrence mysql driver module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.timer.html" title="concurrence.timer – A timer module"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

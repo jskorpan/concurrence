@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>HTTP &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="Web" href="web.html" />
+    <link rel="prev" title="Messages" href="messages.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="web.html" title="Web"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="messages.html" title="Messages"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="http">
+<span id="id1"></span><h1>HTTP<a class="headerlink" href="#http" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="server">
+<h2>Server<a class="headerlink" href="#server" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span>
+<span class="kn">from</span> <span class="nn">concurrence.http</span> <span class="kn">import</span> <span class="n">WSGIServer</span>
+
+<span class="k">def</span> <span class="nf">hello_world</span><span class="p">(</span><span class="n">environ</span><span class="p">,</span> <span class="n">start_response</span><span class="p">):</span>
+    <span class="n">start_response</span><span class="p">(</span><span class="s">&quot;200 OK&quot;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s">&quot;&lt;html&gt;Hello, world!&lt;/html&gt;&quot;</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">server</span> <span class="o">=</span> <span class="n">WSGIServer</span><span class="p">(</span><span class="n">hello_world</span><span class="p">)</span>
+    <span class="n">server</span><span class="o">.</span><span class="n">serve</span><span class="p">((</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">))</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="client">
+<h2>Client<a class="headerlink" href="#client" title="Permalink to this headline">¶</a></h2>
+<p>A Simple HTTP request.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span>
+<span class="kn">from</span> <span class="nn">concurrence.http</span> <span class="kn">import</span> <span class="n">HTTPConnection</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    
+    <span class="n">cnn</span> <span class="o">=</span> <span class="n">HTTPConnection</span><span class="p">()</span>
+    <span class="n">cnn</span><span class="o">.</span><span class="n">connect</span><span class="p">((</span><span class="s">&#39;www.google.com&#39;</span><span class="p">,</span> <span class="mi">80</span><span class="p">))</span>
+
+    <span class="n">request</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">perform</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    
+    <span class="k">print</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span>
+    <span class="k">print</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span>
+    <span class="k">print</span> <span class="n">response</span><span class="o">.</span><span class="n">body</span>
+
+    <span class="n">cnn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Multiple HTTP requests using <a class="reference external" href="http://en.wikipedia.org/wiki/HTTP_pipelining">Pipelining</a>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span>
+<span class="kn">from</span> <span class="nn">concurrence.http</span> <span class="kn">import</span> <span class="n">HTTPConnection</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    
+    <span class="n">cnn</span> <span class="o">=</span> <span class="n">HTTPConnection</span><span class="p">()</span>
+    <span class="n">cnn</span><span class="o">.</span><span class="n">connect</span><span class="p">((</span><span class="s">&#39;www.google.com&#39;</span><span class="p">,</span> <span class="mi">80</span><span class="p">))</span>
+
+    <span class="n">request</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;/&#39;</span><span class="p">)</span>
+
+    <span class="c">#you can send multiple http requests on the same connection:</span>
+    <span class="n">cnn</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="c">#request 1</span>
+    <span class="n">cnn</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span> <span class="c">#request 2</span>
+
+    <span class="c">#and receive the corresponding responses    </span>
+    <span class="n">response1</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+    <span class="n">response2</span> <span class="o">=</span> <span class="n">cnn</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
+
+    <span class="k">print</span> <span class="n">response1</span><span class="o">.</span><span class="n">status</span>
+    <span class="k">print</span> <span class="n">response1</span><span class="o">.</span><span class="n">headers</span>
+    <span class="k">print</span> <span class="n">response1</span><span class="o">.</span><span class="n">body</span>
+
+    <span class="k">print</span> <span class="n">response2</span><span class="o">.</span><span class="n">status</span>
+    <span class="k">print</span> <span class="n">response2</span><span class="o">.</span><span class="n">headers</span>
+    <span class="k">print</span> <span class="n">response2</span><span class="o">.</span><span class="n">body</span>
+
+    <span class="n">cnn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">HTTP</a><ul>
+<li><a class="reference external" href="#server">Server</a></li>
+<li><a class="reference external" href="#client">Client</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="messages.html"
+                                  title="previous chapter">Messages</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="web.html"
+                                  title="next chapter">Web</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/http.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="web.html" title="Web"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="messages.html" title="Messages"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

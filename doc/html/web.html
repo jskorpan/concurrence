@@ -1,0 +1,202 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Web &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="Examples" href="examples.html" />
+    <link rel="prev" title="HTTP" href="http.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="http.html" title="HTTP"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="web">
+<span id="id1"></span><h1>Web<a class="headerlink" href="#web" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span>
+<span class="kn">from</span> <span class="nn">concurrence.web</span> <span class="kn">import</span> <span class="n">Application</span><span class="p">,</span> <span class="n">Controller</span><span class="p">,</span> <span class="n">Filter</span><span class="p">,</span> <span class="n">web</span>
+
+<span class="k">class</span> <span class="nc">PageFilter</span><span class="p">(</span><span class="n">Filter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A filter that surrounds the upstream response with a complete html page&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">next</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c">#A Filter is a callable object and is part of a chain of filters configured for</span>
+        <span class="c">#a certain Action. A filter uses the `next` argument to call the next filter in the chain.</span>
+        <span class="k">return</span> <span class="s">&quot;&quot;&quot;</span>
+<span class="s">        &lt;html&gt;</span>
+<span class="s">            &lt;head&gt;</span>
+<span class="s">                &lt;title&gt;Example Page&lt;/title&gt;</span>
+<span class="s">            &lt;/head&gt;</span>
+<span class="s">            &lt;body style=&#39;background-color: #a0f0f0&#39;&gt;</span>
+<span class="s">            </span><span class="si">%s</span><span class="s"></span>
+<span class="s">            &lt;/body&gt;</span>
+<span class="s">        &lt;/html&gt;&quot;&quot;&quot;</span> <span class="o">%</span> <span class="nb">next</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+<span class="k">class</span> <span class="nc">WrapperFilter</span><span class="p">(</span><span class="n">Filter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A filter that surrounds the upstream response with a tag&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+        
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">next</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;&lt;</span><span class="si">%s</span><span class="s">&gt;</span><span class="si">%s</span><span class="s">&lt;/</span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span>  <span class="nb">next</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">)</span>
+    
+<span class="k">class</span> <span class="nc">ExampleController</span><span class="p">(</span><span class="n">Controller</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A Controller contains multiple Actions. A controller</span>
+<span class="sd">    method becomes an Action by adding a `web.route` decorator that links the method to an url.&quot;&quot;&quot;</span>
+    
+    <span class="c">#controller level filters are applied to all actions in the controller</span>
+    <span class="n">__filters__</span> <span class="o">=</span> <span class="p">[</span><span class="n">PageFilter</span><span class="p">()]</span>  
+    
+    <span class="c">#a action may be linked to multiple urls</span>
+    <span class="nd">@web.route</span><span class="p">(</span><span class="s">&#39;/greeting&#39;</span><span class="p">)</span>
+    <span class="nd">@web.route</span><span class="p">(</span><span class="s">&#39;/welcome&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">hello</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;Hello World&quot;</span> 
+
+    <span class="nd">@web.route</span><span class="p">(</span><span class="s">&#39;/farewell&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">goodbye</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;Goodbye&quot;</span> 
+	
+    <span class="nd">@web.route</span><span class="p">(</span><span class="s">&#39;/sum&#39;</span><span class="p">)</span> 
+    <span class="k">def</span> <span class="nf">sum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+	
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">getone</span><span class="p">(</span><span class="s">&#39;msg&#39;</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">getone</span><span class="p">(</span><span class="s">&#39;a&#39;</span><span class="p">))</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">getone</span><span class="p">(</span><span class="s">&#39;b&#39;</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span>
+
+    <span class="c">#in addition to the controller level filters, an action may also supply its own filters</span>
+    <span class="nd">@web.route</span><span class="p">(</span><span class="s">&#39;/wrapper&#39;</span><span class="p">)</span>
+    <span class="nd">@web.filter</span><span class="p">(</span><span class="n">WrapperFilter</span><span class="p">(</span><span class="s">&#39;h1&#39;</span><span class="p">))</span>
+    <span class="nd">@web.filter</span><span class="p">(</span><span class="n">WrapperFilter</span><span class="p">(</span><span class="s">&#39;strong&#39;</span><span class="p">))</span>    
+    <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;Testing 132&quot;</span>
+    
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="c">#create a web application</span>
+    <span class="n">application</span> <span class="o">=</span> <span class="n">Application</span><span class="p">()</span>
+    <span class="n">application</span><span class="o">.</span><span class="n">add_controller</span><span class="p">(</span><span class="n">ExampleController</span><span class="p">())</span>
+    <span class="n">application</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+    <span class="n">application</span><span class="o">.</span><span class="n">serve</span><span class="p">((</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">))</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">Web</a><ul>
+<li><a class="reference external" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="http.html"
+                                  title="previous chapter">HTTP</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="examples.html"
+                                  title="next chapter">Examples</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/web.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="http.html" title="HTTP"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installing Concurrence &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="API Documentation" href="api.html" />
+    <link rel="prev" title="Examples" href="examples.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installing-concurrence">
+<span id="install"></span><h1>Installing Concurrence<a class="headerlink" href="#installing-concurrence" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="the-quick-and-easy-way">
+<h2>The quick and easy way<a class="headerlink" href="#the-quick-and-easy-way" title="Permalink to this headline">¶</a></h2>
+<p>Here we assume you want install Concurrence for use with &#8216;Normal Python&#8217; as opposed to &#8216;Stackless Python&#8217;.
+This is the easiest way to get started with Concurrence. Later you may want to try out Stackless because it
+delivers a bit better performance (typicaly about 10-25% faster).
+We will be using <a class="reference external" href="http://pypi.python.org/pypi/setuptools">setup tools</a> to install all dependencies.</p>
+<p>Note that Linux users might need to make sure they are running as root, or prefix the commands with &#8216;sudo&#8217;.</p>
+<p>First we need to install <a class="reference external" href="http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex">Pyrex</a>:</p>
+<div class="highlight-python"><pre>easy_install pyrex</pre>
+</div>
+<p>Next we will install concurrence:</p>
+<div class="highlight-python"><pre>easy_install concurrence</pre>
+</div>
+<p>If might give an error: Setup script exited with error: SandboxViolation: ...
+This is a known problem with Pyrex, please do:</p>
+<div class="highlight-python"><pre>python -c "from Pyrex.Compiler import Scanning;Scanning.get_lexicon()"</pre>
+</div>
+<p>And then try install concurrence again</p>
+<p>Finally we need to install the <a class="reference external" href="http://pypi.python.org/pypi/greenlet">Greenlet package</a>:</p>
+<div class="highlight-python"><pre>easy_install greenlet</pre>
+</div>
+<p>If you run into compiler problems on Linux, this is most probably caused by missing development headers
+for Python and or libevent. On Ubuntu these packages can be installed using:</p>
+<div class="highlight-python"><pre>apt-get install python-dev
+apt-get install libevent-dev</pre>
+</div>
+<p>If you run into compiler problems on OSX, this is most probably casued by missing libevent and or its headers</p>
+<blockquote>
+<ol class="arabic simple">
+<li><a class="reference external" href="http://www.monkey.org/~provos/libevent">Download latest stable release of libevent</a>.</li>
+<li>Unzip and cd into the libevent directory</li>
+<li>Run ./configure &amp;&amp; make</li>
+<li>Run sudo make install</li>
+<li>Try installing concurrence again</li>
+</ol>
+</blockquote>
+<p>That should be it!, you should now be able to start playing with the examples</p>
+</div>
+<div class="section" id="optional-dependencies">
+<h2>Optional dependencies<a class="headerlink" href="#optional-dependencies" title="Permalink to this headline">¶</a></h2>
+<p>If you want to use the simple web framework included with Concurrence, you need to install
+<a class="reference external" href="http://routes.groovie.org">Routes</a> and <a class="reference external" href="http://pythonpaste.org/webob">WebOb</a>:</p>
+<div class="highlight-python"><pre>easy_install routes
+easy_install webob</pre>
+</div>
+<p>If you use Python2.5, you might want to install &#8216;simplejson&#8217; as well:</p>
+<div class="highlight-python"><pre>easy_install simplejson</pre>
+</div>
+</div>
+<div class="section" id="running-the-examples">
+<h2>Running the examples<a class="headerlink" href="#running-the-examples" title="Permalink to this headline">¶</a></h2>
+<p>First make sure you have the source distibution of Concurrence:</p>
+<div class="highlight-python"><pre>svn checkout http://concurrence.googlecode.com/svn/trunk/ concurrence</pre>
+</div>
+<p>The examples can be found in the examples directory and are documented on the Concurrence
+website at <a class="reference external" href="http://opensource.hyves.org/concurrence">http://opensource.hyves.org/concurrence</a></p>
+</div>
+<div class="section" id="installing-stackless">
+<h2>Installing stackless<a class="headerlink" href="#installing-stackless" title="Permalink to this headline">¶</a></h2>
+<p>If you want to run Concurrence on top of stackless (which is a bit faster), you will need to
+install Stackless Python.
+Download the latest stackless tarball from www.stackless.com. unpack it somewhere (/tmp/stackless), and execute
+the folowing commands:</p>
+<p>UBUNTU:
+Make sure you have &lt;libreadline-dev&gt; package. Otherwise you have no history support in the python interactive shell
+(on ubuntu: apt-get install libreadline-dev)</p>
+<p>We will install stackless in /opt/stackless using the prefix argument to configure. This will prevent any existing python installation
+from being overwritten:</p>
+<div class="highlight-python"><pre>UBUNTU:
+        ./configure --prefix=/opt/stackless --with-readline --with-zlib=/usr/include
+        make
+        make install
+
+OSX (Leopard):
+        ./configure --prefix=/opt/stackless --enable-framework --enable-stacklessfewerregisters --with-readline --with-zlib=/usr/include
+        echo '#define SETPGRP_HAVE_ARG' &gt;&gt; pyconfig.h
+        make
+        make install</pre>
+</div>
+<p>I always like to make a symlink to stackless for everyday usage and to differentiate it from &#8216;normal&#8217; python:</p>
+<p>ln -s /opt/stackless/bin/python2.5 /usr/bin/stackless</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">Installing Concurrence</a><ul>
+<li><a class="reference external" href="#the-quick-and-easy-way">The quick and easy way</a></li>
+<li><a class="reference external" href="#optional-dependencies">Optional dependencies</a></li>
+<li><a class="reference external" href="#running-the-examples">Running the examples</a></li>
+<li><a class="reference external" href="#installing-stackless">Installing stackless</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="examples.html"
+                                  title="previous chapter">Examples</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="api.html"
+                                  title="next chapter">API Documentation</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/install.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="api.html" title="API Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="examples.html" title="Examples"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

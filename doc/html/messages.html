@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Messages &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="HTTP" href="http.html" />
+    <link rel="prev" title="Tasklets" href="tasklets.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="http.html" title="HTTP"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tasklets.html" title="Tasklets"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="messages">
+<h1>Messages<a class="headerlink" href="#messages" title="Permalink to this headline">¶</a></h1>
+<p>The basic unit of <em>execution</em> in the Concurrence framework is the <a title="concurrence.core.Tasklet" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet"><tt class="xref docutils literal"><span class="pre">Tasklet</span></tt></a>.</p>
+<p>The basic unit of <em>communication</em> between tasks is the <a title="concurrence.core.Message" class="reference external" href="concurrence.core.html#concurrence.core.Message"><tt class="xref docutils literal"><span class="pre">Message</span></tt></a>.</p>
+<p>A message is defined like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">MSG_XXX</span><span class="p">(</span><span class="n">Message</span><span class="p">):</span> <span class="k">pass</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">By convention, Messages should have UPPERCASE names that start with <cite>MSG_</cite> .</p>
+</div>
+<p>Every Tasklet has a <a title="concurrence.core.Tasklet.mailbox" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.mailbox"><tt class="xref docutils literal"><span class="pre">mailbox</span></tt></a> where it receives messages from other tasks.</p>
+<p>A Tasklet receives and processes pending messages using the following pattern:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">for</span> <span class="n">msg</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">receive</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">MSG_XXX</span><span class="p">):</span>
+        <span class="o">...</span>
+    <span class="k">elif</span> <span class="n">msg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">MSG_YYY</span><span class="p">):</span>
+        <span class="o">...</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>The Tasklet will call the <a title="concurrence.core.Tasklet.receive" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.receive"><tt class="xref docutils literal"><span class="pre">receive()</span></tt></a> iterator in order to receive any pending messages.
+If there are no pending messages, the Tasklet will block until a message arrives. Each message is accompanied by a tuple <em>args</em> of positional
+arguments and a dictionary <em>kwargs</em> of named arguments, both of which may be empty.
+The Tasklet will then determine what to do by matching the <em>msg</em> using the <a title="concurrence.core.Message.match" class="reference external" href="concurrence.core.html#concurrence.core.Message.match"><tt class="xref docutils literal"><span class="pre">match()</span></tt></a> method.</p>
+<p>An example of using messages to communicate between tasks:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">Tasklet</span><span class="p">,</span> <span class="n">Message</span><span class="p">,</span> <span class="n">dispatch</span>
+
+<span class="k">class</span> <span class="nc">MSG_GREETING</span><span class="p">(</span><span class="n">Message</span><span class="p">):</span> <span class="k">pass</span>
+<span class="k">class</span> <span class="nc">MSG_FAREWELL</span><span class="p">(</span><span class="n">Message</span><span class="p">):</span> <span class="k">pass</span>
+
+<span class="k">def</span> <span class="nf">printer</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">msg</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">receive</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">MSG_GREETING</span><span class="p">):</span>
+            <span class="k">print</span> <span class="s">&#39;Hello&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">msg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">MSG_FAREWELL</span><span class="p">):</span>
+            <span class="k">print</span> <span class="s">&#39;Goodbye&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span> <span class="c">#unknown msg</span>
+    
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    
+    <span class="n">printer_task</span> <span class="o">=</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">printer</span><span class="p">)()</span>
+    
+    <span class="n">MSG_GREETING</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">printer_task</span><span class="p">)(</span><span class="s">&#39;World&#39;</span><span class="p">)</span>
+    <span class="n">MSG_FAREWELL</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">printer_task</span><span class="p">)(</span><span class="s">&#39;World&#39;</span><span class="p">)</span>
+        
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>  
+</pre></div>
+</div>
+<p>In this example the <tt class="docutils literal"><span class="pre">main</span></tt> task starts a new task <tt class="docutils literal"><span class="pre">printer</span></tt> that forever listens for messages using the <a title="concurrence.core.Tasklet.receive" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.receive"><tt class="xref docutils literal"><span class="pre">receive()</span></tt></a> iterator.</p>
+<p>The main task then sends 2 messages to the printer task, which will respond by printing the appropriate message to the console.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Messages by default are &#8216;asynchronous&#8217; e.g., the sender does not wait for the receiver task to finish processing it.
+There is also support for &#8216;synchronous&#8217; messages by using the <a title="concurrence.core.Message.call" class="reference external" href="concurrence.core.html#concurrence.core.Message.call"><tt class="xref docutils literal"><span class="pre">call()</span></tt></a> method of the Message class.
+In that case, the <em>receiver</em> will have to <a title="concurrence.core.Message.reply" class="reference external" href="concurrence.core.html#concurrence.core.Message.reply"><tt class="xref docutils literal"><span class="pre">reply()</span></tt></a> to
+the incoming message and the <em>caller</em> will block until the reply has been received.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="tasklets.html"
+                                  title="previous chapter">Tasklets</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="http.html"
+                                  title="next chapter">HTTP</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/messages.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="http.html" title="HTTP"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tasklets.html" title="Tasklets"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Concurrence &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="" />
+    <link rel="next" title="Tasklets" href="tasklets.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="tasklets.html" title="Tasklets"
+             accesskey="N">next</a> |</li>
+        <li><a href="">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="concurrence">
+<span id="index"></span><h1>Concurrence<a class="headerlink" href="#concurrence" title="Permalink to this headline">¶</a></h1>
+<p>Concurrence is a framework for creating massively concurrent network applications in Python.</p>
+<p>It takes a <cite>Lightweight-tasks-with-message-passing</cite> approach to concurrency.</p>
+<p>The goal of Concurrence is to provide an easier programming model for writing high performance network applications than existing solutions (Multi-threading, Twisted, asyncore etc).</p>
+<p>Concurrence uses <cite>Lightweight tasks</cite> in combination with <a class="reference external" href="http://monkey.org/~provos/libevent/">libevent</a> to expose a high-level synchronous API to low-level asynchronous IO.</p>
+<p>Some features:</p>
+<blockquote>
+<ul class="simple">
+<li>Lightweight Tasks as the basic unit of execution.</li>
+<li>Message passing as the basic unit of communication (between tasks).</li>
+<li>Cooperative scheduling of tasks triggered by IO events and Timeouts.</li>
+<li>Libevent based, always uses the most optimal asynchronous IO multiplexer for the given platform (epoll on linux, KQueue on BSD/OSX).</li>
+<li>Fast low-level IO buffers implemented in Pyrex.</li>
+<li>Socket API.</li>
+<li>DBAPI 2.0 compatible MySQL driver implementation (native &amp; asynchronous, with optimized protocol support written in Pyrex).</li>
+<li>HTTP / WSGI Server.</li>
+<li>HTTP Client.</li>
+<li>Timeouts. All blocking API&#8217;s provide a timeout parameter.</li>
+<li>Remoting. Message passing between tasks in diffent processes.</li>
+</ul>
+</blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Concurrence requires python support for tasklets and channels. These can be provided by either &#8216;Stackless Python&#8217; or &#8216;Python + Greenlets&#8217;. The latter is easier to work with as it only requires the greenlets package be installed. Stackless Python runs Concurrence programs a bit faster, but the difference is quite small (10-25%) compared to normal Python + Greenlets.</p>
+</div>
+<div class="section" id="news">
+<h2>News<a class="headerlink" href="#news" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<ul class="simple">
+<li>26-11-2009 Concurrence development has moved to <a class="reference external" href="http://github.com/concurrence/concurrence">Github</a>.</li>
+</ul>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>If you want to use/and or work on the latest code, please clone from <a class="reference external" href="http://github.com/toymachine/concurrence">this repository</a> as that is where all current work is being done.</p>
+<p>The following stuff is currently being worked on and will be part of the 3.2 stable release:</p>
+<blockquote class="last">
+<ul class="simple">
+<li>Reduced memory usage trough Buffer sharing/Tasklet pooling.</li>
+<li>Improved Memcache support (Ketama hashing, Connection Management).</li>
+<li>Rewritten py-event to release the GIL while waiting for events (this improves support for threading).</li>
+</ul>
+</blockquote>
+</div>
+</blockquote>
+</div>
+<div class="section" id="hello-world">
+<h2>Hello World<a class="headerlink" href="#hello-world" title="Permalink to this headline">¶</a></h2>
+<p>This example can be found in examples/hello.py.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span>
+
+<span class="k">def</span> <span class="nf">hello</span><span class="p">():</span>
+    <span class="k">print</span> <span class="s">&quot;Hello World!&quot;</span>
+    
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">hello</span><span class="p">)</span>  
+</pre></div>
+</div>
+<p>The basic unit of execution in Concurrence is the &#8216;Tasklet&#8217; or &#8216;task&#8217;.</p>
+<p>Every concurrence program starts with a <cite>dispatch</cite> loop.</p>
+<p>The dispatch loop will run forever. It waits
+for events (IO, timers, etc) and (re)schedules tasks in response to those events.</p>
+<p>As a convenience the dispatch function takes a &#8216;callable&#8217; parameter and will
+start a new task to execute it.</p>
+<p>In the above example 2 tasks are present, e.g. the &#8216;main&#8217; task that runs the
+dispatch loop (forever), and an (anonymous) task that will execute the &#8216;hello&#8217; function and
+then exit.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The program will not exit when the &#8216;hello&#8217; function is finished.
+This is because the main task will continue to run in the dispatch loop.
+You can stop the program with Ctrl-C.</p>
+</div>
+</div>
+<div class="section" id="a-highly-concurrent-greeting">
+<h2>A Highly Concurrent Greeting<a class="headerlink" href="#a-highly-concurrent-greeting" title="Permalink to this headline">¶</a></h2>
+<p>The above example is rather boring. In this section we will introduce a variation
+that is designed to show off the capabilities of the Concurrence framework for easily
+creating highly concurrent network applications:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+<span class="kn">from</span> <span class="nn">concurrence.io</span> <span class="kn">import</span> <span class="n">BufferedStream</span><span class="p">,</span> <span class="n">Socket</span>
+
+<span class="k">def</span> <span class="nf">handler</span><span class="p">(</span><span class="n">client_socket</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;writes the familiar greeting to client&quot;&quot;&quot;</span>
+    <span class="n">stream</span> <span class="o">=</span> <span class="n">BufferedStream</span><span class="p">(</span><span class="n">client_socket</span><span class="p">)</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">writer</span>    
+    <span class="n">writer</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="s">&quot;HTTP/1.0 200 OK</span><span class="se">\r\n</span><span class="s">&quot;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="s">&quot;Content-Length: 12</span><span class="se">\r\n</span><span class="s">&quot;</span><span class="p">)</span>    
+    <span class="n">writer</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\r\n</span><span class="s">&quot;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="s">&quot;Hello World!&quot;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+    <span class="n">stream</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+       
+<span class="k">def</span> <span class="nf">server</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;accepts connections on a socket, and dispatches</span>
+<span class="sd">    new tasks for handling the incoming requests&quot;&quot;&quot;</span>
+    <span class="n">server_socket</span> <span class="o">=</span> <span class="n">Socket</span><span class="o">.</span><span class="n">new</span><span class="p">()</span>
+    <span class="n">server_socket</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="s">&#39;localhost&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">))</span>
+    <span class="n">server_socket</span><span class="o">.</span><span class="n">listen</span><span class="p">()</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">client_socket</span> <span class="o">=</span> <span class="n">server_socket</span><span class="o">.</span><span class="n">accept</span><span class="p">()</span>
+        <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">handler</span><span class="p">)(</span><span class="n">client_socket</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">server</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Somebody who is familiar with Socket programming will probably recognize the function of this little program;</p>
+<p>It implements a very minimal webserver that outputs the traditional greeting.
+You can start this program and point your webbrowser to <tt class="docutils literal"><span class="pre">http://localhost:8080</span></tt> to see it.</p>
+<p>The <tt class="docutils literal"><span class="pre">server</span></tt> task first creates a <cite>server socket</cite> on port 8080. Then it will loop forever and <tt class="docutils literal"><span class="pre">accept</span></tt> connections
+coming in trough the socket. When a client connection is accepted, a new task is started to handle it.
+The server task itself will continue and wait for more connections to arrive.</p>
+<p>The remarkable thing about this example program is that it is able to serve <cite>many thousands of requests per second
+to thousands of concurrently connected clients</cite>:</p>
+<div class="highlight-python"><pre>Benchmark of greeter.py (running with stackless python).
+In this session it handled about 8300 request per second on 1000 concurrent connections:
+
+httperf --uri=/test --port=8080 --num-calls=1 --num-conns=100000 --rate=10000
+httperf --client=0/1 --server=localhost --port=8080 --uri=/test --rate=10000
+        --send-buffer=4096 --recv-buffer=16384 --num-conns=100000 --num-calls=1
+
+Total: connections 98506 requests 98506 replies 98506 test-duration 11.815 s
+
+Connection rate: &gt;&gt; 8337.1 &lt;&lt; conn/s (0.1 ms/conn, &lt;=1022 concurrent connections)
+...
+Request rate: &gt;&gt; 8337.1 req/s &lt;&lt; (0.1 ms/req)
+Request size [B]: 64.0
+
+Reply rate [replies/s]: min 9707.9 avg 9850.2 max 9992.5 stddev 201.3 (2 samples)
+Reply time [ms]: response 8.0 transfer 0.0
+...</pre>
+</div>
+<p>The reason for this is that at it&#8217;s core this program will use <cite>asynchronous IO</cite> (&#8216;non-blocking&#8217;) instead of
+more traditional <cite>blocking IO + threads</cite>. The nice thing about using the Concurrence framework is that the complexity normally associated
+with asynchronous IO is not visible to the programmer. Concurrence presents a familiar blocking IO model,
+while at the same time achieving high concurrency and low latency by using asynchronous IO in the background.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is just a simple example of a http server. Concurrence provides a more feature complete HTTP/1.1 webserver (<a title="concurrence.http.WSGIServer" class="reference external" href="concurrence.http.html#concurrence.http.WSGIServer"><tt class="xref docutils literal"><span class="pre">WSGIServer</span></tt></a>)
+that exposes a WSGI Interface for creating web-applications.</p>
+</div>
+</div>
+<div class="section" id="download-installation">
+<h2>Download &amp; Installation<a class="headerlink" href="#download-installation" title="Permalink to this headline">¶</a></h2>
+<p>Installation instructions can be found here: <a class="reference external" href="install.html#install"><em>Installing Concurrence</em></a>.</p>
+<p>Concurrence is available from the <a class="reference external" href="http://pypi.python.org/pypi/concurrence">Python package index (PyPI)</a>.</p>
+</div>
+<div class="section" id="source-code-issues">
+<h2>Source code &amp; Issues<a class="headerlink" href="#source-code-issues" title="Permalink to this headline">¶</a></h2>
+<p>The Concurrence Framework source code and issue tracker is hosted at <a class="reference external" href="http://github.com/concurrence/concurrence">Github</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If you want to use/and or work on the latest code, please clone from <a class="reference external" href="http://github.com/toymachine/concurrence">this repository</a> as that is where all current work is being done.</p>
+</div>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="tasklets.html">Tasklets</a></li>
+<li class="toctree-l1"><a class="reference external" href="messages.html">Messages</a></li>
+<li class="toctree-l1"><a class="reference external" href="http.html">HTTP</a></li>
+<li class="toctree-l1"><a class="reference external" href="web.html">Web</a></li>
+<li class="toctree-l1"><a class="reference external" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference external" href="install.html">Installing Concurrence</a></li>
+<li class="toctree-l1"><a class="reference external" href="api.html">API Documentation</a></li>
+</ul>
+</div>
+<div class="section" id="api-reference">
+<h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li class="toctree-l1"><a class="reference external" href="concurrence.core.html"><tt class="docutils literal"><span class="pre">concurrence.core</span></tt> &#8211; The concurrence core module</a></li>
+<li class="toctree-l1"><a class="reference external" href="concurrence.io.html"><tt class="docutils literal"><span class="pre">concurrence.io</span></tt> &#8211; The concurrence io module</a></li>
+<li class="toctree-l1"><a class="reference external" href="concurrence.timer.html"><tt class="docutils literal"><span class="pre">concurrence.timer</span></tt> &#8211; A timer module</a></li>
+<li class="toctree-l1"><a class="reference external" href="concurrence.http.html"><tt class="docutils literal"><span class="pre">concurrence.http</span></tt> &#8211; The concurrence http module</a></li>
+<li class="toctree-l1"><a class="reference external" href="concurrence.database.mysql.client.html"><tt class="docutils literal"><span class="pre">concurrence.database.mysql.client</span></tt> &#8211; The concurrence mysql driver module</a></li>
+<li class="toctree-l1"><a class="reference external" href="concurrence.web.html"><tt class="docutils literal"><span class="pre">concurrence.web</span></tt> &#8211; The concurrence web module</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">Concurrence</a><ul>
+<li><a class="reference external" href="#news">News</a></li>
+<li><a class="reference external" href="#hello-world">Hello World</a></li>
+<li><a class="reference external" href="#a-highly-concurrent-greeting">A Highly Concurrent Greeting</a></li>
+<li><a class="reference external" href="#download-installation">Download &amp; Installation</a></li>
+<li><a class="reference external" href="#source-code-issues">Source code &amp; Issues</a></li>
+<li><a class="reference external" href="#documentation">Documentation</a><ul>
+</ul>
+</li>
+<li><a class="reference external" href="#api-reference">API Reference</a><ul>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            <h4>Next topic</h4>
+            <p class="topless"><a href="tasklets.html"
+                                  title="next chapter">Tasklets</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/index.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="tasklets.html" title="Tasklets"
+             >next</a> |</li>
+        <li><a href="">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

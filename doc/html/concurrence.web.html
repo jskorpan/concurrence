@@ -1,0 +1,144 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>concurrence.web – The concurrence web module &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="prev" title="concurrence.database.mysql.client – The concurrence mysql driver module" href="concurrence.database.mysql.client.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.database.mysql.client.html" title="concurrence.database.mysql.client – The concurrence mysql driver module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-concurrence.web">
+<h1><tt class="xref docutils literal"><span class="pre">concurrence.web</span></tt> &#8211; The concurrence web module<a class="headerlink" href="#module-concurrence.web" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix</p>
+<dl class="class">
+<dt id="concurrence.web.Application">
+<em class="property">class </em><tt class="descclassname">concurrence.web.</tt><tt class="descname">Application</tt><a class="headerlink" href="#concurrence.web.Application" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="concurrence.web.Application.add_controller">
+<tt class="descname">add_controller</tt><big>(</big><em>controller</em><big>)</big><a class="headerlink" href="#concurrence.web.Application.add_controller" title="Permalink to this definition">¶</a></dt>
+<dd>adds a controller_class to the application.
+the controllers methods will be scanned for &#64;web attributes to 
+connect the methods of the controller to the correct urls</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.web.Application.call_controller">
+<tt class="descname">call_controller</tt><big>(</big><em>controller_name</em>, <em>action_name</em>, <em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.web.Application.call_controller" title="Permalink to this definition">¶</a></dt>
+<dd>provided for override</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.web.Application.configure">
+<tt class="descname">configure</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.web.Application.configure" title="Permalink to this definition">¶</a></dt>
+<dd>configures the application, must be called after all controllers have been added</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.web.Filter">
+<em class="property">class </em><tt class="descclassname">concurrence.web.</tt><tt class="descname">Filter</tt><a class="headerlink" href="#concurrence.web.Filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="concurrence.web.Controller">
+<em class="property">class </em><tt class="descclassname">concurrence.web.</tt><tt class="descname">Controller</tt><a class="headerlink" href="#concurrence.web.Controller" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="concurrence.database.mysql.client.html"
+                                  title="previous chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">concurrence.database.mysql.client</span></tt> &#8211; The concurrence mysql driver module</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/concurrence.web.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.database.mysql.client.html" title="concurrence.database.mysql.client – The concurrence mysql driver module"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

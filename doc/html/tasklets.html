@@ -1,0 +1,310 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tasklets &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="Messages" href="messages.html" />
+    <link rel="prev" title="Concurrence" href="index.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="messages.html" title="Messages"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Concurrence"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tasklets">
+<h1>Tasklets<a class="headerlink" href="#tasklets" title="Permalink to this headline">¶</a></h1>
+<p>The basic unit of execution in the Concurrence Framework is the <a title="concurrence.core.Tasklet" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet"><tt class="xref docutils literal"><span class="pre">Tasklet</span></tt></a>.
+The full source documentation for tasklets can be found in <a title="(Unix) Provides the basic abstractions of the Concurrence Framework." class="reference external" href="concurrence.core.html#module-concurrence.core"><tt class="xref docutils literal"><span class="pre">concurrence.core</span></tt></a>. Examples
+are documented below</p>
+<div class="section" id="starting-a-new-task">
+<h2>Starting a new task<a class="headerlink" href="#starting-a-new-task" title="Permalink to this headline">¶</a></h2>
+<p>You can start a new task by calling <a title="concurrence.core.Tasklet.new" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">greeting</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">msg</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Hello&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;World&quot;</span><span class="p">)</span>
+
+    <span class="k">print</span> <span class="s">&#39;start done.&#39;</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This should print the following to the console:</p>
+<div class="highlight-python"><pre>start done.
+Hello
+World</pre>
+</div>
+<p>This output is explained as follows:</p>
+<p>The dispatcher will create a new task for the start function. The start function
+will itself create 2 new tasks based on the greeting function.
+The <a title="concurrence.core.Tasklet.new" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> call is not blocking, so the start function will print that it is done and will exit (its task
+will also be finished at this point).
+Then the dispatcher will scheduled the 2 newly created tasks and run them. Each of them will display their
+greetings in turn.</p>
+<p>Modifying the example a bit, we can show that the 2 greeters really are two seperate execution units.
+This example also introduces the <a title="concurrence.core.Tasklet.sleep" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.sleep"><tt class="xref docutils literal"><span class="pre">sleep()</span></tt></a> function.
+The sleep function will block the execution of the calling task for the given amount of seconds:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">greeting</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">print</span> <span class="n">msg</span>
+        <span class="n">Tasklet</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Hello&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;World&quot;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This example will alternately show <tt class="docutils literal"><span class="pre">Hello</span></tt> and <tt class="docutils literal"><span class="pre">World</span></tt> indefinitly as the 2 tasks themselves do not return
+from the <tt class="docutils literal"><span class="pre">greeting</span></tt> function.</p>
+</div>
+<div class="section" id="waiting-for-a-task">
+<h2>Waiting for a task<a class="headerlink" href="#waiting-for-a-task" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes you will want to halt the current task and wait for 1 or more subtasks to finish and return
+their result(s). This can be done using the <a title="concurrence.core.Tasklet.join" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.join"><tt class="xref docutils literal"><span class="pre">join()</span></tt></a> function:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">sum</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="c">#... potentially long calculation, involving calls to databases etc...</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">t1</span> <span class="o">=</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="nb">sum</span><span class="p">)(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="n">t2</span> <span class="o">=</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="nb">sum</span><span class="p">)(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
+
+    <span class="n">res1</span> <span class="o">=</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">t1</span><span class="p">)</span>
+    <span class="n">res2</span> <span class="o">=</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">t2</span><span class="p">)</span>
+
+    <span class="k">print</span> <span class="n">res1</span>
+    <span class="k">print</span> <span class="n">res2</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example 2 subtasks are created by <tt class="docutils literal"><span class="pre">start</span></tt>.</p>
+<p>The start task will then block and wait for each subtask
+to finish by <em>joining</em> the subtasks using <cite>Tasklet.join</cite></p>
+<p>The result of the join is the return value of the subtask function.</p>
+<dl class="docutils">
+<dt>There are 2 convenient variations for joining tasks:</dt>
+<dd><ul class="first last simple">
+<li><a title="concurrence.core.Tasklet.join_all" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.join_all"><tt class="xref docutils literal"><span class="pre">join_all()</span></tt></a> which takes a lists of tasks to join</li>
+<li><a title="concurrence.core.Tasklet.join_children" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.join_children"><tt class="xref docutils literal"><span class="pre">join_children()</span></tt></a> which joins all the children of the current task.</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="section" id="loop-interval-later">
+<h2>Loop, Interval, Later<a class="headerlink" href="#loop-interval-later" title="Permalink to this headline">¶</a></h2>
+<p>The functions:</p>
+<blockquote>
+<ul class="simple">
+<li><a title="concurrence.core.Tasklet.loop" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.loop"><tt class="xref docutils literal"><span class="pre">loop()</span></tt></a></li>
+<li><a title="concurrence.core.Tasklet.interval" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.interval"><tt class="xref docutils literal"><span class="pre">interval()</span></tt></a></li>
+<li><a title="concurrence.core.Tasklet.later" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.later"><tt class="xref docutils literal"><span class="pre">later()</span></tt></a></li>
+</ul>
+</blockquote>
+<p>Are provided to run a task in a loop, at a specified interval or at a later
+time respectively:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">hello</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">msg</span>
+    <span class="n">tasklet</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">greeting</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">msg</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span><span class="n">hello</span><span class="p">)(</span><span class="s">&quot;Hello World&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">interval</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Hi There!&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">later</span><span class="p">(</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Nice to see You!&quot;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-current-task">
+<h2>The current task<a class="headerlink" href="#the-current-task" title="Permalink to this headline">¶</a></h2>
+<p>The current task can be retrieved by calling <a title="concurrence.core.Tasklet.current" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.current"><tt class="xref docutils literal"><span class="pre">current()</span></tt></a>.</p>
+<p>This function returns the task of the caller:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">greeting</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">current</span><span class="p">(),</span> <span class="n">msg</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">interval</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Task 1&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">interval</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">greeting</span><span class="p">)(</span><span class="s">&quot;Task 2&quot;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="task-tree-and-task-names">
+<h2>Task tree and Task names<a class="headerlink" href="#task-tree-and-task-names" title="Permalink to this headline">¶</a></h2>
+<p>Every task maintains a reference to the task that created it (its parent Task).
+You can get the parent with the <a title="concurrence.core.Tasklet.parent" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.parent"><tt class="xref docutils literal"><span class="pre">parent()</span></tt></a> method.</p>
+<p>Every task also maintains a list of subtasks (<a title="concurrence.core.Tasklet.children" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.children"><tt class="xref docutils literal"><span class="pre">children()</span></tt></a>) that it has spawned.
+When a child exits, it is removed from its parents list of children.</p>
+<p>Thus a tree of tasks is maintained that can be traversed using the <a title="concurrence.core.Tasklet.tree" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.tree"><tt class="xref docutils literal"><span class="pre">tree()</span></tt></a> method.</p>
+<p>A task can optionally be given a name by passing it to the <a title="concurrence.core.Tasklet.new" class="reference external" href="concurrence.core.html#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> method:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">concurrence</span> <span class="kn">import</span> <span class="n">dispatch</span><span class="p">,</span> <span class="n">Tasklet</span>
+
+<span class="k">def</span> <span class="nf">greeting</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+    <span class="k">print</span> <span class="n">msg</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">print</span> <span class="s">&#39;done&#39;</span>
+
+<span class="k">def</span> <span class="nf">start</span><span class="p">():</span>
+
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;task1&#39;</span><span class="p">)(</span><span class="s">&quot;Hello&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;task2&#39;</span><span class="p">)(</span><span class="s">&quot;World&quot;</span><span class="p">)</span>
+    <span class="n">Tasklet</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">greeting</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;task3&#39;</span><span class="p">)(</span><span class="s">&quot;Hi There&quot;</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="n">Tasklet</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="c">#print a nice tree of tasks and their subtasks</span>
+        <span class="k">for</span> <span class="n">task</span><span class="p">,</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">Tasklet</span><span class="o">.</span><span class="n">current</span><span class="p">()</span><span class="o">.</span><span class="n">tree</span><span class="p">():</span>
+            <span class="k">print</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">&quot;</span> <span class="o">*</span> <span class="n">level</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">name</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">dispatch</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="">Tasklets</a><ul>
+<li><a class="reference external" href="#starting-a-new-task">Starting a new task</a></li>
+<li><a class="reference external" href="#waiting-for-a-task">Waiting for a task</a></li>
+<li><a class="reference external" href="#loop-interval-later">Loop, Interval, Later</a></li>
+<li><a class="reference external" href="#the-current-task">The current task</a></li>
+<li><a class="reference external" href="#task-tree-and-task-names">Task tree and Task names</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html"
+                                  title="previous chapter">Concurrence</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="messages.html"
+                                  title="next chapter">Messages</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/tasklets.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="messages.html" title="Messages"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Concurrence"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,408 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>concurrence.core – The concurrence core module &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="concurrence.io – The concurrence io module" href="concurrence.io.html" />
+    <link rel="prev" title="concurrence.web – The concurrence web module" href="concurrence.web.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.io.html" title="concurrence.io – The concurrence io module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.web.html" title="concurrence.web – The concurrence web module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-concurrence.core">
+<h1><tt class="xref docutils literal"><span class="pre">concurrence.core</span></tt> &#8211; The concurrence core module<a class="headerlink" href="#module-concurrence.core" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix</p>
+<dl class="function">
+<dt id="concurrence.core.dispatch">
+<tt class="descclassname">concurrence.core.</tt><tt class="descname">dispatch</tt><big>(</big><em>f=None</em><big>)</big><a class="headerlink" href="#concurrence.core.dispatch" title="Permalink to this definition">¶</a></dt>
+<dd>The main dispatch routine. This is the starting point of any Concurrence program. 
+The dispatcher schedules tasklets until the <a title="concurrence.core.quit" class="reference internal" href="#concurrence.core.quit"><tt class="xref docutils literal"><span class="pre">quit()</span></tt></a> function is called or a SIGINT signal is received.
+As a convenience a callable <em>f</em> can be provided that will be run in a new Tasklet.</dd></dl>
+
+<dl class="function">
+<dt id="concurrence.core.quit">
+<tt class="descclassname">concurrence.core.</tt><tt class="descname">quit</tt><big>(</big><em>exitcode=0</em><big>)</big><a class="headerlink" href="#concurrence.core.quit" title="Permalink to this definition">¶</a></dt>
+<dd>Quits the concurrence program and exit to the OS with <em>exitcode</em></dd></dl>
+
+<dl class="class">
+<dt id="concurrence.core.Tasklet">
+<em class="property">class </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">Tasklet</tt><a class="headerlink" href="#concurrence.core.Tasklet" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Tasklet represents an activity that runs concurrently to other Tasklets.
+A Tasklet can be compared to a Thread with the main difference that Tasklets are scheduled co-operatively
+by the Concurrence framework as opposed to Threads, which are scheduled pre-emptively by the OS.</p>
+<p>Only 1 Tasklet will be actually using 1 CPU at any point in time. But many Tasks
+may be present at the same time.</p>
+<p>A Tasklet can become inactive (block) as soon as it performs some IO, or it explictly releases
+control (for instance by calling <a title="concurrence.core.Tasklet.yield_" class="reference internal" href="#concurrence.core.Tasklet.yield_"><tt class="xref docutils literal"><span class="pre">yield_()</span></tt></a>).</p>
+<p>As soon as a Tasklet blocks, the Concurrence framework will schedule
+some other Tasklet to run next (in a round-robin fashion).</p>
+<p>If a Tasklet became inactive because it needs to wait for IO, The Concurrence framework
+will automatically reschedule that Tasklet again as soon as that IO is complete.</p>
+<p>Please use <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> to create new tasklets</p>
+<dl class="method">
+<dt id="concurrence.core.Tasklet.children">
+<tt class="descname">children</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.children" title="Permalink to this definition">¶</a></dt>
+<dd>Gets the set of children of this Tasklet</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.current">
+<em class="property">classmethod </em><tt class="descname">current</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.current" title="Permalink to this definition">¶</a></dt>
+<dd>Returns a reference to the currently running task</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Tasklet.has_finished">
+<tt class="descname">has_finished</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.has_finished" title="Permalink to this definition">¶</a></dt>
+<dd>Returns whether this Tasklet has already finished or not (either with a result of with an exception).</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.interval">
+<em class="property">classmethod </em><tt class="descname">interval</tt><big>(</big><em>timeout</em>, <em>f</em>, <em>immediate=False</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.interval" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new task that will execute the given callable <em>f</em> every
+<em>timeout</em> seconds. If <em>immediate</em> is True, <em>f</em> will be called as soon as the 
+task is started. Otherwise, the newly started task will wait <em>timeout</em> seconds before
+calling <em>f</em> for the first time. See <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> for a description of any further keyword arguments.
+Any exception that is raised by <em>f</em> is caught and logged but the interval task will continue running. An interval
+task can be stopped by calling <a title="concurrence.core.Tasklet.kill" class="reference internal" href="#concurrence.core.Tasklet.kill"><tt class="xref docutils literal"><span class="pre">kill()</span></tt></a> on it.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.join">
+<em class="property">classmethod </em><tt class="descname">join</tt><big>(</big><em>t</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.join" title="Permalink to this definition">¶</a></dt>
+<dd>The current task will block and wait for the given task <em>t</em> to complete. When <em>t</em> is finished, this method will return
+its result value. If <em>t</em> finishes with an exception this method will raise a <a title="concurrence.core.JoinError" class="reference internal" href="#concurrence.core.JoinError"><tt class="xref docutils literal"><span class="pre">JoinError</span></tt></a>. Optionally a <em>timeout</em> in seconds may
+be specified. If <em>task</em> does not finish within <em>timeout</em> a <a title="concurrence.core.TimeoutError" class="reference internal" href="#concurrence.core.TimeoutError"><tt class="xref docutils literal"><span class="pre">TimeoutError</span></tt></a> will be raised.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.join_all">
+<em class="property">classmethod </em><tt class="descname">join_all</tt><big>(</big><em>tasks</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.join_all" title="Permalink to this definition">¶</a></dt>
+<dd>The current task will block and wait for the given <em>tasks</em> to complete. When all <em>tasks</em> have finished a list of 
+results is returned. If a task finishes with an exception the result value for that task will be an instance of <a title="concurrence.core.JoinError" class="reference internal" href="#concurrence.core.JoinError"><tt class="xref docutils literal"><span class="pre">JoinError</span></tt></a>.
+Optionally a <em>timeout</em> for the wait can be specified. If all <em>tasks</em> do not finish within <em>timeout</em> a <a title="concurrence.core.TimeoutError" class="reference internal" href="#concurrence.core.TimeoutError"><tt class="xref docutils literal"><span class="pre">TimeoutError</span></tt></a> will be
+raised.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.join_children">
+<em class="property">classmethod </em><tt class="descname">join_children</tt><big>(</big><em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.join_children" title="Permalink to this definition">¶</a></dt>
+<dd>A convenience method for joining all children of the current task. Behaves as <a title="concurrence.core.Tasklet.join_all" class="reference internal" href="#concurrence.core.Tasklet.join_all"><tt class="xref docutils literal"><span class="pre">join_all()</span></tt></a> where <em>tasks</em> is the list
+of children.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Tasklet.kill">
+<tt class="descname">kill</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.kill" title="Permalink to this definition">¶</a></dt>
+<dd>Raise a TaskletExit exception in the task. This will normally kill the task.
+Note that TaskletExit is a subclass of SystemExit and thus not a subclass of Exception.
+This means that if a task explicitly catches either TaskletExit or SystemExit it could
+prevent itself from being killed.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.later">
+<em class="property">classmethod </em><tt class="descname">later</tt><big>(</big><em>timeout</em>, <em>f</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.later" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new task that will first sleep for <em>timeout</em> seconds
+before calling <em>f</em>. See <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> for a description of any further keyword arguments.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.loop">
+<em class="property">classmethod </em><tt class="descname">loop</tt><big>(</big><em>f</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.loop" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new task that will execute the given callable <em>f</em> in a loop.
+See <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> for a description of any further keyword arguments.
+Any exception that is raised by <em>f</em> is caught and logged but the loop will continue running. A looping
+task can be stopped by calling <a title="concurrence.core.Tasklet.kill" class="reference internal" href="#concurrence.core.Tasklet.kill"><tt class="xref docutils literal"><span class="pre">kill()</span></tt></a> on it.</dd></dl>
+
+<dl class="attribute">
+<dt id="concurrence.core.Tasklet.mailbox">
+<tt class="descname">mailbox</tt><a class="headerlink" href="#concurrence.core.Tasklet.mailbox" title="Permalink to this definition">¶</a></dt>
+<dd>The queue of messages send by other tasklets that are not yet consumed. Use <a title="concurrence.core.Tasklet.receive" class="reference internal" href="#concurrence.core.Tasklet.receive"><tt class="xref docutils literal"><span class="pre">receive()</span></tt></a> to get pending message for the current task.
+Alternatively you can use the methods of <a title="concurrence.core.Mailbox" class="reference internal" href="#concurrence.core.Mailbox"><tt class="xref docutils literal"><span class="pre">Mailbox</span></tt></a> directly.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.new">
+<em class="property">classmethod </em><tt class="descname">new</tt><big>(</big><em>f</em>, <em>name=''</em>, <em>daemon=False</em>, <em>max_mailbox_len=None</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.new" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new task that will run callable <em>f</em>. The new task can optionally
+be named <em>name</em>. If no <em>name</em> is given a name is derived from the callable <em>f</em>.</p>
+<p>The result of <em>f</em> will be the result of the tasklet. <em>f</em> may throw an exception, in which case
+the exception will be the result of the tasklet.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Tasklet.parent">
+<tt class="descname">parent</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.parent" title="Permalink to this definition">¶</a></dt>
+<dd>Gets the parent of this Tasklet. This method may return None if the parent is no longer there.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.rate">
+<em class="property">classmethod </em><tt class="descname">rate</tt><big>(</big><em>rate</em>, <em>f</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.rate" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new task that will call <em>f</em> <em>rate</em> times per second. The main difference with <a title="concurrence.core.Tasklet.interval" class="reference internal" href="#concurrence.core.Tasklet.interval"><tt class="xref docutils literal"><span class="pre">interval()</span></tt></a> is that
+this method is more accurate in calling <em>f</em> exactly <em>rate</em> times per second independent of the load generated by <em>f</em> and or
+other tasks running on the system. It does this by varying the interval on the basis of the difference between the target interval
+1 / <em>rate</em> and the actual interval found by measuring the timing. See <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> for a description of any further keyword arguments.
+As a convenience the current time is passed as the first parameter to <em>f</em>.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.receive">
+<em class="property">classmethod </em><tt class="descname">receive</tt><big>(</big><em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.receive" title="Permalink to this definition">¶</a></dt>
+<dd>A generator that yields the next pending <a title="concurrence.core.Message" class="reference internal" href="#concurrence.core.Message"><tt class="xref docutils literal"><span class="pre">Message</span></tt></a> in the <a title="concurrence.core.Tasklet.mailbox" class="reference internal" href="#concurrence.core.Tasklet.mailbox"><tt class="xref docutils literal"><span class="pre">mailbox</span></tt></a> of the current task. This
+method returns a tuple (msg, args, kwargs) for each message received. If no message is available the task blocks
+and waits for a message to arrive.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.receive_batch">
+<em class="property">classmethod </em><tt class="descname">receive_batch</tt><big>(</big><em>max_size</em>, <em>batch_timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.receive_batch" title="Permalink to this definition">¶</a></dt>
+<dd>A generator that yields a list of pending <a title="concurrence.core.Message" class="reference internal" href="#concurrence.core.Message"><tt class="xref docutils literal"><span class="pre">Message</span></tt></a> in the <a title="concurrence.core.Tasklet.mailbox" class="reference internal" href="#concurrence.core.Tasklet.mailbox"><tt class="xref docutils literal"><span class="pre">mailbox</span></tt></a> of the current task. The size of the list
+will never exceed <em>max_size</em>. If necessary this method waits up to <em>batch_timeout</em> after receiving the first message,
+to try to fill the list of exactly <em>max_size</em> entries (or it waits indefinitely if <em>batch_timeout</em> is not specified).
+In case the number of messages is less than <em>max_size</em> after the <em>batch_timeout</em> has expired, it returns a smaller list.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.receiver">
+<em class="property">classmethod </em><tt class="descname">receiver</tt><big>(</big><em>f</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.receiver" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new task will that will wait for messages to arrive and calls <em>f</em> (msg, <a href="#id1"><span class="problematic" id="id2">*</span></a>args, <a href="#id3"><span class="problematic" id="id4">**</span></a>kwargs)
+for each <a title="concurrence.core.Message" class="reference internal" href="#concurrence.core.Message"><tt class="xref docutils literal"><span class="pre">Message</span></tt></a> received. 
+See <a title="concurrence.core.Tasklet.new" class="reference internal" href="#concurrence.core.Tasklet.new"><tt class="xref docutils literal"><span class="pre">new()</span></tt></a> for a description of any further keyword arguments.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.sleep">
+<em class="property">classmethod </em><tt class="descname">sleep</tt><big>(</big><em>timeout</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.sleep" title="Permalink to this definition">¶</a></dt>
+<dd>Blocks the current task for the given <em>timeout</em> in seconds.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Tasklet.tree">
+<tt class="descname">tree</tt><big>(</big><em>level=0</em><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.tree" title="Permalink to this definition">¶</a></dt>
+<dd>An inorder treewalk starting at the current task and 
+iterating over its children, grandchildren etc. this generator
+yields tuples (task, level).</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Tasklet.yield_">
+<em class="property">classmethod </em><tt class="descname">yield_</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Tasklet.yield_" title="Permalink to this definition">¶</a></dt>
+<dd>Calls the scheduler to cooperatively schedule some other tasks.
+The current class will block and some other task will continue. The current task remains runnable
+and after some time it will be scheduled again and this method will return.
+If there is no other task runnable, this method is a no-op. 
+<a title="concurrence.core.Tasklet.yield_" class="reference internal" href="#concurrence.core.Tasklet.yield_"><tt class="xref docutils literal"><span class="pre">yield_()</span></tt></a> is used when a task is busy processing some
+lengthy calculation that contains no other blocking events like IO or timeouts. 
+By calling <a title="concurrence.core.Tasklet.yield_" class="reference internal" href="#concurrence.core.Tasklet.yield_"><tt class="xref docutils literal"><span class="pre">yield_()</span></tt></a> once in a while it can prevent itself from hogging 
+the CPU and give other tasks some change to do some work as well.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.core.Channel">
+<em class="property">class </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">Channel</tt><a class="headerlink" href="#concurrence.core.Channel" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Channel is a method for transfering control and/or communicate between Tasklets. 
+Please note that the Channel class is basically a small wrapper around a 
+<a class="reference external" href="http://www.stackless.com/wiki/Channels">stackless channel</a>. 
+It was overridden in Concurrence to provide timeouts on the <a title="concurrence.core.Channel.send" class="reference internal" href="#concurrence.core.Channel.send"><tt class="xref docutils literal"><span class="pre">send()</span></tt></a> and <a title="concurrence.core.Channel.receive" class="reference internal" href="#concurrence.core.Channel.receive"><tt class="xref docutils literal"><span class="pre">receive()</span></tt></a> methods.</p>
+<p>A <a title="concurrence.core.Tasklet" class="reference internal" href="#concurrence.core.Tasklet"><tt class="xref docutils literal"><span class="pre">Tasklet</span></tt></a> can <a title="concurrence.core.Channel.receive" class="reference internal" href="#concurrence.core.Channel.receive"><tt class="xref docutils literal"><span class="pre">receive()</span></tt></a> from a Channel as soon as some other Tasklet will <a title="concurrence.core.Channel.send" class="reference internal" href="#concurrence.core.Channel.send"><tt class="xref docutils literal"><span class="pre">send()</span></tt></a> on the 
+channel. If there is no sender the receiving Tasklet will block until a sender is available. If a sender and a 
+receiver are available, the sender will pass a value to the receiver and execution will continue in the receiver (The sender will
+become &#8216;runnable&#8217; as well, but will be placed at the end of the scheduling queue).</p>
+<p>The reverse works the same. If there is a sender but no receiver, the sender will block until a receiver arrives. As soon
+as a receiver arrives, the value of the sender is passed and execution continues with the receiver (The sender will become <cite>runnable</cite>
+again, but will be placed at the end of the scheduling queue).</p>
+<dl class="method">
+<dt id="concurrence.core.Channel.has_receiver">
+<tt class="descname">has_receiver</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Channel.has_receiver" title="Permalink to this definition">¶</a></dt>
+<dd>Whether this Channel has any waiting receivers.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Channel.has_sender">
+<tt class="descname">has_sender</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.core.Channel.has_sender" title="Permalink to this definition">¶</a></dt>
+<dd>Whether this Channel has any waiting senders.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Channel.receive">
+<tt class="descname">receive</tt><big>(</big><em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Channel.receive" title="Permalink to this definition">¶</a></dt>
+<dd>Receive from the channel. If there is no sender, the caller will block until there is one.
+Optionally you can specify a <em>timeout</em>. If a sender does not show up within the <em>timeout</em> period a
+<a title="concurrence.core.TimeoutError" class="reference internal" href="#concurrence.core.TimeoutError"><tt class="xref docutils literal"><span class="pre">TimeoutError</span></tt></a> is raised. The method returns the value given by the sender.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Channel.send">
+<tt class="descname">send</tt><big>(</big><em>value</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Channel.send" title="Permalink to this definition">¶</a></dt>
+<dd>Sends to the channel. If there is no receiver, the caller will block until there is one.
+If a receiver is present, the <em>value</em> will be passed to the receiver and execution will continue in the 
+receiver. 
+Optionally you can specify a <em>timeout</em>. If a receiver does not show up within the <em>timeout</em> period a
+<a title="concurrence.core.TimeoutError" class="reference internal" href="#concurrence.core.TimeoutError"><tt class="xref docutils literal"><span class="pre">TimeoutError</span></tt></a> is raised.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Channel.send_exception">
+<tt class="descname">send_exception</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="headerlink" href="#concurrence.core.Channel.send_exception" title="Permalink to this definition">¶</a></dt>
+<dd>Send an exception trough the channel instead of some value. This will immediatly raise the exception in the receiver.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.core.Message">
+<em class="property">class </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">Message</tt><big>(</big><em>reply_channel=None</em><big>)</big><a class="headerlink" href="#concurrence.core.Message" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="classmethod">
+<dt id="concurrence.core.Message.call">
+<em class="property">classmethod </em><tt class="descname">call</tt><big>(</big><em>receiver</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Message.call" title="Permalink to this definition">¶</a></dt>
+<dd>Synchronously send the message <em>cls</em> to the given <em>receiver</em> and waits 
+for a response. The result will be the response of the <em>receiver</em>.
+Optionally a <em>timeout</em> in seconds can be specified. If the receiver does not respond within
+the <em>timeout</em> period a <a title="concurrence.core.TimeoutError" class="reference internal" href="#concurrence.core.TimeoutError"><tt class="xref docutils literal"><span class="pre">TimeoutError</span></tt></a> is raised.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Message.match">
+<tt class="descname">match</tt><big>(</big><em>cls</em><big>)</big><a class="headerlink" href="#concurrence.core.Message.match" title="Permalink to this definition">¶</a></dt>
+<dd>Checks whether this message is an instance of the given message class <em>cls</em>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Message.reply">
+<tt class="descname">reply</tt><big>(</big><em>result</em><big>)</big><a class="headerlink" href="#concurrence.core.Message.reply" title="Permalink to this definition">¶</a></dt>
+<dd>Reply to the message and return <em>result</em> to the caller.</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.core.Message.send">
+<em class="property">classmethod </em><tt class="descname">send</tt><big>(</big><em>receiver</em><big>)</big><a class="headerlink" href="#concurrence.core.Message.send" title="Permalink to this definition">¶</a></dt>
+<dd>Asynchronously sends the message <em>cls</em> to the given <em>receiver</em>.</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.core.Mailbox">
+<em class="property">class </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">Mailbox</tt><big>(</big><em>iterable=</em><span class="optional">[</span><span class="optional">]</span>, <em>maxlen=None</em><big>)</big><a class="headerlink" href="#concurrence.core.Mailbox" title="Permalink to this definition">¶</a></dt>
+<dd><p>Every tasklet has a mailbox, a queue of messages send by other tasklets that are not yet consumed.</p>
+<dl class="method">
+<dt id="concurrence.core.Mailbox.pop">
+<tt class="descname">pop</tt><big>(</big><em>blocking=False</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Mailbox.pop" title="Permalink to this definition">¶</a></dt>
+<dd>Pop the last item from the end of the queue. If <em>blocking</em> is True, the caller will block for <em>timeout</em> seconds until an item 
+becomes available.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Mailbox.popleft">
+<tt class="descname">popleft</tt><big>(</big><em>blocking=False</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.core.Mailbox.popleft" title="Permalink to this definition">¶</a></dt>
+<dd>Pop the first item from the start of the queue. If <em>blocking</em> is True, the caller will block for <em>timeout</em> seconds until an item 
+becomes available.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Mailbox.append">
+<tt class="descname">append</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#concurrence.core.Mailbox.append" title="Permalink to this definition">¶</a></dt>
+<dd>Append item <em>x</em> to the end of the queue.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.core.Mailbox.appendleft">
+<tt class="descname">appendleft</tt><big>(</big><em>x</em><big>)</big><a class="headerlink" href="#concurrence.core.Mailbox.appendleft" title="Permalink to this definition">¶</a></dt>
+<dd>Append item <em>x</em> to the start of the queue.</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="concurrence.core.JoinError">
+<em class="property">exception </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">JoinError</tt><big>(</big><em>cause</em>, <em>tasklet</em><big>)</big><a class="headerlink" href="#concurrence.core.JoinError" title="Permalink to this definition">¶</a></dt>
+<dd>A JoinError can be raised from any of the <tt class="xref docutils literal"><span class="pre">join_XXX()</span></tt> methods of the
+<a title="concurrence.core.Tasklet" class="reference internal" href="#concurrence.core.Tasklet"><tt class="xref docutils literal"><span class="pre">Tasklet</span></tt></a> class.</dd></dl>
+
+<dl class="exception">
+<dt id="concurrence.core.TimeoutError">
+<em class="property">exception </em><tt class="descclassname">concurrence.core.</tt><tt class="descname">TimeoutError</tt><a class="headerlink" href="#concurrence.core.TimeoutError" title="Permalink to this definition">¶</a></dt>
+<dd>This exception can be raised by various methods that accept <em>timeout</em> parameters.</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="concurrence.web.html"
+                                  title="previous chapter"><tt class="docutils literal"><span class="pre">concurrence.web</span></tt> &#8211; The concurrence web module</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="concurrence.io.html"
+                                  title="next chapter"><tt class="docutils literal"><span class="pre">concurrence.io</span></tt> &#8211; The concurrence io module</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/concurrence.core.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.io.html" title="concurrence.io – The concurrence io module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.web.html" title="concurrence.web – The concurrence web module"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

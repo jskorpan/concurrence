@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>concurrence.database.mysql.client – The concurrence mysql driver module &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="concurrence.web – The concurrence web module" href="concurrence.web.html" />
+    <link rel="prev" title="concurrence.http – The concurrence http module" href="concurrence.http.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.web.html" title="concurrence.web – The concurrence web module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.http.html" title="concurrence.http – The concurrence http module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-concurrence.database.mysql.client">
+<h1><tt class="xref docutils literal"><span class="pre">concurrence.database.mysql.client</span></tt> &#8211; The concurrence mysql driver module<a class="headerlink" href="#module-concurrence.database.mysql.client" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix</p>
+<dl class="class">
+<dt id="concurrence.database.mysql.client.Connection">
+<em class="property">class </em><tt class="descclassname">concurrence.database.mysql.client.</tt><tt class="descname">Connection</tt><a class="headerlink" href="#concurrence.database.mysql.client.Connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a single connection to a MySQL Database host.</p>
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.close">
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.close" title="Permalink to this definition">¶</a></dt>
+<dd>close this connection</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.command">
+<tt class="descname">command</tt><big>(</big><em>cmd</em>, <em>cmd_text</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.command" title="Permalink to this definition">¶</a></dt>
+<dd>sends a COM_XXX command with the given text and possibly return a resultset (select)</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.commit">
+<tt class="descname">commit</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.commit" title="Permalink to this definition">¶</a></dt>
+<dd>Commits this connection</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.connect">
+<tt class="descname">connect</tt><big>(</big><em>host='localhost'</em>, <em>port=3306</em>, <em>user=''</em>, <em>passwd=''</em>, <em>db=''</em>, <em>autocommit=None</em>, <em>charset=None</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.connect" title="Permalink to this definition">¶</a></dt>
+<dd>connects to the given host and port with user and passwd</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.init_db">
+<tt class="descname">init_db</tt><big>(</big><em>cmd_text</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.init_db" title="Permalink to this definition">¶</a></dt>
+<dd>Sends a COM_INIT command with the given text</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.query">
+<tt class="descname">query</tt><big>(</big><em>cmd_text</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.query" title="Permalink to this definition">¶</a></dt>
+<dd>Sends a COM_QUERY command with the given text and return a resultset (select)</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.rollback">
+<tt class="descname">rollback</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.rollback" title="Permalink to this definition">¶</a></dt>
+<dd>Issues a rollback on this connection</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.set_autocommit">
+<tt class="descname">set_autocommit</tt><big>(</big><em>commit</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.set_autocommit" title="Permalink to this definition">¶</a></dt>
+<dd>Sets autocommit setting for this connection. True = on, False = off</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.database.mysql.client.Connection.set_charset">
+<tt class="descname">set_charset</tt><big>(</big><em>charset</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.Connection.set_charset" title="Permalink to this definition">¶</a></dt>
+<dd>Sets the charset for this connections (used to decode string fields into unicode strings)</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.database.mysql.client.ResultSet">
+<em class="property">class </em><tt class="descclassname">concurrence.database.mysql.client.</tt><tt class="descname">ResultSet</tt><big>(</big><em>connection</em>, <em>field_count</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.ResultSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents the current resultset being read from a Connection.
+The resultset implements an iterator over rows. A Resultset must
+be iterated entirely and closed explicitly.</p>
+<dl class="method">
+<dt id="concurrence.database.mysql.client.ResultSet.close">
+<tt class="descname">close</tt><big>(</big><em>connection_close=False</em><big>)</big><a class="headerlink" href="#concurrence.database.mysql.client.ResultSet.close" title="Permalink to this definition">¶</a></dt>
+<dd>Closes the current resultset. Make sure you have iterated over all rows before closing it!</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="concurrence.http.html"
+                                  title="previous chapter"><tt class="docutils literal"><span class="pre">concurrence.http</span></tt> &#8211; The concurrence http module</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="concurrence.web.html"
+                                  title="next chapter"><tt class="docutils literal docutils literal"><span class="pre">concurrence.web</span></tt> &#8211; The concurrence web module</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/concurrence.database.mysql.client.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.web.html" title="concurrence.web – The concurrence web module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.http.html" title="concurrence.http – The concurrence http module"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>

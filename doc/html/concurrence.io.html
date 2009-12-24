@@ -1,0 +1,324 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>concurrence.io – The concurrence io module &mdash; Concurrence Framework v0.3.1 documentation</title>
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Concurrence Framework v0.3.1 documentation" href="index.html" />
+    <link rel="next" title="concurrence.timer – A timer module" href="concurrence.timer.html" />
+    <link rel="prev" title="concurrence.core – The concurrence core module" href="concurrence.core.html" />
+<link rel="stylesheet" href="_static/hyves.css" type="text/css" />
+
+  </head>
+  <body>
+<div class='header'>
+<a href="index.html">
+<img class="logo" src="_static/hyves-logo.png" alt="Logo"/>
+</a>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             accesskey="M">modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.timer.html" title="concurrence.timer – A timer module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.core.html" title="concurrence.core – The concurrence core module"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-concurrence.io">
+<h1><tt class="xref docutils literal"><span class="pre">concurrence.io</span></tt> &#8211; The concurrence io module<a class="headerlink" href="#module-concurrence.io" title="Permalink to this headline">¶</a></h1>
+<p><em>Platforms: </em>Unix</p>
+<dl class="class">
+<dt id="concurrence.io.Buffer">
+<em class="property">class </em><tt class="descclassname">concurrence.io.</tt><tt class="descname">Buffer</tt><a class="headerlink" href="#concurrence.io.Buffer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a <a title="concurrence.io.Buffer" class="reference internal" href="#concurrence.io.Buffer"><tt class="xref docutils literal"><span class="pre">Buffer</span></tt></a> object. The buffer class forms the basis for IO in the Concurrence Framework.
+The buffer class represents a mutable array of bytes of that can be read from and written to using the
+read_XXX and write_XXX methods. 
+Operations on the buffer are performed relative to the current <tt class="xref docutils literal"><span class="pre">position</span></tt> attribute of the buffer.
+A buffer also has a current <tt class="xref docutils literal"><span class="pre">limit</span></tt> property above which no data may be read or written. 
+If an operation tries to read beyond the current <tt class="xref docutils literal"><span class="pre">limit</span></tt> a BufferUnderflowError is raised. If an operation 
+tries to write beyond the current <tt class="xref docutils literal"><span class="pre">limit</span></tt> a BufferOverflowError is raised.
+The general idea of the <a title="concurrence.io.Buffer" class="reference internal" href="#concurrence.io.Buffer"><tt class="xref docutils literal"><span class="pre">Buffer</span></tt></a> was shamelessly copied from java NIO.</p>
+<dl class="method">
+<dt id="concurrence.io.Buffer.copy">
+<tt class="descname">copy</tt><big>(</big><em>src</em>, <em>src_start</em>, <em>dst_start</em>, <em>length</em><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.copy" title="Permalink to this definition">¶</a></dt>
+<dd>Copies <em>length</em> bytes from buffer <em>src</em>, starting at position <em>src_start</em>, to this
+buffer at position <em>dst_start</em>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.clear">
+<tt class="descname">clear</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.clear" title="Permalink to this definition">¶</a></dt>
+<dd>Prepares the buffer for relative read operations. The buffers <tt class="xref docutils literal"><span class="pre">limit</span></tt> will set to the buffers <tt class="xref docutils literal"><span class="pre">capacity</span></tt> and
+its <tt class="xref docutils literal"><span class="pre">position</span></tt> will be set to 0.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.compact">
+<tt class="descname">compact</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.compact" title="Permalink to this definition">¶</a></dt>
+<dd>Prepares the buffer again for relative reading, but any left over data still present in the buffer (the bytes between
+the current <tt class="xref docutils literal"><span class="pre">position</span></tt> and current <tt class="xref docutils literal"><span class="pre">limit</span></tt>) will be copied to the start of the buffer. The position of the buffer
+will be right after the copied data.</dd></dl>
+
+<dl class="method">
+<dt>
+<tt class="descname">copy</tt><big>(</big><big>)</big></dt>
+<dd>Copies <em>length</em> bytes from buffer <em>src</em>, starting at position <em>src_start</em>, to this
+buffer at position <em>dst_start</em>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.duplicate">
+<tt class="descname">duplicate</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.duplicate" title="Permalink to this definition">¶</a></dt>
+<dd>Return a shallow copy of the Buffer, e.g. the copied buffer 
+references the same bytes as the original buffer, but has its own
+independend position and limit.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.flip">
+<tt class="descname">flip</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.flip" title="Permalink to this definition">¶</a></dt>
+<dd>Prepares the buffer for relative write operations. The buffers <tt class="xref docutils literal"><span class="pre">limit</span></tt> will set to the buffers <tt class="xref docutils literal"><span class="pre">position</span></tt> and
+its <tt class="xref docutils literal"><span class="pre">position</span></tt> will be set to 0.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.read_byte">
+<tt class="descname">read_byte</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.read_byte" title="Permalink to this definition">¶</a></dt>
+<dd>Reads and returns a single byte from the buffer and updates the <tt class="xref docutils literal"><span class="pre">position</span></tt> by 1.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.read_bytes">
+<tt class="descname">read_bytes</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.read_bytes" title="Permalink to this definition">¶</a></dt>
+<dd>Reads n bytes from buffer, updates position, and returns bytes as a python string,
+if there are no n bytes available, a <tt class="xref docutils literal"><span class="pre">BufferUnderflowError</span></tt> is raised.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.read_bytes_until">
+<tt class="descname">read_bytes_until</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.read_bytes_until" title="Permalink to this definition">¶</a></dt>
+<dd>Reads bytes until character b is found, or end of buffer is reached in which case it will raise a <tt class="xref docutils literal"><span class="pre">BufferUnderflowError</span></tt>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.read_line">
+<tt class="descname">read_line</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.read_line" title="Permalink to this definition">¶</a></dt>
+<dd>Reads a single line of bytes from the buffer where the end of the line is indicated by either &#8216;LF&#8217; or &#8216;CRLF&#8217;.
+The line will be returned as a string not including the line-separator. Optionally <em>include_separator</em> can be specified
+to make the method to also return the line-separator.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.read_short">
+<tt class="descname">read_short</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.read_short" title="Permalink to this definition">¶</a></dt>
+<dd>Read a 2 byte little endian integer from buffer and updates position.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.recv">
+<tt class="descname">recv</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.recv" title="Permalink to this definition">¶</a></dt>
+<dd>Reads as many bytes as will fit up till the <tt class="xref docutils literal"><span class="pre">limit</span></tt> of the buffer from the filedescriptor <em>fd</em>.
+Returns a tuple (bytes_read, bytes_remaining). If <em>bytes_read</em> is negative, a IO Error was encountered. 
+The <tt class="xref docutils literal"><span class="pre">position</span></tt> of the buffer will be updated according to the number of bytes read.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.rewind">
+<tt class="descname">rewind</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.rewind" title="Permalink to this definition">¶</a></dt>
+<dd>Sets the buffers <tt class="xref docutils literal"><span class="pre">position</span></tt> back to 0.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.send">
+<tt class="descname">send</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.send" title="Permalink to this definition">¶</a></dt>
+<dd>Sends as many bytes as possible up till the <tt class="xref docutils literal"><span class="pre">limit</span></tt> of the buffer to the filedescriptor <em>fd</em>.
+Returns a tuple (bytes_written, bytes_remaining). If <em>bytes_written</em> is negative, an IO Error was encountered.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.skip">
+<tt class="descname">skip</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.skip" title="Permalink to this definition">¶</a></dt>
+<dd>Updates the buffers position by skipping n bytes. It is not allowed to skip passed the current <tt class="xref docutils literal"><span class="pre">limit</span></tt>. 
+In that case a <tt class="xref docutils literal"><span class="pre">BufferUnderflowError</span></tt> will be raised and the <tt class="xref docutils literal"><span class="pre">position</span></tt> will remain the same</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.write_buffer">
+<tt class="descname">write_buffer</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.write_buffer" title="Permalink to this definition">¶</a></dt>
+<dd>writes available bytes from other buffer to this buffer</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.write_byte">
+<tt class="descname">write_byte</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.write_byte" title="Permalink to this definition">¶</a></dt>
+<dd>writes a single byte to the buffer and updates position</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.write_bytes">
+<tt class="descname">write_bytes</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.write_bytes" title="Permalink to this definition">¶</a></dt>
+<dd>Writes a number of bytes given by the python string s to the buffer and updates position. Raises 
+<tt class="xref docutils literal"><span class="pre">BufferOverflowError</span></tt> if you try to write beyond the current <tt class="xref docutils literal"><span class="pre">limit</span></tt>.</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.write_int">
+<tt class="descname">write_int</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.write_int" title="Permalink to this definition">¶</a></dt>
+<dd>writes a 32 bit integer to the buffer and updates position (little-endian)</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Buffer.write_short">
+<tt class="descname">write_short</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Buffer.write_short" title="Permalink to this definition">¶</a></dt>
+<dd>writes a 16 bit integer to the buffer and updates position (little-endian)</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.io.Socket">
+<em class="property">class </em><tt class="descclassname">concurrence.io.</tt><tt class="descname">Socket</tt><big>(</big><em>socket</em>, <em>state=0</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket" title="Permalink to this definition">¶</a></dt>
+<dd><p>don&#8217;t call directly pls use one of the provided classmethod to create a socket</p>
+<dl class="method">
+<dt id="concurrence.io.Socket.accept">
+<tt class="descname">accept</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.Socket.accept" title="Permalink to this definition">¶</a></dt>
+<dd>waits on a listening socket, returns a new socket_class instance
+for the incoming connection</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.io.Socket.connect">
+<em class="property">classmethod </em><tt class="descname">connect</tt><big>(</big><em>addr</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.connect" title="Permalink to this definition">¶</a></dt>
+<dd>creates a new socket and connects it to the given address.
+returns the connected sockets</dd></dl>
+
+<dl class="classmethod">
+<dt id="concurrence.io.Socket.from_address">
+<em class="property">classmethod </em><tt class="descname">from_address</tt><big>(</big><em>addr</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.from_address" title="Permalink to this definition">¶</a></dt>
+<dd>Creates a new socket from the given address. If the addr is a tuple (host, port)
+a normal tcp socket is assumed. if addr is a string, a UNIX Domain socket is assumed</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Socket.read">
+<tt class="descname">read</tt><big>(</big><em>buffer</em>, <em>timeout=-1.0</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.read" title="Permalink to this definition">¶</a></dt>
+<dd>Blocks till socket becomes readable and then reads as many bytes as possible the socket into the given
+buffer. The buffer position is updated according to the number of bytes read from the socket.
+This method could possible read 0 bytes. The method returns the total number of bytes read</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Socket.read_socket">
+<tt class="descname">read_socket</tt><big>(</big><em>socket_class=None</em>, <em>socket_family=2</em>, <em>socket_type=1</em>, <em>socket_state=0</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.read_socket" title="Permalink to this definition">¶</a></dt>
+<dd>reads a socket from this socket</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Socket.write">
+<tt class="descname">write</tt><big>(</big><em>buffer</em>, <em>timeout=-1.0</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.write" title="Permalink to this definition">¶</a></dt>
+<dd>Blocks till socket becomes writable and then writes as many bytes as possible from given
+buffer to the socket. The buffer position is updated according to the number of bytes read from it.
+This method could possible write 0 bytes. The method returns the total number of bytes written</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.Socket.write_socket">
+<tt class="descname">write_socket</tt><big>(</big><em>socket</em>, <em>timeout=-1</em><big>)</big><a class="headerlink" href="#concurrence.io.Socket.write_socket" title="Permalink to this definition">¶</a></dt>
+<dd>writes a socket trough this socket</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.io.SocketServer">
+<em class="property">class </em><tt class="descclassname">concurrence.io.</tt><tt class="descname">SocketServer</tt><big>(</big><em>endpoint</em>, <em>handler=None</em><big>)</big><a class="headerlink" href="#concurrence.io.SocketServer" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="concurrence.io.SocketServer.bind">
+<tt class="descname">bind</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.SocketServer.bind" title="Permalink to this definition">¶</a></dt>
+<dd>creates socket if needed, and binds it</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.SocketServer.listen">
+<tt class="descname">listen</tt><big>(</big><em>backlog=255</em><big>)</big><a class="headerlink" href="#concurrence.io.SocketServer.listen" title="Permalink to this definition">¶</a></dt>
+<dd>creates socket if needed, and listens it</dd></dl>
+
+<dl class="method">
+<dt id="concurrence.io.SocketServer.serve">
+<tt class="descname">serve</tt><big>(</big><big>)</big><a class="headerlink" href="#concurrence.io.SocketServer.serve" title="Permalink to this definition">¶</a></dt>
+<dd>listens and starts a new tasks accepting incoming connections on the configured address</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="concurrence.io.BufferedStream">
+<em class="property">class </em><tt class="descclassname">concurrence.io.</tt><tt class="descname">BufferedStream</tt><big>(</big><em>stream</em>, <em>buffer_size=8192</em>, <em>read_buffer_size=0</em>, <em>write_buffer_size=0</em><big>)</big><a class="headerlink" href="#concurrence.io.BufferedStream" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="concurrence.core.html"
+                                  title="previous chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">concurrence.core</span></tt> &#8211; The concurrence core module</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="concurrence.timer.html"
+                                  title="next chapter"><tt class="docutils literal docutils literal"><span class="pre">concurrence.timer</span></tt> &#8211; A timer module</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/concurrence.io.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="modindex.html" title="Global Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="concurrence.timer.html" title="concurrence.timer – A timer module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="concurrence.core.html" title="concurrence.core – The concurrence core module"
+             >previous</a> |</li>
+        <li><a href="index.html">Concurrence Framework v0.3.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright Copyright (C) 2009, Hyves (Startphone Ltd.).
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.3.
+    </div>
+  </body>
+</html>
