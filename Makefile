@@ -14,7 +14,9 @@ sdist:
 	$(PYTHON) setup.py sdist
 
 _doc:
+	rm -rf doc/html
 	cd doc/src; make html
+	cp -a doc/src/_build/html doc/html
  
 doc: _doc
 
