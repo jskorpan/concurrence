@@ -188,9 +188,9 @@ class Message():
 
 class Deque(collections.deque):
     """Deque is an extension of the standard python deque that provides blocking operations and timeouts"""
-    def __init__(self, iterable = []):
+    def __init__(self, iterable = [], preference = -1):
         collections.deque.__init__(self, iterable)
-        self.channel = Channel()
+        self.channel = Channel(preference)
 
     def pop(self, blocking = False, timeout = TIMEOUT_CURRENT):
         """Pop the last item from the end of the queue. If *blocking* is True, the caller will block for *timeout* seconds until an item
@@ -630,8 +630,17 @@ class Channel(object):
     """
     __slots__ = ['_channel']
 
-    def __init__(self):
+    def __init__(self, preference = -1):
         self._channel = stackless.channel()
+        self._channel.preference = preference
+
+    def _set_preference(self, p):
+        self._channel.preference = p
+
+    def _get_preference(self):
+        return self._channel.preference
+
+    preference = property(_get_preference, _set_preference)
 
     @property
     def balance(self):
