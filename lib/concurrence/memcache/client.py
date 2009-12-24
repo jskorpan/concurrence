@@ -16,6 +16,8 @@ from concurrence.memcache.protocol import MemcacheProtocol
 
 #TODO:
 
+#linger on close
+#batch operations
 #how to communicate and handle errors (raise error for get/gets?) and or extra stuff like flags?
 #timeout on commands (test tasklet based timeout)
 #statistics
