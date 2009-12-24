@@ -14,7 +14,7 @@ sdist:
 	$(PYTHON) setup.py sdist
 
 _doc:
-	cd doc; make html
+	cd doc/src; make html
  
 doc: _doc
 
@@ -25,7 +25,7 @@ clean:
 	-find . -name *~ -exec rm -rf {} \;
 	-find . -name *.egg-info -exec rm -rf {} \;
 	rm -rf setuptools*.egg
-	rm -rf doc/_build
+	rm -rf doc/src/_build
 	rm -rf build dist
 	rm -rf lib/concurrence/database/mysql/concurrence.database.mysql._mysql.c
 	rm -rf lib/concurrence/concurrence._event.c

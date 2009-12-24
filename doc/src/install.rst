@@ -1,3 +1,3 @@
 .. _install:
 
-.. include:: ../INSTALL.TXT
+.. include:: ../../INSTALL.TXT

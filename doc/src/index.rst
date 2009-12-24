@@ -47,7 +47,7 @@ Hello World
 
 This example can be found in examples/hello.py.
 
-.. literalinclude:: ../examples/hello.py
+.. literalinclude:: ../../examples/hello.py
 
 The basic unit of execution in Concurrence is the 'Tasklet' or 'task'.
 
@@ -75,7 +75,7 @@ The above example is rather boring. In this section we will introduce a variatio
 that is designed to show off the capabilities of the Concurrence framework for easily
 creating highly concurrent network applications:
 
-.. literalinclude:: ../examples/greeter.py
+.. literalinclude:: ../../examples/greeter.py
 
 Somebody who is familiar with Socket programming will probably recognize the function of this little program;
 

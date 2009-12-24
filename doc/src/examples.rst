@@ -11,7 +11,7 @@ A Simple Chat Server
 In an example of how Tasks and Messages are typically used together.
 This example implements a simple multi-user chat server:
 
-.. literalinclude:: ../examples/chat.py
+.. literalinclude:: ../../examples/chat.py
 	:linenos:
 	
 You can start it with ``stackless chat.py`` and then start 1 or more sessions using ``telnet localhost 9010``. 

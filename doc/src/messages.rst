@@ -33,7 +33,7 @@ The Tasklet will then determine what to do by matching the *msg* using the :func
 
 An example of using messages to communicate between tasks:
 	
-.. literalinclude:: ../examples/message.py
+.. literalinclude:: ../../examples/message.py
 
 In this example the ``main`` task starts a new task ``printer`` that forever listens for messages using the :func:`~concurrence.core.Tasklet.receive` iterator.
 

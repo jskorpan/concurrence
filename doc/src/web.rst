@@ -6,6 +6,6 @@ Web
 Example
 -------
 
-.. literalinclude:: ../examples/web.py
+.. literalinclude:: ../../examples/web.py
 
 
