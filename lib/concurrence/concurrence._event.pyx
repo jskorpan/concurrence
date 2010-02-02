@@ -33,9 +33,6 @@ ctypedef void (*event_handler)(int fd, short event_type, void* arg)
 cdef extern from "string.h":
     char *strerror(int errno)
 
-cdef extern from "errno.h":
-    int errno
-
 cdef extern from "event.h":
     struct timeval:
         unsigned int tv_sec
