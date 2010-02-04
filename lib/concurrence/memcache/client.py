@@ -44,11 +44,62 @@ class ResultChannel(QueueChannel):
     def __init__(self):
         super(ResultChannel, self).__init__(preference = 1)
 
+class CommandBatch(object):
+    def __init__(self):
+        self._cmds = []
+
+    def _batch_command(cmd, key, args, error_value = None, result_func = None):
+        self._cmds.append((cmd, key, args, error_value, result_func))
+
+    def delete(self, key, expiration = 0):
+        self._batch_command("delete", key, (expiration, ))
+
+    def set(self, key, data, expiration = 0, flags = 0):
+        self._batch_command("set", key, (data, expiration, flags))
+
+    def add(self, key, data, expiration = 0, flags = 0):
+        self._batch_command("add", key, (data, expiration, flags))
+
+    def replace(self, key, data, expiration = 0, flags = 0):
+        self._batch_command("replace", key, (data, expiration, flags))
+
+    def append(self, key, data, expiration = 0, flags = 0):
+        self._batch_command("append", key, (data, expiration, flags))
+
+    def prepend(self, key, data, expiration = 0, flags = 0):
+        self._batch_command("prepend", key, (data, expiration, flags))
+
+    def cas(self, key, data, cas_unique, expiration = 0, flags = 0):
+        self._batch_command("cas", key, (data, expiration, flags, cas_unique))
+
+    def incr(self, key, increment):
+        self._batch_command("incr", key, (increment,))
+
+    def decr(self, key, increment):
+        self._batch_command("decr", key, (increment,))
+
+    def get(self, key, default = None):
+        def _r(result, values):
+		    return values.get(key, default)
+        self._batch_command("get", key, (), {}, _r)
+
+    def getr(self, key, default = None):
+        def _r(result, values):
+            return result, values.get(key, default)
+        self._batch_command("get", key, (), {}, _r)
+
+    def gets(self, key, default = None):
+        def _r(result, values):
+            value, cas_unique = values.get(key, (default, None))
+            return result, value, cas_unique
+        self._batch_command("gets", key, (), {}, _r)
+
 class MemcacheConnection(object):
     log = logging.getLogger("MemcacheConnection")
 
     _read_timeout = 2
     _write_timeout = 2
+    _connect_timeout = 2
 
     def __init__(self, address, protocol = "text", codec = "default"):
 
@@ -67,45 +118,48 @@ class MemcacheConnection(object):
     def is_connected(self):
         return self._stream is not None
 
-    def flush(self):
-        self._stream.flush()
+    def _defer_commands(self, cmds, result_channel):
+        def _read_results():
+            with self._stream.get_reader() as reader:
+                for cmd, args, error_value in cmds:
+                    Tasklet.set_current_timeout(self._read_timeout)
+                    try:
+                        result = getattr(self._protocol, 'read_' + cmd)(reader)
+                        result_channel.send(result)
+                    except TaskletExit:
+                        raise
+                    except:
+                        self.log.exception("read error in defer_commands")
+                        result_channel.send((MemcacheResult.ERROR, error_value))
 
-    def _write_command(self, cmd, args, flush = True):
-        with self._stream.get_writer() as writer:
-            getattr(self._protocol, 'write_' + cmd)(writer, *args)
-            if flush:
+        def _write_commands():
+            try:
+                Tasklet.set_current_timeout(self._connect_timeout)
+                if not self.is_connected():
+                    self.connect()  
+            except TaskletExit:
+                raise
+            except:
+                self.log.exception("connect error in defer_commands")
+                for _, _, error_value in cmds:
+                    result_channel.send((MemcacheResult.ERROR, error_value))
+            with self._stream.get_writer() as writer:
+                for cmd, args, error_value in cmds:
+                    Tasklet.set_current_timeout(self._connect_timeout)
+                    try:
+                        getattr(self._protocol, 'write_' + cmd)(writer, *args)
+                    except TaskletExit:
+                        raise
+                    except:
+                        self.log.exception("write error in defer_commands")
+                        result_channel.send((MemcacheResult.ERROR, error_value))
                 writer.flush()
+            self._read_queue.defer(_read_results)
 
-    def _read_result(self, cmd):
-        with self._stream.get_reader() as reader:
-            return getattr(self._protocol, 'read_' + cmd)(reader)
+        self._write_queue.defer(_write_commands)
 
     def _defer_command(self, cmd, args, result_channel, error_value = None):
-        def _read_result():
-            Tasklet.set_current_timeout(self._read_timeout)
-            try:
-                result = self._read_result(cmd)
-                result_channel.send(result)
-            except TaskletExit:
-                raise
-            except:
-                self.log.exception("read error in defer_command")
-                result_channel.send((MemcacheResult.ERROR, error_value))
-
-        def _write_command():
-            Tasklet.set_current_timeout(self._write_timeout)
-            try:
-                if not self.is_connected():
-                    self.connect()
-                self._write_command(cmd, args, True)
-                self._read_queue.defer(_read_result)
-            except TaskletExit:
-                raise
-            except:
-                self.log.exception("write error in defer_command")
-                result_channel.send((MemcacheResult.ERROR, error_value))
-
-        self._write_queue.defer(_write_command)
+        self._defer_commands([(cmd, args, error_value)], result_channel)
 
     def _do_command(self, cmd, args, error_value = None):
         result_channel = ResultChannel()
@@ -120,14 +174,17 @@ class MemcacheConnection(object):
             self._stream.close()
             self._stream = None
 
+    def __setitem__(self, key, data):
+        self.set(key, data)
+
+    def __getitem__(self, key):
+        return self.get(key)
+
     def delete(self, key, expiration = 0):
         return self._do_command("delete", (key, expiration))[0]
 
     def set(self, key, data, expiration = 0, flags = 0):
         return self._do_command("set", (key, data, expiration, flags))[0]
-
-    def __setitem__(self, key, data):
-        self.set(key, data)
 
     def add(self, key, data, expiration = 0, flags = 0):
         return self._do_command("add", (key, data, expiration, flags))[0]
@@ -153,9 +210,6 @@ class MemcacheConnection(object):
     def get(self, key, default = None):
         _, values = self._do_command("get", ([key], ), {})
         return values.get(key, default)
-
-    def __getitem__(self, key):
-        return self.get(key)
 
     def getr(self, key, default = None):
         result, values = self._do_command("get", ([key], ), {})
@@ -265,14 +319,17 @@ class Memcache(object):
     def connection_for_key(self, key):
         return self._get_connection(self._key_to_addr(key))
 
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def __setitem__(self, key, data):
+        self.set(key, data)
+
     def delete(self, key, expiration = 0):
         return self.connection_for_key(key)._do_command("delete", (key, expiration))[0]
 
     def set(self, key, data, expiration = 0, flags = 0):
         return self.connection_for_key(key)._do_command("set", (key, data, expiration, flags))[0]
-
-    def __setitem__(self, key, data):
-        self.set(key, data)
 
     def add(self, key, data, expiration = 0, flags = 0):
         return self.connection_for_key(key)._do_command("add", (key, data, expiration, flags))[0]
@@ -297,9 +354,6 @@ class Memcache(object):
 
     def get(self, key, default = None):
         return self._get("get", key, default)[1]
-
-    def __getitem__(self, key):
-        return self.get(key)
 
     def getr(self, key, default = None):
         return self._get("get", key, default)

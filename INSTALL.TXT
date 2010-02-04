@@ -76,8 +76,9 @@ Download the latest stackless tarball from www.stackless.com. unpack it somewher
 the folowing commands:
 
 UBUNTU:
-Make sure you have <libreadline-dev> package. Otherwise you have no history support in the python interactive shell
-(on ubuntu: apt-get install libreadline-dev)
+Make sure you have <libreadline-dev> package. Otherwise you have no history support in the python interactive shell,
+also by default Ubuntu does not include the development package for zlib which is also good to have:
+(on ubuntu: apt-get install libreadline-dev zlib1g-dev)
 
 We will install stackless in /opt/stackless using the prefix argument to configure. This will prevent any existing python installation
 from being overwritten::
@@ -95,7 +96,7 @@ from being overwritten::
 
 I always like to make a symlink to stackless for everyday usage and to differentiate it from 'normal' python:
  
-ln -s /opt/stackless/bin/python2.5 /usr/bin/stackless
+ln -s /opt/stackless/bin/python2.X /usr/bin/stackless
 
 
 

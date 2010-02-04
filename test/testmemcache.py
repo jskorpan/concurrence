@@ -243,26 +243,6 @@ class TestMemcache(unittest.TestCase):
 
         self.sharedTestBasic(mc)
 
-    def testNoAutoFlush(self):
-        mc = MemcacheConnection((MEMCACHE_IP, 11211))
-
-        N = 400000
-        X = 250
-
-        mc.connect()
-
-        n = 0
-        with unittest.timer() as tmr:
-            while n < N:
-                for j in range(X):
-                    mc._write_command('set', ('test%d' % n, 'hello world!', 0, 0), flush = False)
-                    n += 1
-                mc.flush()
-                for j in range(X):
-                    mc._read_result('set')
-
-        print 'single no autoflush single server set keys/sec', tmr.sec(n)
-
     def testMemcache(self):
 
         mc = Memcache()
