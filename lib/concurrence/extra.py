@@ -136,11 +136,13 @@ class QueueChannel(Deque):
     def receive(self, timeout = TIMEOUT_CURRENT):
         return self.popleft(True, timeout)
 
+    def __iter__(self):
+        while True:
+            yield self.receive()
+
     def receive_n(self, n):
         for i in range(n):
-            yield self.popleft(True, TIMEOUT_CURRENT)
-
-
+            yield self.receive()
 
 
 

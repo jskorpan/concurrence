@@ -224,6 +224,31 @@ class TestMemcache(unittest.TestCase):
         mc = MemcacheConnection((MEMCACHE_IP, 11211))
         self.sharedTestBasic(mc)
 
+    def testSingleBatch(self):
+        mc = MemcacheConnection((MEMCACHE_IP, 11211))
+        batch = mc.batch()
+        batch.set('bset_1', 10)
+        batch.set('bset_2', 20)
+        batch.get('bset_1')
+        batch.get('bset_2')
+        result = batch.execute()
+        print result.receive()
+        print result.receive()
+        print result.receive()
+        print result.receive()
+
+        N = 2000
+        B = 400
+
+        with unittest.timer() as tmr:
+            for i in range(N):
+                batch = mc.batch()
+                for j in range(B):
+                    batch.set('test2', 'hello world!')
+                for _ in batch.execute(): #TODO why do we need to read out results?
+                    pass
+        print 'single server batch set keys/sec', tmr.sec(B * N)
+
     def testExtraSingle(self):
         """test stuff that only makes sense on a single server connection"""
         mc = MemcacheConnection((MEMCACHE_IP, 11211))

@@ -209,6 +209,8 @@ class Socket(IOStream):
         if not assume_writable:
             self.writable.wait(timeout = timeout)
             bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
+
+        #print 'bw', bytes_written, buffer.capacity
         #
         if bytes_written < 0:
             raise _io.error_from_errno(IOError)
@@ -237,6 +239,8 @@ class Socket(IOStream):
         if not assume_readable:
             self.readable.wait(timeout = timeout)
             bytes_read, _ = buffer.recv(self.fd) #read from fd to
+
+        #print 'br', bytes_read, buffer.capacity
         #
         if bytes_read < 0:
             raise _io.error_from_errno(IOError)
