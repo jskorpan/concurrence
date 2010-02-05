@@ -95,5 +95,7 @@ def main(timeout = None):
         logging.debug("test will timeout in %s seconds", timeout)
         timeout_task = Tasklet.later(timeout, quit_test, name = 'unittest_timeout')()
 
+    from concurrence.core import _profile
+    #_profile(unittest.main)
     dispatch(unittest.main)
 

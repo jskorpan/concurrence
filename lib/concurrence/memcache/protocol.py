@@ -15,9 +15,23 @@ class MemcacheProtocol(object):
 class MemcacheTextProtocol(MemcacheProtocol):
     def __init__(self, codec = "default"):
         self.set_codec(codec)
+        self._rcache = {}
+        self._wcache = {}
+        import inspect
+        for name, member in inspect.getmembers(self):
+            if name.startswith('read_'):
+                self._rcache[name[5:]] = member
+            elif name.startswith('write_'):
+                self._wcache[name[6:]] = member
 
     def set_codec(self, codec):
         self._codec = MemcacheCodec.create(codec)
+
+    def read(self, cmd, reader):
+        return self._rcache[cmd](reader)
+
+    def write(self, cmd, writer, args):
+        return self._wcache[cmd](writer, *args)
 
     def _read_result(self, reader, value = None):
         response_line = reader.read_line()
@@ -33,15 +47,13 @@ class MemcacheTextProtocol(MemcacheProtocol):
         else:
             return MemcacheResult.get(response_line), None
 
-    def _write_storage(self, writer, cmd, key, value, expiration, flags, cas_unique = None):
+    def _write_storage(self, writer, cmd, key, value, expiration, flags):
         encoded_value, flags = self._codec.encode(value, flags)
-        if cas_unique is not None:
-            writer.write_bytes("%s %s %d %d %d %d\r\n%s\r\n" % (cmd, key, flags, expiration, len(encoded_value), cas_unique, encoded_value))
-        else:
-            writer.write_bytes("%s %s %d %d %d\r\n%s\r\n" % (cmd, key, flags, expiration, len(encoded_value), encoded_value))
+        writer.write_bytes("%s %s %d %d %d\r\n%s\r\n" % (cmd, key, flags, expiration, len(encoded_value), encoded_value))
 
     def write_cas(self, writer, key, value, expiration, flags, cas_unique):
-        self._write_storage(writer, "cas", key, value, expiration, flags, cas_unique)
+        encoded_value, flags = self._codec.encode(value, flags)
+        writer.write_bytes("%s %s %d %d %d %d\r\n%s\r\n" % ("cas", key, flags, expiration, len(encoded_value), cas_unique, encoded_value))
 
     def read_cas(self, reader):
         return self._read_result(reader)

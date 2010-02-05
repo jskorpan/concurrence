@@ -237,7 +237,7 @@ class TestMemcache(unittest.TestCase):
         print result.receive()
         print result.receive()
 
-        N = 2000
+        N = 400
         B = 400
 
         with unittest.timer() as tmr:

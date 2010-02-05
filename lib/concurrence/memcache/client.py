@@ -83,7 +83,7 @@ class CommandBatch(object):
 
     def get(self, key, default = None):
         def _r(result, values):
-		    return values.get(key, default)
+            return values.get(key, default)
         self._batch_command("get", ([key], ), {}, _r)
 
     def getr(self, key, default = None):
@@ -140,11 +140,12 @@ class MemcacheConnection(object):
 
     def _defer_commands(self, cmds, result_channel):
         def _read_results():
+            protocol = self._protocol
             with self._stream.get_reader() as reader:
                 for cmd, args, error_value in cmds:
                     Tasklet.set_current_timeout(self._read_timeout)
                     try:
-                        result = getattr(self._protocol, 'read_' + cmd)(reader)
+                        result = protocol.read(cmd, reader)
                         result_channel.send(result)
                     except TaskletExit:
                         raise
@@ -153,10 +154,11 @@ class MemcacheConnection(object):
                         result_channel.send((MemcacheResult.ERROR, error_value))
         #end _read_commands
         def _write_commands():
+            protocol = self._protocol
             try:
                 Tasklet.set_current_timeout(self._connect_timeout)
                 if not self.is_connected():
-                    self.connect()  
+                    self.connect()
             except TaskletExit:
                 raise
             except:
@@ -168,7 +170,7 @@ class MemcacheConnection(object):
                 for cmd, args, error_value in cmds:
                     Tasklet.set_current_timeout(self._write_timeout)
                     try:
-                        getattr(self._protocol, 'write_' + cmd)(writer, *args)
+                        protocol.write(cmd, writer, args)
                     except TaskletExit:
                         raise
                     except:
@@ -251,7 +253,7 @@ class MemcacheConnection(object):
         return self._do_command("version", ())
 
     def batch(self):
-        return CommandBatch(self) 
+        return CommandBatch(self)
 
 class MemcacheConnectionManager(object):
     _instance = None #TODO when we support multiple protocols, we need to have 1 instance per protocol
