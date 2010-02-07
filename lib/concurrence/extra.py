@@ -59,7 +59,7 @@ class TaskletPool(object):
         self._queue_len = 0.0
 
     def _add_worker(self):
-        self._workers.append(Tasklet.new(self._worker, daemon = True)())
+        self._workers.append(Tasklet.new(self.run, daemon = True)())
         self.log.debug('added worker, #now: %s', len(self._workers))
 
     def _adjust(self):
@@ -67,8 +67,9 @@ class TaskletPool(object):
         x = self._queue_len / len(self._workers)
         if x > self.TRESHOLD:
             self._add_worker()
+        #TODO remove workers when no longer needed
 
-    def _worker(self):
+    def run(self):
         while True:
             try:
                 f, args, kwargs = self._queue.popleft(True, TIMEOUT_NEVER)
@@ -85,11 +86,12 @@ class TaskletPool(object):
 class DeferredQueue(object):
     log = logging.getLogger('DeferredQueue')
 
-    __slots__ = ['_queue', '_working']
+    __slots__ = ['_queue', '_working', '_defer_func']
 
-    def __init__(self):
+    def __init__(self, defer_func = None):
         self._queue = deque()
         self._working = False
+        self._defer_func = defer_func
 
     def _pump(self):
         try:
@@ -108,7 +110,10 @@ class DeferredQueue(object):
         self._queue.append((f, args, kwargs))
         if not self._working:
             self._working = True
-            Tasklet.defer(self._pump)
+            if self._defer_func:
+                self._defer_func(self._pump)
+            else:
+                Tasklet.defer(self._pump)
 
 class TaskletExtra(object):
     _tasklet_pool = None

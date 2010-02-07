@@ -43,6 +43,8 @@ EXIT_CODE_ERROR = 1
 EXIT_CODE_SIGINT = 127
 EXIT_CODE_TIMEOUT = 128
 
+TIMEOUT_ABSOLUTE_CUTOFF = 3600 * 24
+
 class TimeoutError(Exception):
     """This exception can be raised by various methods that accept *timeout* parameters."""
     pass
@@ -584,30 +586,34 @@ class Tasklet(stackless.tasklet):
         """Returns the time in seconds left before this task will timeout."""
         if self._timeout_time < 0:
             return TIMEOUT_NEVER
-        else:
+        elif self._timeout_time < TIMEOUT_ABSOLUTE_CUTOFF:
+            return self._timeout_time
+        else:            
             timeout = self._timeout_time - time.time()
             if timeout < 0: timeout = 0.0 #expire immediately
             return timeout
 
-    def set_timeout(self, timeout):
+    def set_timeout(self, timeout, relative = True):
         """Sets the time at which this task will timeout to *timeout* seconds in the future."""
         assert timeout != TIMEOUT_CURRENT
         if timeout < 0:
             self._timeout_time = TIMEOUT_NEVER
-        else:
+        elif relative:
             self._timeout_time = time.time() + timeout
+        else:
+            self._timeout_time = timeout
 
     timeout = property(get_timeout, set_timeout)
 
     @classmethod
     def get_current_timeout(cls):
         """Returns the time in seconds left before the current task will timeout."""
-        return cls.current().timeout
+        return cls.current().get_timeout()
 
     @classmethod
-    def set_current_timeout(cls, timeout):
+    def set_current_timeout(cls, timeout, relative = True):
         """Sets the time at which the current task will timeout to *timeout* seconds in the future."""
-        cls.current().timeout = timeout
+        cls.current().set_timeout(timeout, relative)
 
     @classmethod
     def count(cls):

@@ -6,7 +6,7 @@ from __future__ import with_statement
 
 import logging
 
-from concurrence import Tasklet, Channel, DeferredQueue, QueueChannel, TIMEOUT_CURRENT, TimeoutError
+from concurrence import Tasklet, TaskletPool, Channel, DeferredQueue, QueueChannel, TIMEOUT_CURRENT, TimeoutError
 from concurrence.io import Socket, BufferedStream
 
 from concurrence.memcache import MemcacheError, MemcacheResult
@@ -17,7 +17,6 @@ from concurrence.memcache.protocol import MemcacheProtocol
 #TODO:
 
 #linger on close
-#batch operations
 #how to communicate and handle errors (raise error for get/gets?) and or extra stuff like flags?
 #timeout on commands (test tasklet based timeout)
 #statistics
@@ -114,20 +113,24 @@ class CommandBatch(object):
         self._target._defer_commands(self._cmds, result_channel)
         return result_channel
 
+class MemcacheTaskletPool(TaskletPool):
+    def run(self):
+        Tasklet.set_current_timeout(2.0, False)
+        super(MemcacheTaskletPool, self).run()
+
+
 class MemcacheConnection(object):
     log = logging.getLogger("MemcacheConnection")
 
-    _read_timeout = 2
-    _write_timeout = 2
-    _connect_timeout = 2
+    _tasklet_pool = MemcacheTaskletPool()
 
     def __init__(self, address, protocol = "text", codec = "default"):
 
         self._address = address
 
         self._stream = None
-        self._read_queue = DeferredQueue()
-        self._write_queue = DeferredQueue()
+        self._read_queue = DeferredQueue(self._tasklet_pool.defer)
+        self._write_queue = DeferredQueue(self._tasklet_pool.defer)
 
         self._protocol = MemcacheProtocol.create(protocol)
         self._protocol.set_codec(MemcacheCodec.create(codec))
@@ -143,7 +146,6 @@ class MemcacheConnection(object):
             protocol = self._protocol
             with self._stream.get_reader() as reader:
                 for cmd, args, error_value in cmds:
-                    Tasklet.set_current_timeout(self._read_timeout)
                     try:
                         result = protocol.read(cmd, reader)
                         result_channel.send(result)
@@ -156,7 +158,6 @@ class MemcacheConnection(object):
         def _write_commands():
             protocol = self._protocol
             try:
-                Tasklet.set_current_timeout(self._connect_timeout)
                 if not self.is_connected():
                     self.connect()
             except TaskletExit:
@@ -168,7 +169,6 @@ class MemcacheConnection(object):
                 return
             with self._stream.get_writer() as writer:
                 for cmd, args, error_value in cmds:
-                    Tasklet.set_current_timeout(self._write_timeout)
                     try:
                         protocol.write(cmd, writer, args)
                     except TaskletExit:

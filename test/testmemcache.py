@@ -226,16 +226,16 @@ class TestMemcache(unittest.TestCase):
 
     def testSingleBatch(self):
         mc = MemcacheConnection((MEMCACHE_IP, 11211))
-        batch = mc.batch()
-        batch.set('bset_1', 10)
-        batch.set('bset_2', 20)
-        batch.get('bset_1')
-        batch.get('bset_2')
-        result = batch.execute()
-        print result.receive()
-        print result.receive()
-        print result.receive()
-        print result.receive()
+        #batch = mc.batch()
+        #batch.set('bset_1', 10)
+        #batch.set('bset_2', 20)
+        #batch.get('bset_1')
+        #batch.get('bset_2')
+        #result = batch.execute()
+        #print result.receive()
+        #print result.receive()
+        #print result.receive()
+        #print result.receive()
 
         N = 400
         B = 400
