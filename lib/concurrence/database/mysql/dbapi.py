@@ -13,7 +13,7 @@ import sys
 import logging
 import exceptions
 
-from datetime import datetime
+from datetime import datetime, date
 from concurrence.database.mysql import client
 from concurrence import TimeoutError as ConcurrenceTimeoutError
 
@@ -121,6 +121,8 @@ class Cursor(object):
                     qry = qry.replace('%s', 'null', 1)
                 elif isinstance(arg, datetime):
                     qry = qry.replace('%s', "'%s'" % arg.strftime('%Y-%m-%d %H:%M:%S'), 1)
+                elif isinstance(arg, date):
+                    qry = qry.replace('%s', "'%s'" % arg.strftime('%Y-%m-%d'), 1)
                 else:
                     assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
             
