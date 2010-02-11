@@ -2,6 +2,7 @@
 from __future__ import with_statement
 
 import time
+import datetime
 import logging
 
 from concurrence import dispatch, unittest, Tasklet
@@ -487,6 +488,33 @@ class TestMySQL(unittest.TestCase):
         result = cur.fetchall()
         self.assertEquals([(1, BIGNUM, BIGNUM), (2, BIGNUM, BIGNUM)], result)
 
+
+    def testDate(self):
+        """Tests the behaviour of insert/select with mysql/DATE <-> python/datetime.date"""
+
+        d_date = datetime.date(2010, 02, 11)
+        d_string = "2010-02-11"
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'latin-1', use_unicode = True)
+
+        cur = cnn.cursor()
+
+        cur.execute("drop table if exists tbldate")
+        cur.execute("create table tbldate (test_id int(11) DEFAULT NULL, test_date date DEFAULT NULL, test_date2 bigint DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+
+        cur.execute("insert into tbldate (test_id, test_date, test_date2) values (%s, '" + d_string + "', %s)", (1, d_date))
+
+        # Make sure our insert was correct
+        cur.execute("select test_id from tbldate where test_date = test_date2")
+        result = cur.fetchall()
+        self.assertEquals([(1, )], result)
+
+        # Make sure select gets the right value back 
+        cur.execute("select test_id, test_datet, test_date2 from tbldate where test_date = test_date2")
+        result = cur.fetchall()
+        self.assertEquals([(1, d_date, d_date)], result)
 
 
 if __name__ == '__main__':
