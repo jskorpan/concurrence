@@ -48,12 +48,23 @@ class PACKET_READ_RESULT:
     EOF = PACKET_READ_EOF
           
            
-INT_TYPES = set([1,2,3])
-FLOAT_TYPES = set([4,5])
+INT_TYPES = set([0x01, 0x02, 0x03, 0x08])
+FLOAT_TYPES = set([0x04, 0x05])
 BLOB_TYPES = set([0xf9, 0xfa, 0xfb, 0xfc])
 STRING_TYPES = set([0x0f, 0xfd, 0xfe])
-DATE_TYPES = set([7,10,11,12,13,14])
-            
+DATE_TYPES = set([0x07, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e])
+
+# Not handled:
+# 0x00 FIELD_TYPE_DECIMAL
+# 0x06 FIELD_TYPE_NULL
+# 0x09 FIELD_TYPE_INT24
+# 0x10 FIELD_TYPE_BIT
+# 0xf6 FIELD_TYPE_NEWDECIMAL
+# 0xf7 FIELD_TYPE_ENUM
+# 0xf8 FIELD_TYPE_SET
+# 0xff FIELD_TYPE_GEOMETRY
+
+
 class PacketReadError(Exception):
     pass
 

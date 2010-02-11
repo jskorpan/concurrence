@@ -21,7 +21,7 @@ class TestMySQL(unittest.TestCase):
 
         rs = cnn.query("select 1")
 
-        self.assertEqual([('1',)], list(rs))
+        self.assertEqual([(1,)], list(rs))
 
         rs.close()
         cnn.close()
@@ -31,7 +31,7 @@ class TestMySQL(unittest.TestCase):
 
         rs = cnn.query("select 1")
 
-        self.assertEqual([('1',)], list(rs))
+        self.assertEqual([(1,)], list(rs))
 
         rs.close()
         cnn.close()
