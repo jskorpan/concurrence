@@ -543,6 +543,30 @@ class TestMySQL(unittest.TestCase):
         result = cur.fetchall()
         self.assertEquals([(1, d_date, d_date)], result)
 
+    def testZeroDates(self):
+        """Tests the behaviour of zero dates"""
+
+        zero_datetime = "0000-00-00 00:00:00" 
+        zero_date = "0000-00-00"
+
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'latin-1', use_unicode = True)
+
+        cur = cnn.cursor()
+
+        cur.execute("drop table if exists tbldate")
+        cur.execute("create table tbldate (test_id int(11) DEFAULT NULL, test_date date DEFAULT NULL, test_datetime datetime DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+
+        cur.execute("insert into tbldate (test_id, test_date, test_datetime) values (%s, %s, %s)", (1, zero_date, zero_datetime))
+
+        # Make sure we get None-values back
+        cur.execute("select test_id, test_date, test_datetime from tbldate where test_id = 1")
+        result = cur.fetchall()
+        self.assertEquals([(1, None, None)], result)
+
+
 if __name__ == '__main__':
     unittest.main(timeout = 60)
 
