@@ -502,7 +502,7 @@ class TestMySQL(unittest.TestCase):
         cur = cnn.cursor()
 
         cur.execute("drop table if exists tbldate")
-        cur.execute("create table tbldate (test_id int(11) DEFAULT NULL, test_date date DEFAULT NULL, test_date2 bigint DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+        cur.execute("create table tbldate (test_id int(11) DEFAULT NULL, test_date date DEFAULT NULL, test_date2 date DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
 
         cur.execute("insert into tbldate (test_id, test_date, test_date2) values (%s, '" + d_string + "', %s)", (1, d_date))
 
@@ -512,7 +512,7 @@ class TestMySQL(unittest.TestCase):
         self.assertEquals([(1, )], result)
 
         # Make sure select gets the right value back 
-        cur.execute("select test_id, test_datet, test_date2 from tbldate where test_date = test_date2")
+        cur.execute("select test_id, test_date, test_date2 from tbldate where test_date = test_date2")
         result = cur.fetchall()
         self.assertEquals([(1, d_date, d_date)], result)
 
