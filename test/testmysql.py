@@ -472,7 +472,10 @@ class TestMySQL(unittest.TestCase):
         cur = cnn.cursor()
 
         cur.execute("drop table if exists tblbigint")
-        cur.execute("create table tblbigint (test_id int(11) DEFAULT NULL, test_bigint bigint DEFAULT NULL, test_bigint2 bigint DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+        cur.execute("""create table tblbigint (
+                            test_id int(11) DEFAULT NULL,
+                            test_bigint bigint DEFAULT NULL,
+                            test_bigint2 bigint DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1""")
         cur.execute("insert into tblbigint (test_id, test_bigint, test_bigint2) values (%s, " + str(BIGNUM) + ", %s)", (1, BIGNUM))
         cur.execute(u"insert into tblbigint (test_id, test_bigint, test_bigint2) values (%s, " + str(BIGNUM) + ", %s)", (2, BIGNUM))
 
@@ -565,6 +568,61 @@ class TestMySQL(unittest.TestCase):
         cur.execute("select test_id, test_date, test_datetime from tbldate where test_id = 1")
         result = cur.fetchall()
         self.assertEquals([(1, None, None)], result)
+
+    def testUnicodeUTF8(self):
+        peacesign_unicode = u"\u262e"
+        peacesign_utf8 = "\xe2\x98\xae"
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'utf-8', use_unicode = True)
+
+        cur = cnn.cursor()
+        cur.execute("drop table if exists tblutf")
+        cur.execute("create table tblutf (test_id int(11) DEFAULT NULL, test_string VARCHAR(32) DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8")
+
+        cur.execute("insert into tblutf (test_id, test_string) values (%s, %s)", (1, peacesign_unicode)) # This should be encoded in utf8
+        cur.execute("insert into tblutf (test_id, test_string) values (%s, %s)", (2, peacesign_utf8))
+
+        cur.execute("select test_id, test_string from tblutf")
+        result = cur.fetchall()
+
+        # We expect unicode strings back
+        self.assertEquals([(1, peacesign_unicode), (2, peacesign_unicode)], result)
+
+    def testCharsets(self):
+        aumlaut_unicode = u"\u00e4"
+        aumlaut_utf8 = "\xc3\xa4"
+        aumlaut_latin1 = "\xe4"
+
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'utf8', use_unicode = True)
+
+        cur = cnn.cursor()
+        cur.execute("drop table if exists tblutf")
+        cur.execute("create table tblutf (test_mode VARCHAR(32) DEFAULT NULL, test_utf VARCHAR(32) DEFAULT NULL, test_latin1 VARCHAR(32)) ENGINE=MyISAM DEFAULT CHARSET=utf8")
+
+        # We insert the same character using two different encodings
+        cur.execute("set names utf8")
+        cur.execute("insert into tblutf (test_mode, test_utf, test_latin1) values ('utf8', _utf8'" + aumlaut_utf8 + "', _latin1'" + aumlaut_latin1 + "')")
+        
+        cur.execute("set names latin1")
+        cur.execute("insert into tblutf (test_mode, test_utf, test_latin1) values ('latin1', _utf8'" + aumlaut_utf8 + "', _latin1'" + aumlaut_latin1 + "')")
+
+        # We expect the driver to always give us unicode strings back
+        expected = [(u"utf8", aumlaut_unicode, aumlaut_unicode), (u"latin1", aumlaut_unicode, aumlaut_unicode)]
+
+        # Fetch and test with different charsets
+        for charset in ("latin1", "utf8", "cp1250"):
+            cur.execute("set names " + charset)
+            cur.execute("select test_mode, test_utf, test_latin1 from tblutf")
+            result = cur.fetchall()
+            self.assertEquals(result, expected)
+
+
+
 
 
 if __name__ == '__main__':
