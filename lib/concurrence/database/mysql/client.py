@@ -5,13 +5,58 @@
 
 #TODO supporting closing a halfread resultset (e.g. automatically read and discard rest)
 
-from concurrence import TimeoutError, TIMEOUT_CURRENT
+from concurrence import TimeoutError
 from concurrence.io import Buffer
 from concurrence.io.socket import Socket
 from concurrence.database.mysql import BufferedPacketReader, BufferedPacketWriter, PACKET_READ_RESULT, CAPS, COMMAND
 
 import logging
 import time
+
+
+# From query: SHOW COLLATION;
+charset_map = {}
+charset_map["big5"] = 1
+charset_map["dec8"] = 3
+charset_map["cp850"] = 4
+charset_map["hp8"] = 6
+charset_map["koi8r"] = 7
+charset_map["latin1"] = 8
+charset_map["latin1"] = 8
+charset_map["latin2"] = 9
+charset_map["swe7"] = 10
+charset_map["ascii"] = 11
+charset_map["ujis"] = 12
+charset_map["sjis"] = 13
+charset_map["hebrew"] = 16
+charset_map["tis620"] = 18
+charset_map["euckr"] = 19
+charset_map["koi8u"] = 22
+charset_map["gb2312"] = 24
+charset_map["greek"] = 25
+charset_map["cp1250"] = 26
+charset_map["gbk"] = 28
+charset_map["latin5"] = 30
+charset_map["armscii8"] = 32
+charset_map["utf8"] = 33
+charset_map["utf8"] = 33
+charset_map["ucs2"] = 35
+charset_map["cp866"] = 36
+charset_map["keybcs2"] = 37
+charset_map["macce"] = 38
+charset_map["macroman"] = 39
+charset_map["cp852"] = 40
+charset_map["latin7"] = 41
+charset_map["cp1251"] = 51
+charset_map["cp1256"] = 57
+charset_map["cp1257"] = 59
+charset_map["binary"] = 63
+charset_map["geostd8"] = 92
+charset_map["cp932"] = 95
+charset_map["eucjpms"] = 97
+
+
+
 
 try:
     #python 2.6
@@ -101,7 +146,7 @@ class Connection(object):
         #i love python :-):
         return ''.join(map(chr, [x ^ ord(stage1[i]) for i, x in enumerate(map(ord, md.digest()))]))
 
-    def _handshake(self, user, password, database):
+    def _handshake(self, user, password, database, charset):
         """performs the mysql login handshake"""
 
         #init buffer for reading (both pos and lim = 0)
@@ -140,21 +185,23 @@ class Connection(object):
         else:
             assert False, "<4.1 auth not supported"
 
-        client_caps = CAPS.LONG_FLAG | CAPS.PROTOCOL_41 | CAPS.SECURE_CONNECTION | CAPS.TRANSACTIONS
+        client_caps = server_caps
 
-        if database:
-            if not server_caps & CAPS.CONNECT_WITH_DB:
-                assert False, "initial db given but not supported by server"
-            else:
-                #tell the server that we will supply initial database
-                client_caps |= CAPS.CONNECT_WITH_DB
+        #always turn off compression
+        client_caps &= ~CAPS.COMPRESS
+        client_caps &= ~CAPS.NO_SCHEMA
+
+        if not server_caps & CAPS.CONNECT_WITH_DB and database:
+            assert False, "initial db given but not supported by server"
+        if server_caps & CAPS.CONNECT_WITH_DB and not database:
+            client_caps &= ~CAPS.CONNECT_WITH_DB
 
         #build and write our answer to the initial handshake packet
         self.writer.clear()
         self.writer.start()
         self.writer.write_int(client_caps)
         self.writer.write_int(1024 * 1024 * 32) #16mb max packet
-        self.writer.write_byte(server_language)
+        self.writer.write_byte(charset_map[charset.replace("-", "")])
         self.writer.write_bytes('\0' * 23) #filler
         self.writer.write_bytes(user + '\0')
 
@@ -165,7 +212,10 @@ class Connection(object):
             self.writer.write_byte(0)
 
         if database:
+            print "SETTING DATABASE", database
             self.writer.write_bytes(database + '\0')
+        else:
+            print "NO DATABASE SELECTION"
 
         self.writer.finish(1)
         self.writer.flush()
@@ -227,10 +277,10 @@ class Connection(object):
             assert self.state == self.STATE_INIT, "make sure connection is not already connected or closed"
 
             self.state = self.STATE_CONNECTING
-            self.socket = Socket.connect(addr, TIMEOUT_CURRENT)
+            self.socket = Socket.connect(addr, -2)
             self.reader = BufferedPacketReader(self.socket, self.buffer)
             self.writer = BufferedPacketWriter(self.socket, self.buffer)
-            self._handshake(user, passwd, db)
+            self._handshake(user, passwd, db, charset)
             #handshake complete client can now send commands
             self.state = self.STATE_CONNECTED
 

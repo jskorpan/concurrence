@@ -122,6 +122,100 @@ DATE_TYPES = set([FIELD_TYPE.TIMESTAMP, FIELD_TYPE.DATE, FIELD_TYPE.TIME, FIELD_
 # 0xf8 FIELD_TYPE_SET
 # 0xff FIELD_TYPE_GEOMETRY
 
+charset_nr = {}
+charset_nr[1] = 'big5'
+charset_nr[2] = 'latin2'
+charset_nr[3] = 'dec8'
+charset_nr[4] = 'cp850'
+charset_nr[5] = 'latin1'
+charset_nr[6] = 'hp8'
+charset_nr[7] = 'koi8r'
+charset_nr[8] = 'latin1'
+charset_nr[9] = 'latin2'
+charset_nr[10] = 'swe7'
+charset_nr[11] = 'ascii'
+charset_nr[12] = 'ujis'
+charset_nr[13] = 'sjis'
+charset_nr[14] = 'cp1251'
+charset_nr[15] = 'latin1'
+charset_nr[16] = 'hebrew'
+charset_nr[18] = 'tis620'
+charset_nr[19] = 'euckr'
+charset_nr[20] = 'latin7'
+charset_nr[21] = 'latin2'
+charset_nr[22] = 'koi8u'
+charset_nr[23] = 'cp1251'
+charset_nr[24] = 'gb2312'
+charset_nr[25] = 'greek'
+charset_nr[26] = 'cp1250'
+charset_nr[27] = 'latin2'
+charset_nr[28] = 'gbk'
+charset_nr[29] = 'cp1257'
+charset_nr[30] = 'latin5'
+charset_nr[31] = 'latin1'
+charset_nr[32] = 'armscii8'
+charset_nr[33] = 'utf8'
+charset_nr[34] = 'cp1250'
+charset_nr[35] = 'ucs2'
+charset_nr[36] = 'cp866'
+charset_nr[37] = 'keybcs2'
+charset_nr[38] = 'macce'
+charset_nr[39] = 'macroman'
+charset_nr[40] = 'cp852'
+charset_nr[41] = 'latin7'
+charset_nr[42] = 'latin7'
+charset_nr[43] = 'macce'
+charset_nr[44] = 'cp1250'
+charset_nr[47] = 'latin1'
+charset_nr[48] = 'latin1'
+charset_nr[49] = 'latin1'
+charset_nr[50] = 'cp1251'
+charset_nr[51] = 'cp1251'
+charset_nr[52] = 'cp1251'
+charset_nr[53] = 'macroman'
+charset_nr[57] = 'cp1256'
+charset_nr[58] = 'cp1257'
+charset_nr[59] = 'cp1257'
+charset_nr[63] = 'binary'
+charset_nr[64] = 'armscii8'
+charset_nr[65] = 'ascii'
+charset_nr[66] = 'cp1250'
+charset_nr[67] = 'cp1256'
+charset_nr[68] = 'cp866'
+charset_nr[69] = 'dec8'
+charset_nr[70] = 'greek'
+charset_nr[71] = 'hebrew'
+charset_nr[72] = 'hp8'
+charset_nr[73] = 'keybcs2'
+charset_nr[74] = 'koi8r'
+charset_nr[75] = 'koi8u'
+charset_nr[77] = 'latin2'
+charset_nr[78] = 'latin5'
+charset_nr[79] = 'latin7'
+charset_nr[80] = 'cp850'
+charset_nr[81] = 'cp852'
+charset_nr[82] = 'swe7'
+charset_nr[83] = 'utf8'
+charset_nr[84] = 'big5'
+charset_nr[85] = 'euckr'
+charset_nr[86] = 'gb2312'
+charset_nr[87] = 'gbk'
+charset_nr[88] = 'sjis'
+charset_nr[89] = 'tis620'
+charset_nr[90] = 'ucs2'
+charset_nr[91] = 'ujis'
+charset_nr[92] = 'geostd8'
+charset_nr[93] = 'geostd8'
+charset_nr[94] = 'latin1'
+charset_nr[95] = 'cp932'
+charset_nr[96] = 'cp932'
+charset_nr[97] = 'eucjpms'
+charset_nr[98] = 'eucjpms'
+charset_nr[99] = 'cp1250'
+for i in range(128, 192):
+    charset_nr[i] = 'ucs2'
+for i in range(192, 211):
+    charset_nr[i] = 'utf8'
 
 class PacketReadError(Exception):
     pass
@@ -352,9 +446,11 @@ cdef class PacketReader:
         name = packet._read_bytes(n)
         n = packet._read_byte()
         packet._skip(n) #org_name
-        packet._skip(1 + 2 + 4) #filler, charsetnr, length
+        packet._skip(1)
+        charsetnr = packet._read_bytes(2)
+        n = packet._skip(4)
         n = packet.read_byte() #type
-        return (name, n)
+        return (name, n, charsetnr)
         
     cdef _string_to_int(self, object s):
         if s == None:
@@ -439,8 +535,12 @@ cdef class PacketReader:
                         row[i] = self._string_to_int(self._read_bytes_length_coded())
                     elif t in string_types:
                         row[i] = self._read_bytes_length_coded()
-                        if decode:
-                            row[i] = row[i].decode(encoding)
+                        if row[i] is not None:
+                            bytes = fields[i][2]
+                            nr = ord(bytes[1]) << 8 | ord(bytes[0])
+                            print "DECODING AS", charset_nr[nr]
+                            row[i] = row[i].decode(charset_nr[nr])
+
                     elif t in float_types:
                         row[i] = self._string_to_float(self._read_bytes_length_coded())
                     elif t  == date_type:

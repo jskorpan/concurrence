@@ -130,7 +130,7 @@ class Cursor(object):
             
             #process result if nescecary
             if isinstance(result, client.ResultSet):
-                self.description = tuple(((name, type_code, None, None, None, None, None) for name, type_code in result.fields))
+                self.description = tuple(((name, type_code, None, None, None, None, None) for name, type_code, charsetnr in result.fields))
                 self.result = result
                 self.result_iter = iter(result)
                 self.lastrowid = None
