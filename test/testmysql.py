@@ -7,7 +7,7 @@ import logging
 from concurrence import dispatch, unittest, Tasklet
 from concurrence.database.mysql import client, dbapi, PacketReadError
 
-DB_HOST = 'localhost:6040'
+DB_HOST = 'localhost:3306'
 DB_USER = 'concurrence_test'
 DB_PASSWD = 'concurrence_test'
 DB_DB = 'concurrence_test'
@@ -457,6 +457,37 @@ class TestMySQL(unittest.TestCase):
         self.assertEquals(0xFFFFFFFFFFFFFFFFL, p.read_length_coded_binary())
         self.assertEquals(9, p.packet.limit)
         self.assertEquals(9, p.packet.position)
+
+
+    def testBigInt(self):
+        """Tests the behaviour of insert/select with bigint/long."""
+
+        BIGNUM = 112233445566778899
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'latin-1', use_unicode = True)
+
+        cur = cnn.cursor()
+
+        cur.execute("drop table if exists tblbigint")
+        cur.execute("create table tblbigint (test_id int(11) DEFAULT NULL, test_bigint bigint DEFAULT NULL, test_bigint2 bigint DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+        cur.execute("insert into tblbigint (test_id, test_bigint, test_bigint2) values (%s, " + str(BIGNUM) + ", %s)", (1, BIGNUM))
+        cur.execute(u"insert into tblbigint (test_id, test_bigint, test_bigint2) values (%s, " + str(BIGNUM) + ", %s)", (2, BIGNUM))
+
+
+        # Make sure both our inserts where correct (ie, the big number was not truncated/modified on insert)
+        cur.execute("select test_id from tblbigint where test_bigint = test_bigint2")
+        result = cur.fetchall()
+        self.assertEquals([(1, ), (2, )], result)
+
+
+        # Make sure select gets the right values (ie, the big number was not truncated/modified when retrieved)
+        cur.execute("select test_id, test_bigint, test_bigint2 from tblbigint where test_bigint = test_bigint2")
+        result = cur.fetchall()
+        self.assertEquals([(1, BIGNUM, BIGNUM), (2, BIGNUM, BIGNUM)], result)
+
+
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)
