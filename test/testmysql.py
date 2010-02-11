@@ -262,7 +262,9 @@ class TestMySQL(unittest.TestCase):
 
 
     def testSelectUnicode(self):
-        s = u"C�line"
+        s = u'r\xc3\xa4ksm\xc3\xb6rg\xc3\xa5s'
+
+        print repr(s)
 
         cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
                             passwd = DB_PASSWD, db = DB_DB,
@@ -279,7 +281,7 @@ class TestMySQL(unittest.TestCase):
 
         result = cur.fetchall()
 
-        self.assertEquals([(1, u'piet'), (2, u'C\xe9line'), (3, u'C\xe9line')], result)
+        self.assertEquals([(1, u'piet'), (2, s), (3, s)], result)
 
         #test that we can still cleanly roundtrip a blob, (it should not be encoded if we pass
         #it as 'str' argument), eventhough we pass the qry itself as unicode

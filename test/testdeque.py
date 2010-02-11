@@ -26,7 +26,7 @@ class TestDeque(unittest.TestCase):
         self.assertEquals(20, d.pop(True))
         e = time.time()
 
-        self.assertTrue((e - s) >= 1.0)
+        self.assertTrue((e - s) > 1.0)
         
     def testBlock2(self):
         d = Deque()
