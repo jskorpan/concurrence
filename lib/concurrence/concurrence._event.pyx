@@ -25,18 +25,39 @@ __version__ = '0.3'
 
 import collections
 
+# Added by JOTA
+import inspect
+
+
+debugLog = []
+
 cdef class __event
 cdef struct __list
 
 ctypedef void (*event_handler)(int fd, short event_type, void* arg)
 
+IF UNAME_SYSNAME == "Windows":
+    cdef extern from "winsock2.h":
+        struct timeval:
+            unsigned int tv_sec
+            unsigned int tv_usec
+
+    cdef extern from "win32.h":
+        void winsock_init()
+
+ELSE:
+    cdef extern from "event.h":
+        struct timeval:
+            unsigned int tv_sec
+            unsigned int tv_usec
+
 cdef extern from "string.h":
     char *strerror(int errno)
 
+cdef extern from "errno.h":
+    int errno
+
 cdef extern from "event.h":
-    struct timeval:
-        unsigned int tv_sec
-        unsigned int tv_usec
 
     struct event_t "event":
         int   ev_fd
@@ -82,7 +103,7 @@ cdef __list* tail
 head = NULL
 tail = NULL
 
-cdef void __event_handler(int fd, short flags, void* arg) nogil:
+cdef void __event_handler(int fd, short flags, void* arg):
     cdef __list *tmp
     cdef __list *trig
     trig = <__list*>arg
@@ -90,6 +111,7 @@ cdef void __event_handler(int fd, short flags, void* arg) nogil:
     trig.fd = fd
     global head
     global tail
+
     if head == NULL:
         trig.next = NULL
         head = trig
@@ -99,11 +121,15 @@ cdef void __event_handler(int fd, short flags, void* arg) nogil:
         tail.next = trig
         tail = trig
 
+
+
+
 cdef class __event:
     cdef public object data
 
     cdef event_t ev
     cdef __list trig
+    cdef public object deleted
 
     def __init__(self, object data):
         self.data = data
@@ -121,6 +147,7 @@ cdef class __event:
         if timeout >= 0.0:
             tv.tv_sec = <long>timeout
             tv.tv_usec = <long>((timeout - <float>tv.tv_sec) * 1000000.0)
+
             if event_add(&self.ev, &tv) == -1:
                 raise EventError("could not add event")
         else:
@@ -132,6 +159,10 @@ cdef class __event:
         return event_pending(&self.ev, event_type, NULL)
 
     def delete(self):
+        #NOTE: JOTA: Events seems to be deleted multiple times here, performance?
+
+        #debugLog.append ("Deleting event %s" % (inspect.stack()))
+
         if event_del(&self.ev) == -1:
             raise EventError("could not delete event")
 
@@ -179,5 +210,8 @@ def loop():
     return head != NULL
 
 #init libevent
+IF UNAME_SYSNAME == "Windows":
+    winsock_init()
+
 event_init()
 

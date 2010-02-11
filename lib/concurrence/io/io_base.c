@@ -1,5 +1,39 @@
 #include "io_base.h"
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <windows.h>
+#include <stdio.h>
+
+int sendfd(int dst_fd, int fd)
+{
+    fprintf (stdout, "%s: dst=%d, fd=%d\n", __FUNCTION__, dst_fd, fd);
+    return -1;
+}
+
+int recvfd(int src_fd)
+{
+    fprintf (stdout, "%s: src=%\n", __FUNCTION__, src_fd);
+    return -1;
+}
+
+int winsock_write (int sockfd, void *buffer, int len)
+{
+   int result = send ( (SOCKET) sockfd, buffer, len, 0);
+   //fprintf (stderr, "%s:[%08x] %p %08x %08x %08x\n", "write", sockfd, buffer, len, result, WSAGetLastError());
+   return result;
+}
+
+int winsock_read (int sockfd, void *buffer, int len)
+{
+    int result = recv ( (SOCKET) sockfd, buffer, len, 0);
+    //fprintf (stderr, "%s:[%08x] %p %08x %08x %08x\n", "read ", sockfd, buffer, len, result, WSAGetLastError ());
+    return result;
+}
+
+#else
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -62,4 +96,5 @@ int recvfd(int src_fd)
 	return file_descriptors[0];
 }
 
+#endif
 

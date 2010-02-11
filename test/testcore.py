@@ -125,6 +125,8 @@ class TestTasklet(unittest.TestCase):
 
     def testJoinChildren(self):
 
+        self.assertEquals(0, len(Tasklet.current().children()))
+
         def t():
             return 1
 
@@ -178,6 +180,7 @@ class TestTasklet(unittest.TestCase):
             ival_task.kill()
 
         #test immediate
+
         count = []
         ival_task = Tasklet.interval(1.0, ival, True)()
 

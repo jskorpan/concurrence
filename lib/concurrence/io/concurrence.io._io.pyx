@@ -6,9 +6,17 @@
 import types
 import sys
 
-cdef extern from "unistd.h":
-   int write(int, void *, int)
-   int read(int, void *, int) 
+IF UNAME_SYSNAME == "Windows":
+    cdef extern from "winsock2.h":
+        int WSAGetLastError()
+
+    cdef extern from "io_base.h":
+        int winsock_write (int, void *, int)
+        int winsock_read (int, void *, int)
+ELSE:
+    cdef extern from "unistd.h":
+        int write(int, void *, int)
+        int read(int, void *, int)
 
 cdef extern from "string.h":
     cdef void *memmove(void *, void *, int)
@@ -29,17 +37,28 @@ cdef extern from "Python.h":
 
 cdef extern from "pyerrors.h":    
     object PyErr_SetFromErrno(object)
+    object PyErr_SetExcFromWindowsErr(object, int)
     
 cdef extern from "io_base.h":
     int sendfd(int, int)
     int recvfd(int)
-    
+
 def error_from_errno(object exc):
-    return PyErr_SetFromErrno(exc)
+    IF UNAME_SYSNAME == "Windows":
+        return PyErr_SetExcFromWindowsErr (exc, WSAGetLastError())
+    ELSE:
+        return PyErr_SetFromErrno(exc)
 
 def get_errno():
     return errno
-    
+
+IF UNAME_SYSNAME == "Windows":
+    def get_socket_errno():
+        return WSAGetLastError()
+ELSE:
+    def get_socket_errno():
+        return errno
+
 class BufferError(Exception):
     pass
 
@@ -204,7 +223,11 @@ cdef class Buffer:
         The :attr:`position` of the buffer will be updated according to the number of bytes read.
         """
         cdef int b
-        b = read(fd, self._buff + self._position, self._limit - self._position)
+
+        IF UNAME_SYSNAME == "Windows":
+            b = winsock_read(fd, self._buff + self._position, self._limit - self._position)
+        ELSE:
+            b = read(fd, self._buff + self._position, self._limit - self._position)
         if b > 0: self._position = self._position + b
         return b, self._limit - self._position
 
@@ -213,8 +236,13 @@ cdef class Buffer:
         Returns a tuple (bytes_written, bytes_remaining). If *bytes_written* is negative, an IO Error was encountered.
         """
         cdef int b
-        b = write(fd, self._buff + self._position, self._limit - self._position)
-        if b > 0: self._position = self._position + b   
+
+        IF UNAME_SYSNAME == "Windows":
+            b = winsock_write(fd, self._buff + self._position, self._limit - self._position)
+        ELSE:
+            b = write(fd, self._buff + self._position, self._limit - self._position)
+
+        if b > 0: self._position = self._position + b
         return b, self._limit - self._position
         
     def compact(self):
@@ -442,6 +470,5 @@ def msgsendfd(dst_fd, fd):
 
 def msgrecvfd(src_fd):
     return recvfd(src_fd)
-
 
 

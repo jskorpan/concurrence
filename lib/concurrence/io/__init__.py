@@ -5,7 +5,7 @@
 
 
 from concurrence import TIMEOUT_CURRENT
-from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError, get_errno
+from _io import Buffer, BufferOverflowError, BufferUnderflowError, BufferInvalidArgumentError, get_errno, get_socket_errno
 
 class IOStream(object):
     """abstract class to indicate that something is a stream and capable

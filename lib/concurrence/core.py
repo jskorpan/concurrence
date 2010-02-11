@@ -451,7 +451,9 @@ class Tasklet(stackless.tasklet):
         def _interval(*args, **kwargs):
             if immediate: f(*args, **kwargs)
             while True:
+
                 cls.sleep(timeout)
+
                 try:
                     f(*args, **kwargs)
                 except TaskletExit:
@@ -513,6 +515,7 @@ class Tasklet(stackless.tasklet):
     def sleep(cls, timeout):
         """Blocks the current task for the given *timeout* in seconds."""
         sleep_channel = Channel()
+
         try:
             sleep_channel.receive(timeout)
         except TimeoutError:
@@ -802,6 +805,7 @@ def _dispatch(f = None):
             #from libevent. that would add c-data on the stack which would
             #make stackless need to use hard-switching, which is slow.
             #so we call 'loop' which blocks until something available.
+
             try:
                 _event.loop()
             except TaskletExit:
@@ -813,6 +817,7 @@ def _dispatch(f = None):
             #call the callback which is available as the 'data' object of the event
             #some callbacks may trigger direct action (for instance timeouts, signals)
             #others might resume a waiting task (socket io).
+
             while _event.has_next():
                 try:
                     e, event_type, fd = _event.next()

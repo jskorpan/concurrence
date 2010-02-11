@@ -8,7 +8,7 @@ import _socket
 import types
 import os
 
-from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR, EISCONN, ENOENT, EAGAIN
+from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR, EISCONN, ENOENT, EAGAIN, WSAEWOULDBLOCK
 
 import _io
 
@@ -67,7 +67,7 @@ class Socket(IOStream):
         if _interceptor is not None:
             return _interceptor(addr)
         elif type(addr) == types.StringType:
-            return cls(_socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM))
+            return cls(_socket.socket(_socket.AF_INET, _socket.SOCK_STREAM))
         else:
             return cls(_socket.socket(_socket.AF_INET, _socket.SOCK_STREAM))
 
@@ -92,7 +92,7 @@ class Socket(IOStream):
         return socket
 
     @classmethod
-    def from_file_descriptor(cls, fd, socket_family = _socket.AF_UNIX, socket_type = _socket.SOCK_STREAM, socket_state = STATE_INIT):
+    def from_file_descriptor(cls, fd, socket_family = _socket.AF_INET, socket_type = _socket.SOCK_STREAM, socket_state = STATE_INIT):
         return cls(_socket.fromfd(fd, socket_family, socket_type), socket_state)
 
     def _get_readable(self):
@@ -172,9 +172,9 @@ class Socket(IOStream):
             raise
         if err == 0 and serr == 0:
             self.state = self.STATE_CONNECTED
-        elif err == EINPROGRESS and serr != 0:
+        elif err in (WSAEWOULDBLOCK, EINPROGRESS) and serr != 0:
             raise IOError(serr, os.strerror(serr))
-        elif err == EINPROGRESS and serr == 0:
+        elif err in (WSAEWOULDBLOCK, EINPROGRESS) and serr == 0:
             self.state = self.STATE_CONNECTING
             try:
                 self.writable.wait(timeout = timeout)
@@ -200,7 +200,7 @@ class Socket(IOStream):
         #by default assume that we can write to the socket without blocking
         if assume_writable:
             bytes_written, _ = buffer.send(self.fd) #write to fd from buffer
-            if bytes_written < 0 and _io.get_errno() == EAGAIN:
+            if bytes_written < 0 and _io.get_socket_errno() in [EAGAIN, WSAEWOULDBLOCK]:
                 #nope, need to wait before sending our data
                 assume_writable = False
             #else if error != EAGAIN, assume_writable will stay True, and we fall trough and raise error below
@@ -228,7 +228,7 @@ class Socket(IOStream):
         #by default assume that we can read from the socket without blocking
         if assume_readable:
             bytes_read, _ = buffer.recv(self.fd) #read from fd to
-            if bytes_read < 0 and _io.get_errno() == EAGAIN:
+            if bytes_read < 0 and _io.get_socket_errno() in [EAGAIN, WSAEWOULDBLOCK]:
                 #nope, need to wait before reading our data
                 assume_readable = False
             #else if error != EAGAIN, assume_readable will stay True, and we fall trough and raise error below

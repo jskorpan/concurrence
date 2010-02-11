@@ -11,7 +11,7 @@ DB_USER = 'concurrence_test'
 DB_PASSWD = 'concurrence_test'
 DB_DB = 'concurrence_test'
 
-DB_ARGS = {'host': DB_HOST, 'user': DB_USER, 'passwd': DB_PASSWD, 'db': DB_DB}
+DB_ARGS = {'host': DB_HOST, 'user': DB_USER, 'passwd': DB_PASSWD, 'db': DB_DB, 'port' : 6040}
 
 class TestPool(unittest.TestCase):
 

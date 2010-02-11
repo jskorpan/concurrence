@@ -7,7 +7,7 @@ import logging
 from concurrence import dispatch, unittest, Tasklet
 from concurrence.database.mysql import client, dbapi, PacketReadError
 
-DB_HOST = 'localhost'
+DB_HOST = 'localhost:6040'
 DB_USER = 'concurrence_test'
 DB_PASSWD = 'concurrence_test'
 DB_DB = 'concurrence_test'
@@ -262,7 +262,7 @@ class TestMySQL(unittest.TestCase):
 
 
     def testSelectUnicode(self):
-        s = u"Céline"
+        s = u"Cï¿½line"
 
         cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
                             passwd = DB_PASSWD, db = DB_DB,
