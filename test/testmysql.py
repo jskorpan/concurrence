@@ -511,11 +511,37 @@ class TestMySQL(unittest.TestCase):
         result = cur.fetchall()
         self.assertEquals([(1, )], result)
 
-        # Make sure select gets the right value back 
+        # Make sure select gets the right value back
         cur.execute("select test_id, test_date, test_date2 from tbldate where test_date = test_date2")
         result = cur.fetchall()
         self.assertEquals([(1, d_date, d_date)], result)
 
+    def testDateTime(self):
+        """Tests the behaviour of insert/select with mysql/DATETIME <-> python/datetime.datetime"""
+
+        d_date = datetime.datetime(2010, 02, 11, 13, 37, 42)
+        d_string = "2010-02-11 13:37:42"
+
+        cnn = dbapi.connect(host = DB_HOST, user = DB_USER,
+                            passwd = DB_PASSWD, db = DB_DB,
+                            charset = 'latin-1', use_unicode = True)
+
+        cur = cnn.cursor()
+
+        cur.execute("drop table if exists tbldate")
+        cur.execute("create table tbldate (test_id int(11) DEFAULT NULL, test_date datetime DEFAULT NULL, test_date2 datetime DEFAULT NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1")
+
+        cur.execute("insert into tbldate (test_id, test_date, test_date2) values (%s, '" + d_string + "', %s)", (1, d_date))
+
+        # Make sure our insert was correct
+        cur.execute("select test_id from tbldate where test_date = test_date2")
+        result = cur.fetchall()
+        self.assertEquals([(1, )], result)
+
+        # Make sure select gets the right value back
+        cur.execute("select test_id, test_date, test_date2 from tbldate where test_date = test_date2")
+        result = cur.fetchall()
+        self.assertEquals([(1, d_date, d_date)], result)
 
 if __name__ == '__main__':
     unittest.main(timeout = 60)
