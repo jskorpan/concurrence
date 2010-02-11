@@ -3,15 +3,20 @@ from __future__ import with_statement
 import os
 import time
 import logging
+import subprocess
 
 from concurrence import unittest, Tasklet, Channel, Timeout
 from concurrence.memcache import MemcacheResult, Memcache, MemcacheProtocol, MemcacheConnection, MemcacheConnectionManager, MemcacheError, MemcacheBehaviour, MemcacheCodec
 
 MEMCACHE_IP = '127.0.0.1'
 
+
+# NOTE: For Win32, download 1.4.4 build and set MEMCACHEDPATH to point to your memcached.exe "c:\foo\memcached.exe"
+
 MEMCACHED_PATHS = ['/opt/memcached/bin/memcached',
                    '/usr/bin/memcached',
-                   '/opt/local/bin/memcached']
+                   '/opt/local/bin/memcached',
+                   os.environ["MEMCACHEDPATH"]]
 
 MEMCACHED_BIN = None
 for path in MEMCACHED_PATHS:
@@ -26,23 +31,38 @@ TEST_EXT = True
 
 class TestMemcache(unittest.TestCase):
     log = logging.getLogger("TestMemcache")
+    proc = []
 
     def setUp(self):
         self.log.debug("using memcached daemon: %s", MEMCACHED_BIN)
 
         for i in range(4):
-            cmd = '%s -m 10 -p %d -u nobody -l 127.0.0.1&' % (MEMCACHED_BIN, 11211 + i)
+            cmd = '%s -m 10 -p %d -u nobody -l 127.0.0.1' % (MEMCACHED_BIN, 11211 + i)
             self.log.debug(cmd)
-            os.system(cmd)
+
+            p = subprocess.Popen(cmd)
+
+            self.proc.append(p)
+
+            #print "cmd %s" % cmd
+            #os.system(cmd)
 
         Tasklet.sleep(1.0) #should be enough for memcached to get up and running
 
     def tearDown(self):
         MemcacheConnectionManager.create("default").close_all()
 
-        cmd = 'killall %s' % MEMCACHED_BIN
-        self.log.debug(cmd)
-        os.system(cmd)
+        for p in self.proc:
+            try:
+                p.terminate()
+            except WindowsError:
+                pass
+
+        self.proc = []   
+
+        #cmd = 'killall %s' % MEMCACHED_BIN
+        #self.log.debug(cmd)
+        #os.system(cmd)
 
         Tasklet.sleep(1.0) #should be enough for memcached to go down
 
