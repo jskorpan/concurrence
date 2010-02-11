@@ -8,7 +8,7 @@ import _socket
 import types
 import os
 
-from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR, EISCONN, ENOENT, EAGAIN, WSAEWOULDBLOCK
+from errno import EALREADY, EINPROGRESS, EWOULDBLOCK, ECONNRESET, ENOTCONN, ESHUTDOWN, EINTR, EISCONN, ENOENT, EAGAIN, WSAEWOULDBLOCK, WSAECONNABORTED
 
 import _io
 
@@ -228,10 +228,15 @@ class Socket(IOStream):
         #by default assume that we can read from the socket without blocking
         if assume_readable:
             bytes_read, _ = buffer.recv(self.fd) #read from fd to
-            if bytes_read < 0 and _io.get_socket_errno() in [EAGAIN, WSAEWOULDBLOCK]:
-                #nope, need to wait before reading our data
-                assume_readable = False
-            #else if error != EAGAIN, assume_readable will stay True, and we fall trough and raise error below
+            if bytes_read < 0:
+                errno = _io.get_socket_errno()
+
+                if errno in [EAGAIN, WSAEWOULDBLOCK]:
+                    #nope, need to wait before reading our data
+                    assume_readable = False
+                elif errno == WSAECONNABORTED:
+                    # This seems to be Windows way of reporting "connection reset by peer" on a localhost socket                         
+                    return 0;
 
         #if we cannot assume readability we will wait until data can be read again
         if not assume_readable:
