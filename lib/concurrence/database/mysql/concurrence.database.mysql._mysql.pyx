@@ -368,7 +368,7 @@ cdef class PacketReader:
         else:
             return float(s)
 
-    cdef _read_date(self):
+    cdef _read_datestring(self):
         cdef unsigned int n
         cdef Buffer packet
 
@@ -378,19 +378,40 @@ cdef class PacketReader:
         packet._position = packet._position + 1
         s = PyString_FromStringAndSize(<char *>(packet._buff + packet._position), n)
         packet._position = packet._position + n
+        return s
 
+
+    cdef _datestring_to_date(self, object s):
+        if not s or s == "0000-00-00":
+            return None
 
         parts = s.split("-")
         try:
             assert len(parts) == 3
             d = datetime.date(*map(int, parts))
         except (AssertionError, ValueError):
-            raise Exception("Unhandled date format: %r" % (s, ))
+            raise ValueError("Unhandled date format: %r" % (s, ))
         
         return d
 
+    cdef _datestring_to_datetime(self, object s):
+        if not s:
+            return None
+            
+        datestring, timestring = s.split(" ")
 
+        _date = self._datestring_to_date(datestring)
+        if _date is None:
+            return None
 
+        parts = timestring.split(":")
+        try:
+            assert len(parts) == 3
+            d = datetime.datetime(_date.year, _date.month, _date.day, *map(int, parts))
+        except (AssertionError, ValueError):
+            raise ValueError("Unhandled datetime format: %r" % (s, ))
+
+        return d
     cdef int _read_row(self, object row, object fields, int field_count) except PACKET_READ_ERROR:
         cdef int i, r
         cdef int decode
@@ -411,6 +432,7 @@ cdef class PacketReader:
                 float_types = FLOAT_TYPES
                 string_types = STRING_TYPES
                 date_type = FIELD_TYPE.DATE
+                datetime_type = FIELD_TYPE.DATETIME
                 while i < field_count:
                     t = fields[i][1] #type_code
                     if t in int_types:
@@ -422,7 +444,9 @@ cdef class PacketReader:
                     elif t in float_types:
                         row[i] = self._string_to_float(self._read_bytes_length_coded())
                     elif t  == date_type:
-                        row[i] = self._read_date()
+                        row[i] = self._datestring_to_date(self._read_datestring())
+                    elif t  == datetime_type:
+                        row[i] = self._datestring_to_datetime(self._read_datestring())
                     else:
                         row[i] = self._read_bytes_length_coded()
                     i = i + 1
