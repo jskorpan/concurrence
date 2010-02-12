@@ -37,27 +37,27 @@ class TestMySQL(unittest.TestCase):
         rs.close()
         cnn.close()
 
-    def testFetchUnicode(self):
-        cnn = client.connect(host = DB_HOST, user = DB_USER,
-                             passwd = DB_PASSWD, db = DB_DB)
-
-        cnn.query("truncate tbltest")
-
-        for i in range(10):
-            self.assertEquals((1, 0), cnn.query("insert into tbltest (test_id, test_string) values (%d, 'test%d')" % (i, i)))
-
-        rs = cnn.query("select test_string from tbltest where test_id = 1")
-        s = list(rs)[0][0]
-        self.assertTrue(type(s) == str)
-        rs.close()
-
-        cnn.set_charset('latin1')
-        rs = cnn.query("select test_string from tbltest where test_id = 1")
-        s = list(rs)[0][0]
-        self.assertTrue(type(s) == unicode)
-        rs.close()
-
-        cnn.close()
+#    def testFetchUnicode(self):
+#        cnn = client.connect(host = DB_HOST, user = DB_USER,
+#                             passwd = DB_PASSWD, db = DB_DB)
+#
+#        cnn.query("truncate tbltest")
+#
+#        for i in range(10):
+#            self.assertEquals((1, 0), cnn.query("insert into tbltest (test_id, test_string) values (%d, 'test%d')" % (i, i)))
+#
+#        rs = cnn.query("select test_string from tbltest where test_id = 1")
+#        s = list(rs)[0][0]
+#        self.assertTrue(type(s) == str)
+#        rs.close()
+#
+#        cnn.set_charset('latin1')
+#        rs = cnn.query("select test_string from tbltest where test_id = 1")
+#        s = list(rs)[0][0]
+#        self.assertTrue(type(s) == unicode)
+#        rs.close()
+#
+#        cnn.close()
 
 
     def testMySQLClient2(self):
