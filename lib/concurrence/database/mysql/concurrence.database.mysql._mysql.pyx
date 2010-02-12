@@ -537,10 +537,12 @@ cdef class PacketReader:
                         row[i] = self._string_to_int(self._read_bytes_length_coded())
                     elif t in string_types:
                         row[i] = self._read_bytes_length_coded()
-                        if row[i] is not None and self.use_unicode:
+                        if row[i] is not None and (self.encoding or self.use_unicode):
                             bytes = fields[i][2]
                             nr = ord(bytes[1]) << 8 | ord(bytes[0])
                             row[i] = row[i].decode(charset_nr[nr])
+                            if not self.use_unicode:
+                                row[i] = row[i].encode(self.encoding)
 
                     elif t in float_types:
                         row[i] = self._string_to_float(self._read_bytes_length_coded())

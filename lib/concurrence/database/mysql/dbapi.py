@@ -193,7 +193,7 @@ class Connection(object):
             if 'use_unicode' in self.kwargs and self.kwargs['use_unicode'] == True:
                 pass #charset stays in args, and triggers unicode output in low-level client
             else:
-                del self.kwargs['charset']  
+                del self.kwargs['charset']
         else:
             self.charset = default_charset
 
