@@ -201,7 +201,10 @@ class Connection(object):
         self.writer.start()
         self.writer.write_int(client_caps)
         self.writer.write_int(1024 * 1024 * 32) #16mb max packet
-        self.writer.write_byte(charset_map[charset.replace("-", "")])
+        if charset:
+            self.writer.write_byte(charset_map[charset.replace("-", "")])
+        else:
+            self.writer.write_byte(server_language)
         self.writer.write_bytes('\0' * 23) #filler
         self.writer.write_bytes(user + '\0')
 
@@ -258,7 +261,7 @@ class Connection(object):
             self.state = self.STATE_ERROR
             raise
 
-    def connect(self, host = "localhost", port = 3306, user = "", passwd = "", db = "", autocommit = None, charset = None):
+    def connect(self, host = "localhost", port = 3306, user = "", passwd = "", db = "", autocommit = None, charset = None, use_unicode=False):
         """connects to the given host and port with user and passwd"""
         #self.log.debug("connect mysql client %s %s %s %s %s", id(self), host, port, user, passwd)
         try:
@@ -293,6 +296,8 @@ class Connection(object):
 
             if charset is not None:
                 self.set_charset(charset)
+
+            self.set_use_unicode(use_unicode)
 
             return self
         except TimeoutError:
@@ -370,6 +375,9 @@ class Connection(object):
     def set_charset(self, charset):
         """Sets the charset for this connections (used to decode string fields into unicode strings)"""
         self.reader.reader.encoding = charset
+
+    def set_use_unicode(self, use_unicode):
+        self.reader.reader.use_unicode = use_unicode
 
     def set_time_command(self, time_command):
         self._time_command = time_command

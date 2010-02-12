@@ -232,6 +232,7 @@ cdef class PacketReader:
     cdef readonly int end
     
     cdef public object encoding
+    cdef public object use_unicode
     
     cdef readonly Buffer buffer #the current read buffer
     cdef readonly Buffer packet #the current packet (could be normal or oversize packet):
@@ -242,6 +243,7 @@ cdef class PacketReader:
     def __init__(self, Buffer buffer):
         self.oversize = 0
         self.encoding = None
+        self.use_unicode = False
         self.buffer = buffer
 
         self.normal_packet = buffer.duplicate()
@@ -535,10 +537,9 @@ cdef class PacketReader:
                         row[i] = self._string_to_int(self._read_bytes_length_coded())
                     elif t in string_types:
                         row[i] = self._read_bytes_length_coded()
-                        if row[i] is not None:
+                        if row[i] is not None and self.use_unicode:
                             bytes = fields[i][2]
                             nr = ord(bytes[1]) << 8 | ord(bytes[0])
-                            print "DECODING AS", charset_nr[nr]
                             row[i] = row[i].decode(charset_nr[nr])
 
                     elif t in float_types:
