@@ -171,12 +171,13 @@ class WSGIRequest(object):
     def read_request_data(self):
         self.environ['wsgi.input']._read_request_data()
 
-    def read_request(self, reader):
+    def read_request(self, stream):
         with Timeout.push(self._server.read_timeout):
-            self._read_request(reader)
+            self._read_request(stream)
 
-    def _read_request(self, reader):
+    def _read_request(self, stream):
 
+        reader = stream.reader
         self.state = self.STATE_WAIT_FOR_REQUEST
         
         #setup readline iterator        
@@ -198,6 +199,8 @@ class WSGIRequest(object):
         self.uri = line[1]
 
         #build up the WSGI environment
+        ip, port = stream._stream.socket.getpeername()
+        self.environ['REMOTE_ADDR'] = ip
         self.environ['REQUEST_METHOD'] = line[0]
         self.environ['SCRIPT_NAME'] = '' #TODO
         self.environ['PATH_INFO'] = u[2]
@@ -280,8 +283,9 @@ class HTTPHandler(object):
     def read_requests(self, control, stream):
         try:
             while True:
+
                 request = WSGIRequest(self._server)
-                request.read_request(stream.reader)                
+                request.read_request(stream)                
                 self.MSG_REQUEST_READ.send(control)(request, None)
                 request.read_request_data()
         except EOFError, e:
